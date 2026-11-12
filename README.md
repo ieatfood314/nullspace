@@ -40,7 +40,9 @@ get home, take the bins out" becomes a task with a timed or place reminder.
   OpenAI-compatible API. It's set up for OpenRouter's free models. With no
   key, or once the free quota runs out, a plain built-in parser files it
   instead.
-- **Address search** goes through the hub to OpenStreetMap's Nominatim.
+- **Address search** goes through the hub to OpenStreetMap's Nominatim,
+  with a search area around your rough location (rounded to about 1 km) so
+  nearby places come first.
 
 ## Mobile data
 
