@@ -70,9 +70,19 @@ async function sync(wait = 0) {
   if (again) { again = false; return sync(); }
 }
 
+let hubSeq = 0;
+const hubWait = {};
+window.uplinkHubDone = (id, raw) => { const f = hubWait[id]; delete hubWait[id]; if (f) f(raw); };
+
 async function hub(path, method = "GET", body) {
   if (N) {
-    const res = JSON.parse(N.hub(path, method, body ? JSON.stringify(body) : ""));
+    // Asynchronous, so a slow answer doesn't freeze the page.
+    const raw = N.hubAsync ? await new Promise((done) => {
+      const id = String(++hubSeq);
+      hubWait[id] = done;
+      N.hubAsync(id, path, method, body ? JSON.stringify(body) : "");
+    }) : N.hub(path, method, body ? JSON.stringify(body) : "");
+    const res = JSON.parse(raw);
     if (res && res.error) throw new Error(res.error);
     return res;
   }
@@ -278,7 +288,7 @@ function renderPlaces(view) {
     const n = uses(p), set = p.data.lat != null;
     return `<div class="place" data-place="${esc(p.uid)}"><div class="body"><div>${esc(p.data.name)}</div>
       <div class="meta"><span class="${set ? "" : "alert"}">${set ? esc(p.data.address || "Set") : "Not set"}</span>${n ? `<span>${n} reminder${n > 1 ? "s" : ""}</span>` : ""}</div></div></div>`;
-  }).join("") + `<button class="more" data-act="new-place">New place</button>`;
+  }).join("") + `<button class="btn wide add-place" data-act="new-place">New place</button>`;
 }
 
 /* ---- sheets ---- */
@@ -303,6 +313,8 @@ sheet.addEventListener("click", (e) => {
   b.parentElement.dispatchEvent(new Event("change", { bubbles: true }));
 });
 
+function grow(t) { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }
+
 function toLocalInput(ts) { const d = new Date(ts * 1000); return `${ymd(d)}T${hm(d)}`; }
 
 function editItem(id) {
@@ -314,22 +326,24 @@ function editItem(id) {
   const dueDate = d.due ? d.due.slice(0, 10) : "", dueTime = d.due && d.due.length > 10 ? d.due.slice(11, 16) : "";
   const cap = d.capture && get("capture", d.capture);
   openSheet(`
-    <textarea class="big" name="title" rows="2" aria-label="Title">${esc(d.title)}</textarea>
+    <textarea class="big" name="title" rows="1" aria-label="Title">${esc(d.title)}</textarea>
     <textarea class="notes" name="notes" placeholder="Notes" aria-label="Notes">${esc(d.notes || "")}</textarea>
     <div class="field"><span>Kind</span>${seg("type", [["task", "Task"], ["note", "Note"]], isNote ? "note" : "task")}</div>
     <div class="tonly" ${isNote ? "hidden" : ""}>
-      <div style="display:grid;gap:14px">
+      <div class="fields">
       <div class="field"><span>List</span><select name="list">${ls.map((l) => `<option value="${esc(l.uid)}" ${l.uid === d.list ? "selected" : ""}>${esc(l.data.name)}</option>`).join("")}</select></div>
-      <div class="field"><span>Due</span><div class="pair"><input type="date" name="due" value="${dueDate}"><input type="time" name="duetime" value="${dueTime}" aria-label="Due time"></div></div>
-      <div class="field"><span>Remind</span><div class="pair"><input type="datetime-local" name="remind" value="${d.remind_at ? toLocalInput(d.remind_at) : ""}"></div></div>
-      <div class="field"><span>Place</span><div class="pair"><select name="place"><option value="">None</option>${ps.map((p) => `<option value="${esc(p.uid)}" ${p.uid === d.place ? "selected" : ""}>${esc(p.data.name)}</option>`).join("")}</select>
-        <span class="on-seg" ${d.place ? "" : "hidden"}>${seg("place_on", [["arrive", "Arrive"], ["leave", "Leave"]], d.place_on || "arrive")}</span></div></div>
+      <div class="field"><span>Due</span><div class="pair two"><input type="date" name="due" value="${dueDate}"><input type="time" name="duetime" value="${dueTime}" aria-label="Due time"></div></div>
+      <div class="field"><span>Remind</span><input type="datetime-local" name="remind" value="${d.remind_at ? toLocalInput(d.remind_at) : ""}"></div>
+      <div class="field"><span>Place</span><div class="stack"><select name="place"><option value="">None</option>${ps.map((p) => `<option value="${esc(p.uid)}" ${p.uid === d.place ? "selected" : ""}>${esc(p.data.name)}</option>`).join("")}</select>
+        <div class="on-seg" ${d.place ? "" : "hidden"}>${seg("place_on", [["arrive", "Arrive"], ["leave", "Leave"]], d.place_on || "arrive")}</div></div></div>
       <div class="field"><span>Priority</span>${seg("priority", [[0, "None"], [1, "Low"], [2, "Mid"], [3, "High"]], d.priority || 0)}</div>
       </div>
     </div>
     ${cap ? `<button type="button" class="x" data-act="to-capture" style="text-align:left">From a ${esc((CAP_WORD[cap.data.type] || "capture").toLowerCase())}, ${esc(whenText(cap.data.created_at || 0))}</button>` : ""}
     <div class="actions"><button type="button" class="btn danger" data-act="delete">Delete</button>
       <button type="submit" class="btn primary" value="save">Save</button></div>`, (f) => {
+    grow(f.title);
+    f.title.addEventListener("input", () => grow(f.title));
     f.querySelector('[data-seg="type"]').addEventListener("change", () => { f.querySelector(".tonly").hidden = segValue(f, "type") === "note"; });
     f.place.addEventListener("change", () => { f.querySelector(".on-seg").hidden = !f.place.value; });
     f.querySelector('[data-act="delete"]').onclick = () => { put("item", id, d, true); sheet.close(); toast("Deleted"); };
@@ -379,20 +393,39 @@ function editList(id) {
   });
 }
 
+/* A rough location for address search: asked once, kept for 10 minutes, never blocking for long. */
+let nearP = null;
+function nearHere() {
+  if (!nearP) nearP = new Promise((res) => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition((p) => res([p.coords.latitude, p.coords.longitude]), () => res(null),
+      { enableHighAccuracy: false, maximumAge: 600000, timeout: 6000 });
+  }).then((pt) => { if (!pt) setTimeout(() => { nearP = null; }, 30000); return pt; });
+  return nearP;
+}
+
+function km(n) { return n == null ? "" : n < 1 ? `${Math.round(n * 1000)} m` : `${n < 10 ? n.toFixed(1) : Math.round(n)} km`; }
+
 function editPlace(id) {
   const p = id ? get("place", id) : null;
   const d = p ? { ...p.data } : { name: "", radius: 150 };
   const where = () => d.lat != null ? (d.address || `${d.lat.toFixed(5)}, ${d.lon.toFixed(5)}`) : "Not set";
   openSheet(`
-    <input type="text" name="name" placeholder="Name, like Home" value="${esc(d.name)}" aria-label="Place name" required>
-    <div class="field"><span>Where</span><span class="where" style="color:var(--fg)">${esc(where())}</span></div>
-    <button type="button" class="btn" data-act="here">Use where I am</button>
-    <input type="search" name="q" placeholder="Search an address" aria-label="Search an address">
-    <div class="results"></div>
-    <div class="field"><span>Radius</span><div class="pair">${seg("radius", [[100, "100 m"], [150, "150 m"], [300, "300 m"], [600, "600 m"]], d.radius || 150)}</div></div>
+    <input type="text" class="big" name="name" placeholder="Name, like Home" value="${esc(d.name)}" aria-label="Place name" required>
+    <div class="fields">
+      <div class="field"><span>Where</span><span class="where ${d.lat != null ? "" : "unset"}">${esc(where())}</span></div>
+      <div class="field"><span></span><div class="stack">
+        <input type="search" name="q" placeholder="Search an address" aria-label="Search an address" enterkeyhint="search">
+        <div class="results"></div>
+        <button type="button" class="btn wide" data-act="here">Use where I am</button>
+      </div></div>
+      <div class="field"><span>Radius</span>${seg("radius", [[100, "100 m"], [150, "150 m"], [300, "300 m"], [600, "600 m"]], d.radius || 150)}</div>
+    </div>
     <div class="actions">${p ? `<button type="button" class="btn danger" data-act="delete">Delete</button>` : "<span></span>"}
       <button type="submit" class="btn primary">Save</button></div>`, (f) => {
-    const show = () => { f.querySelector(".where").textContent = where(); };
+    if (!d.name) f.name.focus();
+    const show = () => { const w = f.querySelector(".where"); w.textContent = where(); w.classList.toggle("unset", d.lat == null); };
+    const out = f.querySelector(".results");
     f.querySelector('[data-act="here"]').onclick = (e) => {
       const b = e.currentTarget;
       b.textContent = "Finding you";
@@ -402,22 +435,28 @@ function editPlace(id) {
         b.textContent = "Use where I am"; show();
       }, (err) => { b.textContent = err.code === 1 ? "Allow location first" : "Couldn't find you"; }, { enableHighAccuracy: true, timeout: 20000 });
     };
-    let t = 0;
+    let t = 0, seq = 0;
+    nearHere();
+    f.q.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); f.q.dispatchEvent(new Event("input")); } });
     f.q.addEventListener("input", () => {
       clearTimeout(t);
       const q = f.q.value.trim();
-      if (q.length < 4) { f.querySelector(".results").innerHTML = ""; return; }
+      if (q.length < 3) { out.innerHTML = ""; return; }
       t = setTimeout(async () => {
+        const mine = ++seq;
+        out.innerHTML = `<p class="x">Searching</p>`;
+        const pt = await nearHere();
         try {
-          const res = await hub("api/geocode?q=" + encodeURIComponent(q));
-          f.querySelector(".results").innerHTML = res.map((r, i) => `<button type="button" data-i="${i}">${esc(r.name)}</button>`).join("") || `<p class="x">No match</p>`;
-          for (const b of f.querySelectorAll(".results button")) b.onclick = () => {
+          const res = await hub("api/geocode?q=" + encodeURIComponent(q) + (pt ? `&lat=${pt[0].toFixed(2)}&lon=${pt[1].toFixed(2)}` : ""));
+          if (mine !== seq) return;
+          out.innerHTML = res.map((r, i) => `<button type="button" data-i="${i}"><span>${esc(r.name)}</span><span class="km">${km(r.km)}</span></button>`).join("") || `<p class="x">No match. Try the street and town</p>`;
+          for (const b of out.querySelectorAll("button")) b.onclick = () => {
             const r = res[Number(b.dataset.i)];
-            d.lat = r.lat; d.lon = r.lon; d.address = r.name.split(",").slice(0, 3).join(",");
-            f.querySelector(".results").innerHTML = ""; f.q.value = ""; show();
+            d.lat = r.lat; d.lon = r.lon; d.address = r.name;
+            out.innerHTML = ""; f.q.value = ""; show();
           };
-        } catch (e) { f.querySelector(".results").innerHTML = `<p class="x">Search needs the hub</p>`; }
-      }, 500);
+        } catch (e) { if (mine === seq) out.innerHTML = `<p class="x">Search needs the hub</p>`; }
+      }, 700);
     });
     const del = f.querySelector('[data-act="delete"]');
     if (del) del.onclick = () => { put("place", id, d, true); sheet.close(); };

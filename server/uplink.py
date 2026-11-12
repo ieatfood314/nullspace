@@ -22,6 +22,7 @@ import fcntl
 import gzip
 import hashlib
 import json
+import math
 import mimetypes
 import os
 import re
@@ -43,6 +44,12 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = ROOT / "web"
 KINDS = ("list", "item", "place", "capture")
 MAX_BODY = 12 * 1024 * 1024  # screenshots are the big ones
+def haversine_km(lat1, lon1, lat2, lon2):
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lon2 - lon1) / 2) ** 2
+    return 12742 * math.asin(math.sqrt(min(1, a)))
+
+
 def _local_tz():
     name = os.environ.get("UPLINK_TZ") or os.environ.get("TZ", "").lstrip(":")
     if not name:
@@ -1060,7 +1067,7 @@ def make_handler(app):
                 if p == "/api/status":
                     return self.send(200, app.status())
                 if p == "/api/geocode":
-                    return self.send(200, app.geocode((q.get("q") or [""])[0]))
+                    return self.send(200, app.geocode((q.get("q") or [""])[0], (q.get("lat") or [None])[0], (q.get("lon") or [None])[0]))
                 if p.startswith("/api/shot/") and m in ("POST", "PUT"):
                     return self.send(200, app.save_shot(p.rsplit("/", 1)[1], self.body()))
                 if p.startswith("/api/reprocess/") and m == "POST":
@@ -1119,6 +1126,7 @@ class App:
         ign = os.environ.get("UPLINK_IGNITION_URL")
         self.ignition = Ignition(self.s, self.m, ign) if ign else None
         self.kick = threading.Event()
+        self.geo_cache, self.geo_lock, self.geo_last = {}, threading.Lock(), 0.0
         self.devices = self.s.get("devices", {})
 
     # sync
@@ -1196,19 +1204,101 @@ class App:
         f = self.fonts / allowed.get(name, "-")
         return f if f.is_file() else None
 
-    def geocode(self, q):
+    def near_point(self, lat=None, lon=None):
+        """Where to search around: the device's rough location, else the last one seen,
+        else the middle of the places already set."""
+        try:
+            if lat is not None and lon is not None:
+                pt = [round(float(lat), 2), round(float(lon), 2)]
+                if -90 <= pt[0] <= 90 and -180 <= pt[1] <= 180:
+                    with self.s.lock:
+                        self.s.set("geo_near", pt)
+                    return pt
+        except (TypeError, ValueError):
+            pass
+        with self.s.lock:
+            pt = self.s.get("geo_near")
+            if pt:
+                return pt
+            set_ = [p["data"] for p in self.s.all("place") if p["data"].get("lat") is not None]
+        if set_:
+            return [sum(d["lat"] for d in set_) / len(set_), sum(d["lon"] for d in set_) / len(set_)]
+        return None
+
+    @staticmethod
+    def _short(x):
+        a = x.get("address") or {}
+        name = x.get("name") or ""
+        street = " ".join(v for v in (a.get("house_number"), a.get("road")) if v)
+        town = next((a[k] for k in ("city", "town", "village", "suburb", "municipality", "county") if a.get(k)), "")
+        parts = [v for v in (name, street, town) if v]
+        parts = [v for i, v in enumerate(parts) if v not in parts[:i]]
+        return ", ".join(parts) or (x.get("display_name") or "")
+
+    def _nominatim(self, params):
+        key = json.dumps(params, sort_keys=True)
+        hit = self.geo_cache.get(key)
+        if hit and time.time() - hit[0] < 3600:
+            return hit[1]
+        with self.geo_lock:  # Nominatim's rule: one request a second
+            wait = self.geo_last + 1.05 - time.time()
+            if wait > 0:
+                time.sleep(wait)
+            url = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
+                {"format": "jsonv2", "addressdetails": 1, "limit": 8, **params})
+            req = urllib.request.Request(url, headers={"User-Agent": "uplink-hub/1.0", "Accept-Language": "en"})
+            try:
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    res = json.load(r)
+            finally:
+                self.geo_last = time.time()
+        if len(self.geo_cache) > 200:
+            self.geo_cache.clear()
+        self.geo_cache[key] = (time.time(), res)
+        return res
+
+    def geocode(self, q, lat=None, lon=None):
         q = q.strip()[:200]
         if not q:
             return []
-        url = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
-            {"q": q, "format": "jsonv2", "limit": 5})
-        req = urllib.request.Request(url, headers={"User-Agent": "uplink-hub/1.0"})
+        near = self.near_point(lat, lon)
+        tries = [{"q": q}]
+        if near:
+            def box(dlat):
+                dlon = dlat / max(0.2, math.cos(math.radians(near[0])))
+                return f"{near[1] - dlon},{near[0] + dlat},{near[1] + dlon},{near[0] - dlat}"
+            # Nearby first (about 80 km, then about 350 km), then anywhere.
+            tries = [{"q": q, "viewbox": box(0.7), "bounded": 1},
+                     {"q": q, "viewbox": box(3.2), "bounded": 1},
+                     {"q": q, "viewbox": box(3.2)}]
         try:
-            with urllib.request.urlopen(req, timeout=10) as r:
-                res = json.load(r)
+            res = []
+            for params in tries:
+                res = self._nominatim(params)
+                if res:
+                    break
+            street = re.sub(r"^\d+[a-z]?(-\d+)?\s+", "", q, flags=re.I)
+            if not res and street != q:
+                # OpenStreetMap lacks many house numbers: offer the street instead.
+                for params in tries:
+                    res = self._nominatim({**params, "q": street})
+                    if res:
+                        break
         except Exception as e:
             raise ApiError(502, f"address lookup failed: {e}")
-        return [{"name": x.get("display_name"), "lat": float(x["lat"]), "lon": float(x["lon"])} for x in res]
+        out, seen = [], set()
+        for x in res:
+            name = self._short(x)
+            if name in seen:
+                continue
+            seen.add(name)
+            r = {"name": name, "full": x.get("display_name"), "lat": float(x["lat"]), "lon": float(x["lon"])}
+            if near:
+                r["km"] = round(haversine_km(near[0], near[1], r["lat"], r["lon"]), 1)
+            out.append(r)
+        if near:
+            out.sort(key=lambda r: r["km"])
+        return out[:6]
 
     # background
     def bridges(self):

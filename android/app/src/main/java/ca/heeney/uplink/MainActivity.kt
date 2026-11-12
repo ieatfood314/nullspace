@@ -8,6 +8,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.WindowInsets
+import android.widget.FrameLayout
 import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -21,11 +23,13 @@ import androidx.webkit.WebViewAssetLoader
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
+import java.util.concurrent.Executors
 
 /** The page from ../web, bundled, talking to the phone's Store through UplinkNative. */
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
     private val main = Handler(Looper.getMainLooper())
+    private val bridgeIo = Executors.newSingleThreadExecutor { r -> Thread(r, "page-hub") }
     private var unlisten: (() -> Unit)? = null
     private var geoAsk: Pair<String, GeolocationPermissions.Callback>? = null
     private val askLocation = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
@@ -67,7 +71,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        setContentView(web)
+        // Android 15 draws apps under the status and navigation bars. A WebView ignores its own
+        // padding, so it sits in a frame that keeps it clear of the bars and of the keyboard
+        // (which also makes the capture bar ride above it).
+        val frame = FrameLayout(this)
+        frame.setBackgroundColor(0xFF000000.toInt())
+        frame.addView(web, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        frame.setOnApplyWindowInsetsListener { v, insets ->
+            val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+            val ime = insets.getInsets(WindowInsets.Type.ime())
+            v.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, ime.bottom))
+            WindowInsets.CONSUMED
+        }
+        setContentView(frame)
         web.loadUrl("https://appassets.androidplatform.net/web/index.html")
         unlisten = Store.changed.listen { main.removeCallbacks(poke); main.postDelayed(poke, 150) }
         handleShare(intent)
@@ -129,6 +145,17 @@ class MainActivity : ComponentActivity() {
                 String(out)
             } catch (t: Throwable) {
                 JSONObject().put("error", t.message ?: "Can't reach the hub").toString()
+            }
+        }
+
+        /** The same, answered later through uplinkHubDone(id, json), so the page doesn't freeze. */
+        @JavascriptInterface fun hubAsync(id: String, path: String, method: String, body: String) {
+            bridgeIo.execute {
+                val out = hub(path, method, body)
+                main.post {
+                    if (isDestroyed) return@post
+                    web.evaluateJavascript("uplinkHubDone(${JSONObject.quote(id)}, ${JSONObject.quote(out)})", null)
+                }
             }
         }
 
