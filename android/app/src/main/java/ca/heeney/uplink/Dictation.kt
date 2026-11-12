@@ -63,7 +63,7 @@ object Dictation {
         phase.value = Phase.Listening
         if (!mic) return
         tick(app)
-        recorder = Recorder { f, n -> feed(app, f, n) }.also { it.start() }
+        recorder = Recorder(app) { f, n -> feed(app, f, n) }.also { it.start() }
     }
 
     /** One frame of audio. */
