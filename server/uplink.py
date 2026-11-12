@@ -927,6 +927,8 @@ class Ignition:
                     continue
                 if not ign_id:
                     continue
+                if not links and d.get("done_at"):
+                    continue  # already done before Ignition saw it: keep it out of Ignition's history
                 outgoing.append({
                     "id": ign_id, "list": bucket, "title": d.get("title") or "Untitled",
                     "notes": d.get("notes") or "", "due": (d.get("due") or "")[:10] or None,
