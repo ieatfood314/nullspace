@@ -287,7 +287,7 @@ function renderPlaces(view) {
   view.innerHTML = ps.map((p) => {
     const n = uses(p), set = p.data.lat != null;
     return `<div class="place" data-place="${esc(p.uid)}"><div class="body"><div>${esc(p.data.name)}</div>
-      <div class="meta"><span class="${set ? "" : "alert"}">${set ? esc(p.data.address || "Set") : "Not set"}</span>${n ? `<span>${n} reminder${n > 1 ? "s" : ""}</span>` : ""}</div></div></div>`;
+      <div class="meta"><span class="${set ? "" : "alert"}">${set ? esc(placeAddr(p.data)) : "Not set"}</span>${n ? `<span>${n} reminder${n > 1 ? "s" : ""}</span>` : ""}</div></div></div>`;
   }).join("") + `<button class="btn wide add-place" data-act="new-place">New place</button>`;
 }
 
@@ -406,10 +406,18 @@ function nearHere() {
 
 function km(n) { return n == null ? "" : n < 1 ? `${Math.round(n * 1000)} m` : `${n < 10 ? n.toFixed(1) : Math.round(n)} km`; }
 
+/* The address to show for a place. Older builds saved "Where you were at 08:23" instead of one. */
+function placeAddr(d) {
+  if (d.lat == null) return null;
+  const a = d.address && !/^Where you were at /.test(d.address) ? d.address : null;
+  return a || `${d.lat.toFixed(5)}, ${d.lon.toFixed(5)}`;
+}
+function hasAddr(d) { return !!d.address && !/^Where you were at /.test(d.address); }
+
 function editPlace(id) {
   const p = id ? get("place", id) : null;
   const d = p ? { ...p.data } : { name: "", radius: 150 };
-  const where = () => d.lat != null ? (d.address || `${d.lat.toFixed(5)}, ${d.lon.toFixed(5)}`) : "Not set";
+  const where = () => placeAddr(d) || "Not set";
   openSheet(`
     <input type="text" class="big" name="name" placeholder="Name, like Home" value="${esc(d.name)}" aria-label="Place name" required>
     <div class="fields">
@@ -426,13 +434,26 @@ function editPlace(id) {
     if (!d.name) f.name.focus();
     const show = () => { const w = f.querySelector(".where"); w.textContent = where(); w.classList.toggle("unset", d.lat == null); };
     const out = f.querySelector(".results");
+    // Name the spot: the coordinates show at once, the street replaces them if the hub finds one.
+    // The answer also goes into the saved place, in case Save beat it or the sheet was just looked at.
+    let rseq = 0, savedId = id;
+    const nameSpot = async () => {
+      const mine = ++rseq, lat = d.lat, lon = d.lon;
+      let r;
+      try { r = await hub(`api/reverse?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`); } catch (e) { return; }
+      if (!r.name) return;
+      if (mine === rseq && d.lat === lat && d.lon === lon) { d.address = r.name; show(); }
+      const rec = savedId && get("place", savedId);
+      if (rec && rec.data.lat === lat && rec.data.lon === lon && !hasAddr(rec.data)) put("place", savedId, { ...rec.data, address: r.name });
+    };
+    if (d.lat != null && !hasAddr(d)) { delete d.address; nameSpot(); }
     f.querySelector('[data-act="here"]').onclick = (e) => {
       const b = e.currentTarget;
       b.textContent = "Finding you";
       if (!navigator.geolocation) { b.textContent = "Location unavailable"; return; }
       navigator.geolocation.getCurrentPosition((pos) => {
-        d.lat = pos.coords.latitude; d.lon = pos.coords.longitude; d.address = "Where you were at " + hm(new Date());
-        b.textContent = "Use where I am"; show();
+        d.lat = pos.coords.latitude; d.lon = pos.coords.longitude; delete d.address;
+        b.textContent = "Use where I am"; show(); nameSpot();
       }, (err) => { b.textContent = err.code === 1 ? "Allow location first" : "Couldn't find you"; }, { enableHighAccuracy: true, timeout: 20000 });
     };
     let t = 0, seq = 0;
@@ -452,7 +473,7 @@ function editPlace(id) {
           out.innerHTML = res.map((r, i) => `<button type="button" data-i="${i}"><span>${esc(r.name)}</span><span class="km">${km(r.km)}</span></button>`).join("") || `<p class="x">No match. Try the street and town</p>`;
           for (const b of out.querySelectorAll("button")) b.onclick = () => {
             const r = res[Number(b.dataset.i)];
-            d.lat = r.lat; d.lon = r.lon; d.address = r.name;
+            rseq++; d.lat = r.lat; d.lon = r.lon; d.address = r.name;
             out.innerHTML = ""; f.q.value = ""; show();
           };
         } catch (e) { if (mine === seq) out.innerHTML = `<p class="x">Search needs the hub</p>`; }
@@ -464,7 +485,8 @@ function editPlace(id) {
       d.name = f.name.value.trim();
       if (!d.name) { e.preventDefault(); return; }
       d.radius = Number(segValue(f, "radius")) || 150;
-      put("place", id || uid(), d);
+      savedId = id || uid();
+      put("place", savedId, d);
     };
   });
 }

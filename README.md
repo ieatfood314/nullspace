@@ -42,7 +42,9 @@ get home, take the bins out" becomes a task with a timed or place reminder.
   instead.
 - **Address search** goes through the hub to OpenStreetMap's Nominatim,
   with a search area around your rough location (rounded to about 1 km) so
-  nearby places come first.
+  nearby places come first. "Use where I am" sends the exact spot the same
+  way, to name the street it's on; if that fails the place shows its
+  coordinates.
 
 ## Mobile data
 
@@ -145,6 +147,7 @@ after `since`. Request and response bodies may be gzipped.
 | `capture` | `type` (voice, screenshot, text, share), `text`, `screen_text`, `app`, `image`, `status` (new or done), `summary`, `items` |
 
 Other endpoints: `GET /api/status`, `GET /api/geocode?q=`,
+`GET /api/reverse?lat=&lon=`,
 `POST /api/shot/<uid>` (a WebP), `POST /api/reprocess/<uid>`,
 `GET /shots/<uid>.webp`.
 

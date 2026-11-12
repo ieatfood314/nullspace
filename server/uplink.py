@@ -1066,6 +1066,8 @@ def make_handler(app):
                     return self.send(200, app.sync(self.json_body()))
                 if p == "/api/status":
                     return self.send(200, app.status())
+                if p == "/api/reverse":
+                    return self.send(200, app.reverse((q.get("lat") or [""])[0], (q.get("lon") or [""])[0]))
                 if p == "/api/geocode":
                     return self.send(200, app.geocode((q.get("q") or [""])[0], (q.get("lat") or [None])[0], (q.get("lon") or [None])[0]))
                 if p.startswith("/api/shot/") and m in ("POST", "PUT"):
@@ -1235,8 +1237,8 @@ class App:
         parts = [v for i, v in enumerate(parts) if v not in parts[:i]]
         return ", ".join(parts) or (x.get("display_name") or "")
 
-    def _nominatim(self, params):
-        key = json.dumps(params, sort_keys=True)
+    def _nominatim(self, params, path="search"):
+        key = path + json.dumps(params, sort_keys=True)
         hit = self.geo_cache.get(key)
         if hit and time.time() - hit[0] < 3600:
             return hit[1]
@@ -1244,8 +1246,9 @@ class App:
             wait = self.geo_last + 1.05 - time.time()
             if wait > 0:
                 time.sleep(wait)
-            url = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
-                {"format": "jsonv2", "addressdetails": 1, "limit": 8, **params})
+            extra = {"limit": 8} if path == "search" else {}
+            url = f"https://nominatim.openstreetmap.org/{path}?" + urllib.parse.urlencode(
+                {"format": "jsonv2", "addressdetails": 1, **extra, **params})
             req = urllib.request.Request(url, headers={"User-Agent": "uplink-hub/1.0", "Accept-Language": "en"})
             try:
                 with urllib.request.urlopen(req, timeout=10) as r:
@@ -1256,6 +1259,19 @@ class App:
             self.geo_cache.clear()
         self.geo_cache[key] = (time.time(), res)
         return res
+
+    def reverse(self, lat, lon):
+        try:
+            lat, lon = float(lat), float(lon)
+        except (TypeError, ValueError):
+            raise ApiError(400, "lat and lon needed")
+        try:
+            x = self._nominatim({"lat": f"{lat:.5f}", "lon": f"{lon:.5f}", "zoom": 18}, "reverse")
+        except Exception as e:
+            raise ApiError(502, f"address lookup failed: {e}")
+        if not isinstance(x, dict) or x.get("error"):
+            return {"name": None}
+        return {"name": self._short(x) or None, "full": x.get("display_name")}
 
     def geocode(self, q, lat=None, lon=None):
         q = q.strip()[:200]
