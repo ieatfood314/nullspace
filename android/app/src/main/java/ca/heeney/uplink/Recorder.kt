@@ -65,13 +65,14 @@ class Recorder(ctx: Context, private val onFrame: (FloatArray, Int) -> Unit) {
         if (rec.state != AudioRecord.STATE_INITIALIZED) {
             Log.e(TAG, "AudioRecord not initialized"); failed = true; rec.release(); return
         }
-        rec.startRecording()
-        val opened = SystemClock.elapsedRealtime() - t0
-        val focus = takeFocus()
-        val frame = FloatArray(FRAME)
-        var silent = 0  // samples of digital silence while the mic wakes up
-        var heard = false
+        var focus: AudioFocusRequest? = null
         try {
+            rec.startRecording()
+            val opened = SystemClock.elapsedRealtime() - t0
+            focus = takeFocus()
+            val frame = FloatArray(FRAME)
+            var silent = 0  // samples of digital silence while the mic wakes up
+            var heard = false
             while (running) {
                 val n = rec.read(frame, 0, FRAME, AudioRecord.READ_BLOCKING)
                 if (n < 0) { failed = true; break }
@@ -81,15 +82,17 @@ class Recorder(ctx: Context, private val onFrame: (FloatArray, Int) -> Unit) {
                     silent += i
                     if (i < n) {
                         heard = true
-                        Log.i(TAG, "mic open ${opened} ms after the press, " +
+                        Log.i(TAG, "mic open ${opened} ms after the key, " +
                             "first sound ${SystemClock.elapsedRealtime() - t0} ms, " +
                             "${silent / 16} ms of it silent")
                     }
                 }
                 if (n > 0) onFrame(frame, n)
             }
+        } catch (t: Throwable) {
+            Log.e(TAG, "recording failed", t); failed = true
         } finally {
-            rec.stop()
+            try { rec.stop() } catch (_: Throwable) {}
             rec.release()
             focus?.let { audio?.abandonAudioFocusRequest(it) }
         }
