@@ -8,12 +8,15 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.SystemClock
 import android.util.Log
 
 /** 16 kHz mono float capture on its own thread, handed over 30 ms at a time.
  *
  *  Holds exclusive transient audio focus while it records, so music players pause
- *  (rather than duck) and pick up again once the mic is let go. */
+ *  (rather than duck) and pick up again once the mic is let go. The mic opens first and
+ *  focus comes after: people talk as they press, and every millisecond before
+ *  startRecording is the start of their sentence gone. */
 class Recorder(ctx: Context, private val onFrame: (FloatArray, Int) -> Unit) {
     private val audio = ctx.applicationContext.getSystemService(AudioManager::class.java)
     @Volatile private var running = false
@@ -23,10 +26,8 @@ class Recorder(ctx: Context, private val onFrame: (FloatArray, Int) -> Unit) {
 
     fun start() {
         running = true
-        thread = Thread({
-            val focus = takeFocus()
-            try { record() } finally { focus?.let { audio?.abandonAudioFocusRequest(it) } }
-        }, "squelch-mic").apply {
+        val t0 = SystemClock.elapsedRealtime()
+        thread = Thread({ record(t0) }, "squelch-mic").apply {
             priority = Thread.MAX_PRIORITY
             start()
         }
@@ -50,7 +51,7 @@ class Recorder(ctx: Context, private val onFrame: (FloatArray, Int) -> Unit) {
     }
 
     @SuppressLint("MissingPermission")
-    private fun record() {
+    private fun record(t0: Long) {
         val min = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_FLOAT)
         val rec = try {
             AudioRecord(
@@ -65,16 +66,32 @@ class Recorder(ctx: Context, private val onFrame: (FloatArray, Int) -> Unit) {
             Log.e(TAG, "AudioRecord not initialized"); failed = true; rec.release(); return
         }
         rec.startRecording()
+        val opened = SystemClock.elapsedRealtime() - t0
+        val focus = takeFocus()
         val frame = FloatArray(FRAME)
+        var silent = 0  // samples of digital silence while the mic wakes up
+        var heard = false
         try {
             while (running) {
                 val n = rec.read(frame, 0, FRAME, AudioRecord.READ_BLOCKING)
                 if (n < 0) { failed = true; break }
+                if (!heard) {
+                    var i = 0
+                    while (i < n && frame[i] == 0f) i++
+                    silent += i
+                    if (i < n) {
+                        heard = true
+                        Log.i(TAG, "mic open ${opened} ms after the press, " +
+                            "first sound ${SystemClock.elapsedRealtime() - t0} ms, " +
+                            "${silent / 16} ms of it silent")
+                    }
+                }
                 if (n > 0) onFrame(frame, n)
             }
         } finally {
             rec.stop()
             rec.release()
+            focus?.let { audio?.abandonAudioFocusRequest(it) }
         }
     }
 
