@@ -144,7 +144,7 @@ after `since`. Request and response bodies may be gzipped.
 | `list` | `name`, `sort`, `color`, `inbox`, `radicale`, `ignition` |
 | `item` | `type` (task or note), `title`, `notes`, `list`, `due`, `remind_at`, `place`, `place_on` (arrive or leave), `done_at`, `fired_at`, `place_fired_at`, `capture` |
 | `place` | `name`, `lat`, `lon`, `radius` (metres), `address` |
-| `capture` | `type` (voice, screenshot, text, share), `text`, `screen_text`, `app`, `image`, `status` (new or done), `summary`, `items` |
+| `capture` | `type` (voice, screenshot, text, share), `text`, `screen_text`, `app`, `image`, `list` (typed while that list was open; tasks go there unless the filer picks one), `status` (new or done), `summary`, `items` |
 
 Other endpoints: `GET /api/status`, `GET /api/geocode?q=`,
 `GET /api/reverse?lat=&lon=`,

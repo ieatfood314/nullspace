@@ -139,13 +139,14 @@ function whenText(ts) {
   const w = dayWord(d);
   return (w === "Today" ? "" : w + " ") + hm(d);
 }
-function endOfToday() { const d = new Date(); d.setHours(23, 59, 59, 999); return d; }
 
 /* ---- view state ---- */
 
-const ui = { tab: "tasks", list: "all", showDone: false };
+// ui.list is "upcoming", "lists" or a list's uid.
+const ui = { tab: "tasks", list: "upcoming", showDone: false };
 try { Object.assign(ui, JSON.parse(localStorage.getItem("uplink-ui") || "{}")); ui.showDone = false; } catch (_) {}
 const saveUi = () => localStorage.setItem("uplink-ui", JSON.stringify({ tab: ui.tab, list: ui.list }));
+const inList = () => ui.list !== "upcoming" && ui.list !== "lists";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -156,24 +157,39 @@ const inboxUid = () => (lists().find((l) => l.data.inbox) || lists()[0] || {}).u
 
 function tasks() { return all("item").filter((i) => i.data.type !== "note"); }
 
-function sortKey(it) {
-  const d = it.data;
-  const t = d.due ? parseLocal(d.due).getTime() / 1000 : d.remind_at || 9e12;
-  return [t, -(d.priority || 0), -(d.created_at || 0)];
+/* When a task comes up: a late due date, else the earliest of due and reminder from today on,
+ * else a past reminder. day is in local calendar days from today; a date-only due sorts at the
+ * end of its day, after that day's timed tasks. */
+function dayOff(d) { const t = new Date(); t.setHours(0, 0, 0, 0); const x = new Date(d); x.setHours(0, 0, 0, 0); return Math.round((x - t) / DAY / 1000); }
+function whenOf(it) {
+  const d = it.data, c = [];
+  if (d.due) { const x = parseLocal(d.due), t = d.due.length === 10 ? new Date(x).setHours(23, 59, 59, 999) : x.getTime(); c.push({ t, day: dayOff(x) }); }
+  if (d.remind_at) c.push({ t: d.remind_at * 1000, day: dayOff(d.remind_at * 1000) });
+  if (d.due && c[0].day < 0) return c[0];
+  const ahead = c.filter((w) => w.day >= 0).sort((a, b) => a.t - b.t);
+  return ahead[0] || c[0] || null;
 }
-function cmp(a, b) { const x = sortKey(a), y = sortKey(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; }
+function byWhen(a, b) {
+  const x = whenOf(a), y = whenOf(b);
+  return (x ? x.t : 9e15) - (y ? y.t : 9e15) || (b.data.priority || 0) - (a.data.priority || 0) || (b.data.created_at || 0) - (a.data.created_at || 0);
+}
+function byPriority(a, b) {
+  const order = lists().map((l) => l.uid), li = (t) => { const i = order.indexOf(t.data.list); return i < 0 ? 1e6 : i; };
+  return (b.data.priority || 0) - (a.data.priority || 0) || li(a) - li(b) || (b.data.created_at || 0) - (a.data.created_at || 0);
+}
 
-function inToday(it) {
-  const end = endOfToday();
-  const d = it.data;
-  return (d.due && parseLocal(d.due) <= end) || (d.remind_at && d.remind_at * 1000 <= end.getTime());
+const SECTIONS = [["late", "Late"], ["today", "Today"], ["tomorrow", "Tomorrow"], ["week", "This week"], ["later", "Later"], ["there", "When you get there"], ["any", "Anytime"]];
+function sectionOf(it) {
+  const w = whenOf(it), d = it.data;
+  if (!w) return d.place ? "there" : "any";
+  return w.day < 0 ? "late" : w.day === 0 ? "today" : w.day === 1 ? "tomorrow" : w.day < 7 ? "week" : "later";
 }
 
 /* ---- render ---- */
 
 function render() {
   for (const b of document.querySelectorAll(".tabs button")) b.classList.toggle("on", b.dataset.tab === ui.tab);
-  $("#lists").hidden = ui.tab !== "tasks";
+  $("#views").hidden = ui.tab !== "tasks";
   const view = $("#view");
   if (ui.tab === "tasks") renderTasks(view);
   else if (ui.tab === "notes") renderNotes(view);
@@ -182,26 +198,25 @@ function render() {
   setStatus();
 }
 
-function renderChips() {
-  const ls = lists();
-  const chips = [["all", "All"], ["today", "Today"], ...ls.map((l) => [l.uid, l.data.name])];
-  if (!chips.some(([id]) => id === ui.list)) ui.list = "all";
-  $("#lists").innerHTML = chips.map(([id, name]) =>
-    `<button class="chip${id === ui.list ? " on" : ""}" data-list="${esc(id)}">${esc(name)}</button>`).join("") +
-    `<button class="chip add" data-list="+">New list</button>`;
+/* A date or time, shortened when the section header already says the day (mode: today, tomorrow, week). */
+function timeText(d, timed, mode) {
+  const off = dayOff(d);
+  if ((mode === "today" && off === 0) || (mode === "tomorrow" && off === 1)) return timed ? hm(d) : "";
+  if (mode === "week" && off > 1 && off < 7) return WD[d.getDay()] + (timed ? " " + hm(d) : "");
+  return timed ? `${dayWord(d)} ${hm(d)}` : dayWord(d);
 }
 
-function taskRow(it) {
+function taskRow(it, mode = "", showList = false) {
   const d = it.data, meta = [];
-  if (d.due) meta.push(`<span class="${isLate(it) ? "late" : ""}">${esc(dueText(d.due))}</span>`);
-  if (d.remind_at && !d.done_at) meta.push(`<span>Remind ${esc(whenText(d.remind_at))}</span>`);
+  if (d.due) { const x = timeText(parseLocal(d.due), d.due.length > 10, mode); if (x) meta.push(`<span class="${isLate(it) ? "late" : ""}">${esc(x)}</span>`); }
+  if (d.remind_at && !d.done_at) meta.push(`<span>Remind ${esc(timeText(new Date(d.remind_at * 1000), true, mode))}</span>`);
   if (d.place) {
     const p = get("place", d.place);
     const name = p ? p.data.name : "a place";
     const set = p && p.data.lat != null;
     meta.push(`<span class="${set || d.done_at ? "" : "alert"}">${d.place_on === "leave" ? "Leaving" : "At"} ${esc(name)}${set ? "" : " (not set)"}</span>`);
   }
-  if (ui.list === "all" || ui.list === "today") {
+  if (showList) {
     const l = get("list", d.list);
     if (l && !l.data.inbox) meta.push(`<span>${esc(l.data.name)}</span>`);
   }
@@ -212,28 +227,52 @@ function taskRow(it) {
   </div>`;
 }
 
+function doneHtml(done, showList) {
+  if (!done.length) return "";
+  return ui.showDone
+    ? `<h2 class="group">Done</h2>` + done.sort((a, b) => b.data.done_at - a.data.done_at).slice(0, 200).map((t) => taskRow(t, "", showList)).join("")
+    : `<button class="more" data-act="show-done">Show ${done.length} done</button>`;
+}
+
 function renderTasks(view) {
-  renderChips();
-  let ts = tasks();
-  if (ui.list === "today") ts = ts.filter(inToday);
-  else if (ui.list !== "all") ts = ts.filter((t) => t.data.list === ui.list);
-  const open = ts.filter((t) => !t.data.done_at).sort(cmp);
-  const done = ts.filter((t) => t.data.done_at).sort((a, b) => b.data.done_at - a.data.done_at);
-  const title = ui.list === "all" ? "Tasks" : ui.list === "today" ? "Today" : (get("list", ui.list) || { data: { name: "Tasks" } }).data.name;
-  $("#title").textContent = title;
-  $("#count").textContent = open.length || "";
+  if (inList() && !get("list", ui.list)) ui.list = "upcoming";
+  const ts = tasks(), open = ts.filter((t) => !t.data.done_at);
+  const nav = $("#views");
   let html = "";
-  if (!open.length) html += `<p class="empty">${ui.list === "today" ? "Nothing due today" : "All clear"}</p>`;
-  else if (ui.list === "all") {
-    const placeOnly = open.filter((t) => t.data.place && !t.data.due && !t.data.remind_at);
-    const rest = open.filter((t) => !placeOnly.includes(t));
-    html += rest.map(taskRow).join("");
-    if (placeOnly.length) html += `<div class="group">When you get there</div>` + placeOnly.map(taskRow).join("");
-  } else html += open.map(taskRow).join("");
-  if (done.length) {
-    html += ui.showDone
-      ? `<div class="group">Done</div>` + done.slice(0, 200).map(taskRow).join("")
-      : `<button class="more" data-act="show-done">Show ${done.length} done</button>`;
+  if (inList()) {
+    const l = get("list", ui.list);
+    const mine = ts.filter((t) => t.data.list === ui.list), mo = mine.filter((t) => !t.data.done_at).sort(byWhen);
+    $("#title").textContent = l.data.name;
+    $("#count").textContent = mo.length || "";
+    nav.innerHTML = `<button class="back" data-view="lists"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M15.4 6.4 14 5l-7 7 7 7 1.4-1.4L9.8 12z"/></svg>Lists</button>
+      <button class="back" data-act="edit-list">Edit</button>`;
+    html = (mo.length ? mo.map((t) => taskRow(t)).join("") : `<p class="empty">All clear</p>`) + doneHtml(mine.filter((t) => t.data.done_at), false);
+  } else {
+    $("#title").textContent = "Tasks";
+    $("#count").textContent = open.length || "";
+    nav.innerHTML = `<div class="switch">${[["upcoming", "Upcoming"], ["lists", "Lists"]].map(([v, label]) =>
+      `<button data-view="${v}" class="${ui.list === v ? "on" : ""}" aria-pressed="${ui.list === v}">${label}</button>`).join("")}</div>`;
+    if (ui.list === "lists") {
+      const empty = [];
+      for (const l of lists()) {
+        const mo = open.filter((t) => t.data.list === l.uid).sort(byWhen);
+        if (!mo.length) { empty.push(l); continue; }
+        html += `<section><h2 class="group lh"><button class="head" data-open="${esc(l.uid)}">${esc(l.data.name)}<span>${mo.length}</span></button></h2>${mo.map((t) => taskRow(t)).join("")}</section>`;
+      }
+      if (empty.length) html += `<div class="idle">${empty.map((l) => `<button data-open="${esc(l.uid)}">${esc(l.data.name)}</button>`).join("")}</div>`;
+      html += `<button class="btn wide add-list" data-act="new-list">New list</button>`;
+    } else {
+      const by = {};
+      for (const t of open) (by[sectionOf(t)] ||= []).push(t);
+      for (const [key, label] of SECTIONS) {
+        const xs = by[key];
+        if (!xs) continue;
+        xs.sort(key === "any" || key === "there" ? byPriority : byWhen);
+        html += `<section><h2 class="group${key === "late" ? " alert" : ""}">${label}</h2>${xs.map((t) => taskRow(t, key, true)).join("")}</section>`;
+      }
+      if (!open.length) html = `<p class="empty">All clear</p>`;
+      html += doneHtml(ts.filter((t) => t.data.done_at), true);
+    }
   }
   view.innerHTML = html;
 }
@@ -317,6 +356,11 @@ function grow(t) { t.style.height = "auto"; t.style.height = t.scrollHeight + "p
 
 function toLocalInput(ts) { const d = new Date(ts * 1000); return `${ymd(d)}T${hm(d)}`; }
 
+/* Quick picks for the due date: today, tomorrow, the coming Saturday, the coming Monday. */
+const inDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+const QUICK = [["Today", () => inDays(0)], ["Tomorrow", () => inDays(1)],
+  ["Weekend", () => inDays((6 - new Date().getDay() + 7) % 7)], ["Next week", () => inDays((8 - new Date().getDay()) % 7 || 7)]];
+
 function editItem(id) {
   const it = get("item", id);
   if (!it) return;
@@ -333,6 +377,7 @@ function editItem(id) {
       <div class="fields">
       <div class="field"><span>List</span><select name="list">${ls.map((l) => `<option value="${esc(l.uid)}" ${l.uid === d.list ? "selected" : ""}>${esc(l.data.name)}</option>`).join("")}</select></div>
       <div class="field"><span>Due</span><div class="pair two"><input type="date" name="due" value="${dueDate}"><input type="time" name="duetime" value="${dueTime}" aria-label="Due time"></div></div>
+      ${seg("quick", QUICK.map(([label, f]) => [ymd(f()), label]), dueDate)}
       <div class="field"><span>Remind</span><input type="datetime-local" name="remind" value="${d.remind_at ? toLocalInput(d.remind_at) : ""}"></div>
       <div class="field"><span>Place</span><div class="stack"><select name="place"><option value="">None</option>${ps.map((p) => `<option value="${esc(p.uid)}" ${p.uid === d.place ? "selected" : ""}>${esc(p.data.name)}</option>`).join("")}</select>
         <div class="on-seg" ${d.place ? "" : "hidden"}>${seg("place_on", [["arrive", "Arrive"], ["leave", "Leave"]], d.place_on || "arrive")}</div></div></div>
@@ -346,6 +391,9 @@ function editItem(id) {
     f.title.addEventListener("input", () => grow(f.title));
     f.querySelector('[data-seg="type"]').addEventListener("change", () => { f.querySelector(".tonly").hidden = segValue(f, "type") === "note"; });
     f.place.addEventListener("change", () => { f.querySelector(".on-seg").hidden = !f.place.value; });
+    const quick = f.querySelector('[data-seg="quick"]');
+    quick.addEventListener("change", () => { f.due.value = segValue(f, "quick"); });
+    f.due.addEventListener("input", () => { for (const b of quick.children) b.classList.toggle("on", b.dataset.v === f.due.value); });
     f.querySelector('[data-act="delete"]').onclick = () => { put("item", id, d, true); sheet.close(); toast("Deleted"); };
     const tc = f.querySelector('[data-act="to-capture"]');
     if (tc) tc.onclick = () => { sheet.close(); ui.tab = "captures"; saveUi(); render(); };
@@ -382,7 +430,7 @@ function editList(id) {
       if (items.length && !confirm(`Delete ${l.data.name} and its ${items.length} task${items.length > 1 ? "s" : ""}?`)) return;
       for (const t of items) put("item", t.uid, t.data, true);
       put("list", id, l.data, true);
-      ui.list = "all"; saveUi(); sheet.close();
+      ui.list = "lists"; saveUi(); sheet.close(); render();
     };
     f.onsubmit = () => {
       const name = f.name.value.trim();
@@ -509,7 +557,7 @@ $("#capture").addEventListener("submit", async (e) => {
   const before = new Set(all("item").map((i) => i.uid));
   db.recs[k("capture", id)] = db.pending[k("capture", id)] = {
     kind: "capture", uid: id, deleted: false, updated_at: Date.now(),
-    data: { type: "text", text, status: "new", created_at: now(), device: N ? "phone" : "web" },
+    data: { type: "text", text, status: "new", created_at: now(), device: N ? "phone" : "web", ...(ui.tab === "tasks" && inList() ? { list: ui.list } : {}) },
   };
   save();
   setStatus();
@@ -546,12 +594,11 @@ document.addEventListener("click", async (e) => {
   const t = e.target;
   const tab = t.closest(".tabs button");
   if (tab) { ui.tab = tab.dataset.tab; saveUi(); window.scrollTo(0, 0); render(); return; }
-  const chip = t.closest("[data-list]");
-  if (chip) {
-    const id = chip.dataset.list;
-    if (id === "+") return editList(null);
-    if (id === ui.list && id !== "all" && id !== "today") return editList(id);
-    ui.list = id; ui.showDone = false; saveUi(); render(); return;
+  const go = t.closest("[data-view], [data-open]");
+  if (go) {
+    const id = go.dataset.view || go.dataset.open;
+    if (id !== ui.list) { ui.list = id; ui.showDone = false; saveUi(); window.scrollTo(0, 0); render(); }
+    return;
   }
   const check = t.closest("[data-check]");
   if (check) {
@@ -582,7 +629,16 @@ document.addEventListener("click", async (e) => {
   const act = t.closest("[data-act]");
   if (act && act.dataset.act === "show-done") { ui.showDone = true; render(); return; }
   if (act && act.dataset.act === "new-place") return editPlace(null);
+  if (act && act.dataset.act === "new-list") return editList(null);
+  if (act && act.dataset.act === "edit-list") return editList(ui.list);
 });
+
+/* The phone's back key: close the sheet, else step out of a list. Returns true if it did something. */
+window.uplinkBack = () => {
+  if (sheet.open) { sheet.close(); return true; }
+  if (ui.tab === "tasks" && inList()) { ui.list = "lists"; ui.showDone = false; saveUi(); window.scrollTo(0, 0); render(); return true; }
+  return false;
+};
 
 if (N) {
   const s = $("#settings");

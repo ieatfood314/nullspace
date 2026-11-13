@@ -38,12 +38,14 @@ button { background: none; border: 0; cursor: pointer; padding: 0; }
 .top .icon { margin-left: auto; color: var(--dim); align-self: center; padding: 6px; }
 .status:not([hidden]) + .icon { margin-left: 8px; }
 
-/* list chips */
-.chips { display: flex; gap: 8px; overflow-x: auto; padding: 6px var(--pad) 12px; scrollbar-width: none; }
-.chips::-webkit-scrollbar { display: none; }
-.chip { flex: none; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--dim); font-size: 14px; white-space: nowrap; }
-.chip.on { color: var(--fg); border-color: var(--fg); }
-.chip.add { color: var(--faint); }
+/* Upcoming / Lists switch, or back and Edit inside a list */
+.views { display: flex; justify-content: space-between; align-items: center; padding: 8px var(--pad) 4px; }
+.switch { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
+.switch button { height: 40px; padding: 0 20px; border-radius: 999px; color: var(--dim); font-size: 15px; }
+.switch button.on { background: var(--fg); color: #000; font-weight: 500; }
+.back { display: flex; align-items: center; gap: 2px; height: 44px; color: var(--dim); font-size: 15px; }
+.back:first-child { margin-left: -6px; }
+.back:hover, .switch button:not(.on):hover { color: var(--fg); }
 
 /* rows */
 main { padding: 0 var(--pad); }
@@ -59,7 +61,18 @@ main { padding: 0 var(--pad); }
 .row.done .check::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--bg); }
 .check.pop { animation: pop .35s ease-out; }
 @keyframes pop { 40% { transform: scale(1.25); border-color: var(--accent); background: var(--accent); } }
-.group { font-size: 13px; color: var(--dim); padding: 22px 0 4px; }
+.group { margin: 0; font-size: 14px; font-weight: 500; color: var(--dim); padding: 36px 0 2px; border-bottom: 1px solid var(--line); line-height: 1.4; }
+section:first-child .group { padding-top: 14px; }
+.group.alert { color: var(--accent); }
+.group.lh { padding: 26px 0 0; }
+section:first-child .group.lh { padding-top: 4px; }
+.group .head { display: flex; align-items: flex-end; gap: 8px; width: 100%; min-height: 44px; padding-bottom: 2px; font-weight: 500; text-align: left; }
+.group .head span { color: var(--faint); }
+.group .head:hover { color: var(--fg); }
+.idle { display: flex; flex-wrap: wrap; gap: 0 18px; padding-top: 28px; }
+.idle button { min-height: 44px; color: var(--faint); font-size: 14px; }
+.idle button:hover { color: var(--dim); }
+.add-list { margin-top: 12px; }
 .empty { color: var(--dim); padding: 48px 0; text-align: center; }
 .more { color: var(--dim); font-size: 14px; padding: 18px 0; }
 
@@ -122,6 +135,7 @@ dialog[open] { animation: up .22s ease-out; }
 .seg { display: flex; width: 100%; height: 44px; padding: 3px; gap: 3px; border: 1px solid var(--line); border-radius: 12px; }
 .seg button { flex: 1; min-width: 0; border-radius: 9px; color: var(--dim); font-size: 14px; white-space: nowrap; }
 .seg button.on { background: var(--fg); color: #000; font-weight: 500; }
+[data-seg=quick] button { flex: 1 1 auto; padding: 0 4px; }
 .actions { display: flex; gap: 12px; justify-content: space-between; align-items: center; padding-top: 6px; }
 .btn { padding: 12px 22px; border-radius: 999px; border: 1px solid var(--faint); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 500; }

@@ -109,7 +109,7 @@ class MainActivity : ComponentActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        web.evaluateJavascript("(function(){var d=document.getElementById('sheet');if(d&&d.open){d.close();return 1}return 0})()") { r ->
+        web.evaluateJavascript("(function(){if(window.uplinkBack)return uplinkBack()?1:0;var d=document.getElementById('sheet');if(d&&d.open){d.close();return 1}return 0})()") { r ->
             if (r != "1") @Suppress("DEPRECATION") super.onBackPressed()
         }
     }

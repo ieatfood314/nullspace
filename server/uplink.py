@@ -249,6 +249,12 @@ class Model:
                 return l
         return None
 
+    def hint_list(self, cap):
+        """The list a capture was typed in, if it still exists."""
+        uid = cap.get("list")
+        rec = self.s.one("list", str(uid)) if uid else None
+        return rec if rec and not rec["deleted"] else None
+
     def inbox(self):
         for l in self.lists():
             if l["data"].get("inbox"):
@@ -348,6 +354,9 @@ class Brain:
             f"Known places: {places}",
             f"Capture type: {capture.get('type')}",
         ]
+        hint = self.m.hint_list(capture)
+        if hint:
+            parts.append(f"Typed while looking at the list: {hint['data'].get('name', '')}")
         if capture.get("app"):
             parts.append(f"App on screen: {capture['app']}")
         if capture.get("text"):
@@ -563,8 +572,13 @@ class Processor:
             "type": kind, "title": title, "notes": str(it.get("notes") or "")[:20000],
             "created_at": int(time.time()), "source": cap.get("type", "text"), "capture": cap_uid,
         }
+        # A list the filer names wins, then the list the capture was typed in, then the Inbox.
+        hint = self.m.hint_list(cap)
+        fallback = lambda: hint["uid"] if hint else self.m.inbox()
         lst = self.m.list_by_name(it.get("list")) if kind == "task" else None
-        data["list"] = lst["uid"] if lst else (self.m.inbox() if kind == "task" else None)
+        if lst and hint and lst["data"].get("inbox"):
+            lst = None  # "Inbox" from the filer means unsorted, so the list it was typed in wins
+        data["list"] = lst["uid"] if lst else (fallback() if kind == "task" else None)
         due = clean_due(it.get("due"))
         if due:
             data["due"] = due
@@ -576,7 +590,7 @@ class Processor:
             data["place_on"] = "leave" if it.get("place_on") == "leave" else "arrive"
             data["type"] = "task"
             if not data.get("list"):
-                data["list"] = self.m.inbox()
+                data["list"] = fallback()
         uid = new_uid()
         self.s.put("item", uid, data)
         return uid
