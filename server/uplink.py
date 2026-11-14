@@ -411,7 +411,7 @@ class Model:
         return self.s.all("list")
 
     def list_by_name(self, name):
-        if not name:
+        if not name or not isinstance(name, str):
             return None
         key = norm(name)
         for l in self.lists():
@@ -1190,7 +1190,7 @@ def said_time(text):
         _, rest = pull_repeat(text)
         when, _, info = pull_time(rest)
         return when[11:16] if when and info["timed"] else None
-    if not clocks and not TIME_WORDS.search(re.sub(rf"\b(?:{NUMWORD}) (?:days?|weeks?)\b", "", t)):
+    if not clocks and not TIME_WORDS.search(re.sub(rf"\b(?:{NUMWORD}) (?:days?|weeks?)\b|\b\d{{1,2}}(?:st|nd|rd|th)\b", "", t)):
         return ""
     return None
 
@@ -1206,6 +1206,11 @@ def said_span(text):
     return parse_local(when) - local_now().replace(second=0, microsecond=0) if when else None
 
 
+# Words that put a time further off than said_days can read; the LLM's day stands.
+LATER = re.compile(rf"\b(?:{MONTHS}|months?|years?|weeks?|couple|few|after|until|later|some ?time|someday|"
+                   r"holidays?|christmas|spring|summer|fall|autumn|winter|semester|break)\b", re.I)
+
+
 def settle(it, text, now, fresh=True, said_at=None):
     """Check the due and remind_at strings an item or change came with (in place, and returned).
     fresh: a new item, where "remind me" with only a day still wants a reminder.
@@ -1218,10 +1223,12 @@ def settle(it, text, now, fresh=True, said_at=None):
     for f in ("due", "remind_at"):
         v = clean_due(it.get(f))
         said = day_for(found, f)
-        if v and said and date.fromisoformat(v[:10]) not in said[0]:
-            it[f] = said[1].isoformat() + v[10:]
+        night = 1 if v and v[10:] == "T00:00" and re.search(r"\bmidnight\b", text or "", re.I) else 0
+        if v and said and date.fromisoformat(v[:10]) - timedelta(days=night) not in said[0]:
+            # "Friday at midnight" is the night of Friday, as pull_time reads it
+            it[f] = (said[1] + timedelta(days=night)).isoformat() + v[10:]
     v = clean_due(it.get("remind_at"))
-    if found == [] and v and parse_local(v) > now + timedelta(days=1):
+    if found == [] and v and parse_local(v) > now + timedelta(days=1) and not LATER.search(text or ""):
         # No day said ("at the end of the day"): the next time that time of day comes round.
         t = datetime.combine(now.date(), parse_local(v).time(), TZ)
         it["remind_at"] = (t if t >= now - timedelta(minutes=15) else t + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
@@ -1246,7 +1253,7 @@ def settle(it, text, now, fresh=True, said_at=None):
     for f in ("remind_at", "due"):
         v = clean_due(it.get(f))
         t = parse_local(v) if v and len(v) > 10 else None
-        if not t or t >= now - timedelta(minutes=15) or (f == "due" and t.date() != now.date()):
+        if not t or t >= now - timedelta(minutes=15) or (f == "due" and (t.date() != now.date() or re.search(r"\btoday\b", text or "", re.I))):
             # A few minutes back is "in a minute" that took a while to file: the phone rings at
             # once. A deadline on an earlier day is just late.
             continue
@@ -1340,7 +1347,8 @@ class Processor:
         if not timedelta(0) <= now - said_at <= timedelta(days=2):
             said_at = now
         made = []
-        for it in (result.get("items") or [])[:12]:
+        items = result.get("items") if isinstance(result.get("items"), list) else []
+        for it in items[:12]:
             if isinstance(it, dict):
                 made.append(self.make_item(settle(dict(it), text, now, said_at=said_at), cap["uid"], d))
         changed = []
@@ -1352,7 +1360,10 @@ class Processor:
                                                        for it in basic_parse(d, places)["items"]]
         for ch in (result.get("changes") or [])[:12] if isinstance(result.get("changes"), list) else []:
             c = self.change_item(ids, ch, text, now) if isinstance(ch, dict) else None
-            if c and all(x["uid"] != c["uid"] for x in changed):
+            same = [x for x in changed if c and x["uid"] == c["uid"]]
+            if same:
+                same[0]["sig"] = c["sig"]  # a second change to it: Redo still goes back to the first before
+            elif c:
                 changed.append(c)
         if not made and not changed and not basic and (REMIND.search(text) or re.match(LEADS, text, re.I)):
             # A new to-do and the LLM made nothing (it thought a task already covers it): file it
@@ -1413,14 +1424,17 @@ class Processor:
                 nd["repeat"] = clean_rrule(ch.get("repeat"))
             t = settle({k: ch.get(k) for k in ("due", "remind_at") if k in ch} | {"repeat": nd.get("repeat")},
                        text, now, fresh=False)
-            if "due" in ch:
+            if "due" in ch and (ch["due"] is None or clean_due(t.get("due"))):  # a due it can't read is ignored
                 due = clean_due(t.get("due"))
+                old = clean_due(before.get("due"))
+                if due and len(due) == 10 and old and len(old) > 10 and said_time(text) == "":
+                    due += old[10:]  # a timed deadline keeps its time on a new day
                 if due and before.get("due") and before.get("remind_at") and "remind_at" not in ch:
                     # Moving a task's day moves its reminder with it.
                     shift = parse_local(due).date() - parse_local(before["due"]).date()
                     nd["remind_at"] = int((datetime.fromtimestamp(before["remind_at"], TZ) + shift).timestamp())
                 nd["due"] = due
-            if "remind_at" in ch:
+            if "remind_at" in ch and (ch["remind_at"] is None or clean_due(t.get("remind_at"))):
                 r = parse_local(clean_due(t.get("remind_at")))
                 if r and before.get("remind_at") and said_time(text) == "":
                     # "move it to Friday": a new day, the same time of day
