@@ -40,6 +40,10 @@ get home, take the bins out" becomes a task with a timed or place reminder.
   OpenAI-compatible API. It's set up for OpenRouter's free models. With no
   key, or once the free quota runs out, a plain built-in parser files it
   instead.
+- **Categories.** Each open task's title, notes and list name are sent to
+  TypeSafe to pick its category, or to the same LLM when there is no
+  TypeSafe key. With neither key, nothing is sent and tasks stay under
+  Other.
 - **Address search** goes through the hub to OpenStreetMap's Nominatim,
   with a search area around your rough location (rounded to about 1 km) so
   nearby places come first. "Use where I am" sends the exact spot the same
@@ -88,6 +92,9 @@ Configured by environment variables:
 | `UPLINK_LLM_KEY` or `UPLINK_LLM_KEY_FILE` | API key for the LLM |
 | `UPLINK_LLM_URL` | chat completions URL (default OpenRouter) |
 | `UPLINK_LLM_MODELS` | comma-separated models to try in order (default: a few free OpenRouter models) |
+| `UPLINK_TYPESAFE_KEY` or `UPLINK_TYPESAFE_KEY_FILE` | TypeSafe API key; with it, open tasks get their category from TypeSafe's Jev instead of the LLM |
+| `UPLINK_TYPESAFE_MODEL` | model for categories (default `jev-latest`) |
+| `UPLINK_TYPESAFE_URL` | TypeSafe endpoint (default `https://api.typesafe.ai/v1/systemone`) |
 | `UPLINK_FONTS` | a folder with `ndot55.otf`, served to the page (Ndot isn't open-licensed, so it isn't included; without it the page uses Inter) |
 | `UPLINK_TZ` | time zone for "tomorrow at 3" (default the system's) |
 
@@ -142,7 +149,7 @@ after `since`. Request and response bodies may be gzipped.
 | Kind | Fields |
 |---|---|
 | `list` | `name`, `sort`, `color`, `inbox`, `radicale`, `ignition` |
-| `item` | `type` (task or note), `title`, `notes`, `list`, `due`, `remind_at`, `place`, `place_on` (arrive or leave), `done_at`, `fired_at`, `place_fired_at`, `capture` |
+| `item` | `type` (task or note), `title`, `notes`, `list`, `due`, `remind_at`, `place`, `place_on` (arrive or leave), `done_at`, `fired_at`, `place_fired_at`, `capture`, `category` (work, chores, projects, fun or other), `category_auto` (set when the hub picked the category: a signature of the title, notes and list it judged; absent when you picked it, and the hub then leaves it alone) |
 | `place` | `name`, `lat`, `lon`, `radius` (metres), `address` |
 | `capture` | `type` (voice, screenshot, text, share), `text`, `screen_text`, `app`, `image`, `list` (typed while that list was open; tasks go there unless the filer picks one), `status` (new or done), `summary`, `items` |
 

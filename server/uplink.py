@@ -13,6 +13,8 @@ Data model: every record is (kind, uid, data, updated_at, deleted, rev).
 Clients (the web page and the phone app) sync through POST /api/sync. The hub does the rest:
   * captures (voice notes, screenshots, typed lines, shares) are turned into tasks and notes
     by a text-only LLM call, with a plain parser as fallback;
+  * open tasks get a category (work, chores, projects, fun, other) from TypeSafe's Jev, or
+    from the same LLM when there is no TypeSafe key;
   * tasks are mirrored both ways into Radicale's task lists (so tasks.org and any CalDAV
     client see them) and into Ignition's need/want lists.
 """
@@ -364,8 +366,15 @@ class Brain:
         if capture.get("screen_text"):
             parts.append("Text on screen:\n" + capture["screen_text"][:6000])
         msg = [{"role": "system", "content": PROMPT}, {"role": "user", "content": "\n".join(parts)}]
+        return self.chat(msg, lambda p: isinstance(p.get("items"), list))
+
+    def chat(self, msg, ok, max_tokens=1500):
+        """The JSON object from the first model whose answer passes ok(), or None."""
+        key = self.key()
+        if not key or time.time() < self.out_until:
+            return None
         for model in self.models:
-            body = {"model": model, "messages": msg, "temperature": 0.2, "max_tokens": 1500}
+            body = {"model": model, "messages": msg, "temperature": 0.2, "max_tokens": max_tokens}
             try:
                 req = urllib.request.Request(
                     self.url, json.dumps(body).encode(),
@@ -376,7 +385,7 @@ class Brain:
                     res = json.load(r)
                 text = res["choices"][0]["message"]["content"] or ""
                 parsed = first_json(text)
-                if parsed is not None and isinstance(parsed.get("items"), list):
+                if isinstance(parsed, dict) and ok(parsed):
                     self.last_model, self.last_error = model, ""
                     return parsed
                 self.last_error = f"{model}: no JSON"
@@ -594,6 +603,234 @@ class Processor:
         uid = new_uid()
         self.s.put("item", uid, data)
         return uid
+
+
+# ---------------------------------------------------------------- categories
+
+
+CATEGORIES = ("work", "chores", "projects", "fun", "other")
+
+
+class Categorizer:
+    """Gives every open task a category, on its own thread: one TypeSafe request per task, or,
+    with no TypeSafe key, the filing LLM asked about a batch of tasks at once.
+
+    An item's `category` is one of CATEGORIES. `category_auto` is the signature of what the hub
+    judged; while it's there the hub owns the category and judges again when the signature
+    changes. A category without `category_auto` was picked by the person and is never touched."""
+
+    # ---- what gets tuned: question wording and thresholds ----
+    QUESTION = "Which part of this person's life is this to-do about?"
+    CRITERIA = {
+        "work": "School or a job. Studying, homework, assignments, exams, applications, clubs, "
+                "anything owed to a teacher or a boss.",
+        "chores": "Everyday upkeep and errands. Cleaning, shopping, appointments, phone calls, money, "
+                  "paperwork, fetching or returning things.",
+        "projects": "Something the person is making, building or setting up by choice. Software, hardware, "
+                    "3D prints, servers, things to build or fix up. Something assigned by a school or job "
+                    "is work, not this.",
+        "fun": "Leisure. Games, shows, books, outings, things done purely for enjoyment.",
+    }
+    FITS = ("This to-do is clearly about school or a job, everyday chores and errands, a personal project, "
+            "or leisure.")
+    FITS_CRITERIA = {
+        "true": "The to-do is plainly schoolwork or a job, a chore or errand, something the person is "
+                "making or building, or something done for fun.",
+        "false": "The to-do is too vague to place, such as a lone word or a name, or is about something "
+                 "none of those cover.",
+    }
+    FITS_BELOW = 0.3  # a `fits` answer under this files the task under other
+    NOTES_CHARS = 500  # notes sent, and signed, per task
+    # ---- end of what gets tuned ----
+
+    BACKOFF = 300  # network errors, 429, 529, anything unexpected
+    BACKOFF_KEY = 3600  # 401
+
+    # The LLM's free quota is small and shared with filing, so it gets few, full requests.
+    LLM_SETTLE = 15  # wait this long for the rest of a burst of new tasks
+    LLM_BATCH = 30  # tasks per request
+    LLM_GAP = 300  # between requests
+    LLM_BACKOFF = 3600  # after a request that gave nothing
+
+    def __init__(self, store, model, brain):
+        self.s, self.m, self.brain = store, model, brain
+        self.url = os.environ.get("UPLINK_TYPESAFE_URL", "https://api.typesafe.ai/v1/systemone")
+        self.model = os.environ.get("UPLINK_TYPESAFE_MODEL", "jev-latest")
+        self.key_file = os.environ.get("UPLINK_TYPESAFE_KEY_FILE", "")
+        self.until = 0  # backing off until this time
+        self.last_error = ""
+        self.skip = {}  # uid -> signature the API refused (400/422), until it changes
+
+    def key(self):
+        k = os.environ.get("UPLINK_TYPESAFE_KEY", "")
+        if not k and self.key_file:
+            try:
+                k = Path(self.key_file).expanduser().read_text().strip()
+            except OSError:
+                k = ""
+        return k
+
+    def engine(self):
+        return "typesafe" if self.key() else "llm" if self.brain.key() else None
+
+    def state(self, d):
+        """What the model sees: this one task, without empty fields or the Inbox."""
+        st = {"title": str(d.get("title") or "")}
+        notes = str(d.get("notes") or "").strip()[:self.NOTES_CHARS]
+        if notes:
+            st["notes"] = notes
+        lst = self.s.one("list", str(d.get("list") or "")) if d.get("list") else None
+        if lst and not lst["deleted"] and not lst["data"].get("inbox") and lst["data"].get("name"):
+            st["list"] = lst["data"]["name"]
+        return st
+
+    @staticmethod
+    def signature(st):
+        return hashlib.sha1(json.dumps(st, sort_keys=True).encode()).hexdigest()[:12]
+
+    def needs(self, rec, st=None):
+        d = rec["data"]
+        if rec["kind"] != "item" or rec["deleted"] or d.get("type") != "task" or d.get("done_at"):
+            return False
+        if d.get("category") not in CATEGORIES:
+            return True
+        auto = d.get("category_auto")
+        return bool(auto) and auto != self.signature(st or self.state(d))
+
+    def pending(self):
+        out = []
+        for rec in self.s.all("item"):
+            if self.needs(rec):
+                out.append(rec)
+        return out
+
+    def run(self):
+        while True:
+            with self.s.changed:
+                todo = []
+                if time.time() >= self.until:
+                    todo = [r for r in self.pending() if self.skip.get(r["uid"]) != self.signature(self.state(r["data"]))]
+                if not todo:
+                    left = self.until - time.time()
+                    self.s.changed.wait(min(60, left) if left > 0 else 60)
+            if not todo:
+                time.sleep(1)  # let a burst of writes land
+                continue
+            todo.sort(key=lambda r: -r["updated_at"])  # newest first
+            try:
+                if self.key():
+                    self.judge(todo[0])
+                else:
+                    self.judge_llm()
+            except Exception as e:
+                self.fail(f"{type(e).__name__}: {e}", self.BACKOFF)
+                traceback.print_exc()
+
+    def fail(self, msg, wait):
+        self.until = time.time() + wait
+        if msg != self.last_error:
+            log("categories:", msg)
+        self.last_error = msg
+
+    def request(self, st):
+        crit = dict(self.CRITERIA)
+        return {
+            "model": self.model,
+            "state": st,
+            "questions": {
+                "category": {"type": "choice", "instructions": self.QUESTION, "criteria": crit},
+                "fits": {"type": "noul", "instructions": self.FITS, "criteria": dict(self.FITS_CRITERIA)},
+            },
+        }
+
+    def decide(self, res):
+        ans = res.get("answers") or {}
+        choice = (ans.get("category") or {}).get("choice")
+        fits = (ans.get("fits") or {}).get("noul")
+        if choice not in self.CRITERIA or not isinstance(fits, (int, float)):
+            raise ValueError(f"unexpected answer: {json.dumps(ans)[:200]}")
+        return "other" if fits < self.FITS_BELOW else choice
+
+    def judge(self, rec):
+        key = self.key()
+        if not key:
+            return self.fail("no key", self.BACKOFF)
+        st = self.state(rec["data"])
+        sent = self.signature(st)
+        req = urllib.request.Request(
+            self.url, json.dumps(self.request(st)).encode(),
+            {"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                res = json.load(r)
+        except urllib.error.HTTPError as e:
+            body = e.read()[:400].decode("utf-8", "replace")
+            try:
+                detail = json.loads(body).get("detail", body)
+            except (ValueError, AttributeError):
+                detail = body
+            msg = f"HTTP {e.code} {str(detail)[:160]}".strip()
+            if e.code == 401:
+                return self.fail(msg, self.BACKOFF_KEY)
+            if e.code in (400, 422):
+                # Something about this task: leave it until it changes, and go on to the others.
+                self.skip[rec["uid"]] = sent
+            return self.fail(msg, self.BACKOFF)
+        except Exception as e:  # network, timeout, bad JSON
+            return self.fail(f"{type(e).__name__}: {e}", self.BACKOFF)
+        self.write(rec["uid"], self.decide(res), sent)
+        self.worked()
+
+    def write(self, uid, cat, sent):
+        with self.s.lock:
+            cur = self.s.one("item", uid)
+            if not cur or not self.needs(cur) or self.signature(self.state(cur["data"])) != sent:
+                return  # changed while we asked: it's judged again on the next pass
+            data = dict(cur["data"], category=cat, category_auto=sent)
+            # Just newer than what's there, so any real edit made offline still wins over this.
+            self.s.put("item", cur["uid"], data, at=cur["updated_at"] + 1)
+        self.skip.pop(uid, None)
+
+    def worked(self):
+        if self.last_error:
+            log("categories: working again")
+        self.last_error = ""
+
+    def judge_llm(self):
+        """No TypeSafe key: ask the filing LLM about every waiting task in one request."""
+        time.sleep(self.LLM_SETTLE)
+        batch = []
+        for rec in sorted(self.pending(), key=lambda r: -r["updated_at"]):
+            st = self.state(rec["data"])
+            sent = self.signature(st)
+            if self.skip.get(rec["uid"]) != sent:
+                batch.append((rec["uid"], st, sent))
+        batch = batch[:self.LLM_BATCH]
+        if not batch:
+            return
+        prompt = (
+            "You sort one person's to-do items into categories. Each item has an id, a title, and maybe "
+            "notes and the list it is in.\nCategories:\n"
+            + "".join(f"- {k}: {v}\n" for k, v in self.CRITERIA.items())
+            + "- other: too vague to place, or about something none of those cover.\n"
+            'Reply with one JSON object only, no prose, mapping every id to its category, like {"1": "work", "2": "fun"}.'
+        )
+        tasks = [dict(st, id=str(i + 1)) for i, (_, st, _) in enumerate(batch)]
+        msg = [{"role": "system", "content": prompt}, {"role": "user", "content": json.dumps(tasks, ensure_ascii=False)}]
+        res = self.brain.chat(msg, lambda p: any(p.get(t["id"]) in CATEGORIES for t in tasks), max_tokens=800)
+        if res is None:
+            out = self.brain.out_until - time.time()
+            return self.fail("llm: " + ("free quota used up for today" if out > 0 else self.brain.last_error or "no answer"),
+                             max(self.LLM_BACKOFF, out))
+        for i, (uid, st, sent) in enumerate(batch):
+            cat = res.get(str(i + 1))
+            if isinstance(cat, str) and cat.strip().lower() in CATEGORIES:
+                self.write(uid, cat.strip().lower(), sent)
+            else:
+                self.skip[uid] = sent  # no usable answer for this one: leave it until it changes
+        self.until = time.time() + self.LLM_GAP
+        self.worked()
 
 
 # ---------------------------------------------------------------- Radicale bridge
@@ -1131,6 +1368,7 @@ class App:
         self.m = Model(self.s)
         self.brain = Brain(self.m)
         self.proc = Processor(self.s, self.m, self.brain)
+        self.cats = Categorizer(self.s, self.m, self.brain)
         self.shots = Path(args.data) / "shots"
         self.shots.mkdir(parents=True, exist_ok=True)
         self.fonts = Path(os.environ.get("UPLINK_FONTS", "")) if os.environ.get("UPLINK_FONTS") else None
@@ -1183,6 +1421,8 @@ class App:
             "radicale": self.radicale and {"last_run": int(self.radicale.last_run), "error": self.radicale.last_error},
             "ignition": self.ignition and {"last_run": int(self.ignition.last_run), "error": self.ignition.last_error},
             "pending": len(self.proc.pending()),
+            "categories": {"engine": self.cats.engine(), "waiting": len(self.cats.pending()),
+                           "last_error": self.cats.last_error},
         }
 
     def reprocess(self, uid):
@@ -1350,6 +1590,8 @@ class App:
         self.m.inbox()
         threading.Thread(target=self.proc.run, daemon=True, name="processor").start()
         threading.Thread(target=self.bridges, daemon=True, name="bridges").start()
+        if self.cats.engine():
+            threading.Thread(target=self.cats.run, daemon=True, name="categories").start()
         self.proc.wake.set()
         self.kick.set()
 

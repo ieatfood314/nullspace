@@ -38,10 +38,10 @@ button { background: none; border: 0; cursor: pointer; padding: 0; }
 .top .icon { margin-left: auto; color: var(--dim); align-self: center; padding: 6px; }
 .status:not([hidden]) + .icon { margin-left: 8px; }
 
-/* Upcoming / Lists switch, or back and Edit inside a list */
+/* Upcoming / Categories / Lists switch, or back and Edit inside a list */
 .views { display: flex; justify-content: space-between; align-items: center; padding: 8px var(--pad) 4px; }
 .switch { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
-.switch button { height: 40px; padding: 0 20px; border-radius: 999px; color: var(--dim); font-size: 15px; }
+.switch button { height: 40px; padding: 0 16px; border-radius: 999px; color: var(--dim); font-size: 15px; }
 .switch button.on { background: var(--fg); color: #000; font-weight: 500; }
 .back { display: flex; align-items: center; gap: 2px; height: 44px; color: var(--dim); font-size: 15px; }
 .back:first-child { margin-left: -6px; }
@@ -68,7 +68,8 @@ section:first-child .group { padding-top: 14px; }
 section:first-child .group.lh { padding-top: 4px; }
 .group .head { display: flex; align-items: flex-end; gap: 8px; width: 100%; min-height: 44px; padding-bottom: 2px; font-weight: 500; text-align: left; }
 .group .head span { color: var(--faint); }
-.group .head:hover { color: var(--fg); }
+.group button.head:hover { color: var(--fg); }
+.group span.head { min-height: 0; padding-bottom: 0; }
 .idle { display: flex; flex-wrap: wrap; gap: 0 18px; padding-top: 28px; }
 .idle button { min-height: 44px; color: var(--faint); font-size: 14px; }
 .idle button:hover { color: var(--dim); }

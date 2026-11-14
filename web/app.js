@@ -142,11 +142,11 @@ function whenText(ts) {
 
 /* ---- view state ---- */
 
-// ui.list is "upcoming", "lists" or a list's uid.
+// ui.list is "upcoming", "categories", "lists" or a list's uid.
 const ui = { tab: "tasks", list: "upcoming", showDone: false };
 try { Object.assign(ui, JSON.parse(localStorage.getItem("uplink-ui") || "{}")); ui.showDone = false; } catch (_) {}
 const saveUi = () => localStorage.setItem("uplink-ui", JSON.stringify({ tab: ui.tab, list: ui.list }));
-const inList = () => ui.list !== "upcoming" && ui.list !== "lists";
+const inList = () => !["upcoming", "categories", "lists"].includes(ui.list);
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -177,6 +177,11 @@ function byPriority(a, b) {
   const order = lists().map((l) => l.uid), li = (t) => { const i = order.indexOf(t.data.list); return i < 0 ? 1e6 : i; };
   return (b.data.priority || 0) - (a.data.priority || 0) || li(a) - li(b) || (b.data.created_at || 0) - (a.data.created_at || 0);
 }
+
+/* The hub picks a category for each open task (see Categorizer in the hub); not judged yet is Other. */
+const CATS = [["work", "Work"], ["chores", "Chores"], ["projects", "Projects"], ["fun", "Fun"], ["other", "Other"]];
+const catLabel = (c) => (CATS.find(([v]) => v === c) || [])[1];
+const catOf = (it) => catLabel(it.data.category) ? it.data.category : "other";
 
 const SECTIONS = [["late", "Late"], ["today", "Today"], ["tomorrow", "Tomorrow"], ["week", "This week"], ["later", "Later"], ["there", "When you get there"], ["any", "Anytime"]];
 function sectionOf(it) {
@@ -250,7 +255,7 @@ function renderTasks(view) {
   } else {
     $("#title").textContent = "Tasks";
     $("#count").textContent = open.length || "";
-    nav.innerHTML = `<div class="switch">${[["upcoming", "Upcoming"], ["lists", "Lists"]].map(([v, label]) =>
+    nav.innerHTML = `<div class="switch">${[["upcoming", "Upcoming"], ["categories", "Categories"], ["lists", "Lists"]].map(([v, label]) =>
       `<button data-view="${v}" class="${ui.list === v ? "on" : ""}" aria-pressed="${ui.list === v}">${label}</button>`).join("")}</div>`;
     if (ui.list === "lists") {
       const empty = [];
@@ -261,6 +266,15 @@ function renderTasks(view) {
       }
       if (empty.length) html += `<div class="idle">${empty.map((l) => `<button data-open="${esc(l.uid)}">${esc(l.data.name)}</button>`).join("")}</div>`;
       html += `<button class="btn wide add-list" data-act="new-list">New list</button>`;
+    } else if (ui.list === "categories") {
+      const by = {};
+      for (const t of open) (by[catOf(t)] ||= []).push(t);
+      for (const [key, label] of CATS) {
+        const xs = by[key];
+        if (!xs) continue;
+        html += `<section><h2 class="group"><span class="head">${label}<span>${xs.length}</span></span></h2>${xs.sort(byWhen).map((t) => taskRow(t, "", true)).join("")}</section>`;
+      }
+      if (!open.length) html = `<p class="empty">All clear</p>`;
     } else {
       const by = {};
       for (const t of open) (by[sectionOf(t)] ||= []).push(t);
@@ -369,6 +383,9 @@ function editItem(id) {
   const ls = lists(), ps = all("place").sort((a, b) => a.data.name.localeCompare(b.data.name));
   const dueDate = d.due ? d.due.slice(0, 10) : "", dueTime = d.due && d.due.length > 10 ? d.due.slice(11, 16) : "";
   const cap = d.capture && get("capture", d.capture);
+  // "" is Auto: the hub picks. A category without category_auto is the person's own pick.
+  const cat0 = catLabel(d.category) && !d.category_auto ? d.category : "";
+  const autoLabel = catLabel(d.category) && d.category_auto ? `Auto: ${catLabel(d.category)}` : "Auto";
   openSheet(`
     <textarea class="big" name="title" rows="1" aria-label="Title">${esc(d.title)}</textarea>
     <textarea class="notes" name="notes" placeholder="Notes" aria-label="Notes">${esc(d.notes || "")}</textarea>
@@ -376,6 +393,7 @@ function editItem(id) {
     <div class="tonly" ${isNote ? "hidden" : ""}>
       <div class="fields">
       <div class="field"><span>List</span><select name="list">${ls.map((l) => `<option value="${esc(l.uid)}" ${l.uid === d.list ? "selected" : ""}>${esc(l.data.name)}</option>`).join("")}</select></div>
+      <div class="field"><span>Category</span><select name="category"><option value="">${esc(autoLabel)}</option>${CATS.map(([v, label]) => `<option value="${v}" ${v === cat0 ? "selected" : ""}>${label}</option>`).join("")}</select></div>
       <div class="field"><span>Due</span><div class="pair two"><input type="date" name="due" value="${dueDate}"><input type="time" name="duetime" value="${dueTime}" aria-label="Due time"></div></div>
       ${seg("quick", QUICK.map(([label, f]) => [ymd(f()), label]), dueDate)}
       <div class="field"><span>Remind</span><input type="datetime-local" name="remind" value="${d.remind_at ? toLocalInput(d.remind_at) : ""}"></div>
@@ -411,6 +429,10 @@ function editItem(id) {
         if (pl !== (nd.place || null) || on !== nd.place_on) delete nd.place_fired_at;
         nd.place = pl; nd.place_on = pl ? on : null;
         nd.priority = Number(segValue(f, "priority"));
+        if (f.category.value !== cat0) {
+          if (f.category.value) nd.category = f.category.value; else delete nd.category;
+          delete nd.category_auto;
+        }
       }
       put("item", id, nd);
     };
