@@ -643,6 +643,7 @@ class Categorizer:
 
     BACKOFF = 300  # network errors, 429, 529, anything unexpected
     BACKOFF_KEY = 3600  # 401
+    BACKOFF_TASK = 5  # this one task was refused or got an unreadable answer; it is skipped, the rest go on
 
     # The LLM's free quota is small and shared with filing, so it gets few, full requests.
     LLM_SETTLE = 15  # wait this long for the rest of a burst of new tasks
@@ -774,10 +775,17 @@ class Categorizer:
             if e.code in (400, 422):
                 # Something about this task: leave it until it changes, and go on to the others.
                 self.skip[rec["uid"]] = sent
+                return self.fail(msg, self.BACKOFF_TASK)
             return self.fail(msg, self.BACKOFF)
         except Exception as e:  # network, timeout, bad JSON
             return self.fail(f"{type(e).__name__}: {e}", self.BACKOFF)
-        self.write(rec["uid"], self.decide(res), sent)
+        try:
+            cat = self.decide(res)
+        except (ValueError, AttributeError, TypeError) as e:
+            # An answer we can't read is no answer: skip this task until it changes.
+            self.skip[rec["uid"]] = sent
+            return self.fail(str(e), self.BACKOFF_TASK)
+        self.write(rec["uid"], cat, sent)
         self.worked()
 
     def write(self, uid, cat, sent):

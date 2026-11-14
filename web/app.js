@@ -264,6 +264,8 @@ function renderTasks(view) {
         if (!mo.length) { empty.push(l); continue; }
         html += `<section><h2 class="group lh"><button class="head" data-open="${esc(l.uid)}">${esc(l.data.name)}<span>${mo.length}</span></button></h2>${mo.map((t) => taskRow(t)).join("")}</section>`;
       }
+      const known = new Set(lists().map((l) => l.uid)), stray = open.filter((t) => !known.has(t.data.list)).sort(byWhen);
+      if (stray.length) html += `<section><h2 class="group"><span class="head">No list<span>${stray.length}</span></span></h2>${stray.map((t) => taskRow(t)).join("")}</section>`;
       if (empty.length) html += `<div class="idle">${empty.map((l) => `<button data-open="${esc(l.uid)}">${esc(l.data.name)}</button>`).join("")}</div>`;
       html += `<button class="btn wide add-list" data-act="new-list">New list</button>`;
     } else if (ui.list === "categories") {
