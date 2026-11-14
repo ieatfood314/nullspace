@@ -448,10 +448,16 @@ function renderCaptures(view) {
       ${said && said !== d.summary ? `<div class="said">${esc(said)}</div>` : ""}
       ${img}
       ${made.length ? `<div class="made">${made.map((i) => `<button data-item="${esc(i.uid)}">${esc(i.data.title)}</button>`).join("")}</div>` : ""}
+      ${changed(d).length ? `<div class="made"><span class="lbl">Changed</span>${changed(d).map(([c, i]) => i
+        ? `<button data-item="${esc(i.uid)}">${esc(i.data.title)}</button>`
+        : `<span class="gone">${esc(c.title || "Deleted task")}</span>`).join("")}</div>` : ""}
       <div class="acts"><button data-redo="${esc(c.uid)}">Redo</button><button data-delcap="${esc(c.uid)}">Delete</button></div>
     </div>`;
   }).join("") : `<p class="empty">Press the Essential key to capture the screen, press then hold for a voice note</p>`;
 }
+
+/* Tasks a capture changed ("mark X done"), with the task as it is now (null once deleted). */
+function changed(d) { return (d.changed || []).map((c) => [c, get("item", c.uid)]); }
 
 function appName(pkg) {
   const known = { "com.android.chrome": "Chrome", "org.mozilla.firefox": "Firefox", "com.google.android.gm": "Gmail", "com.instagram.android": "Instagram", "com.whatsapp": "WhatsApp", "com.google.android.youtube": "YouTube", "com.discord": "Discord" };
@@ -758,7 +764,9 @@ $("#capture").addEventListener("submit", async (e) => {
   const c = get("capture", id);
   if (c && c.data.status === "done") {
     const made = (c.data.items || []).filter((u) => !before.has(u)).map((u) => get("item", u)).filter(Boolean);
-    toast(made.length ? "Added " + made.map((m) => m.data.title).join(", ") : "Saved");
+    const ch = changed(c.data).map(([x, i]) => (i ? i.data.title : x.title) || "a task");
+    toast(made.length ? "Added " + made.map((m) => m.data.title).join(", ") + (ch.length ? ", changed " + ch.join(", ") : "")
+      : ch.length ? "Changed " + ch.join(", ") : "Saved");
   } else toast(online ? "Saved, filing soon" : "Saved, sends when online");
 });
 

@@ -89,6 +89,8 @@ section:first-child .group.lh { padding-top: 4px; }
 .cap img { display: block; max-width: 160px; max-height: 300px; border-radius: 10px; margin: 10px 0; border: 1px solid var(--line); cursor: zoom-in; }
 .cap .made { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .cap .made button { font-size: 13px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--fg); }
+.cap .made .lbl { font-size: 12px; color: var(--dim); align-self: center; }
+.cap .made .gone { font-size: 13px; padding: 4px 10px; color: var(--dim); text-decoration: line-through; }
 .cap .acts { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: var(--dim); }
 .cap .wait { color: var(--accent); font-size: 14px; }
 

@@ -125,7 +125,14 @@ object Capture {
             if (System.currentTimeMillis() / 1000 - c.data.optLong("created_at") > 120) continue
             val items = c.data.optJSONArray("items")
             val titles = (0 until (items?.length() ?: 0)).mapNotNull { Store.get("item", items!!.optString(it))?.data?.optString("title") }
-            Notice.show(ctx, if (titles.isEmpty()) "Saved" else "Added " + titles.joinToString(", "))
+            // tasks it changed ("mark X done"), under the name they had before
+            val ch = c.data.optJSONArray("changed")
+            val changed = (0 until (ch?.length() ?: 0)).mapNotNull { ch!!.optJSONObject(it)?.optString("title")?.ifEmpty { null } }
+            val parts = listOfNotNull(
+                titles.takeIf { it.isNotEmpty() }?.let { "Added " + it.joinToString(", ") },
+                changed.takeIf { it.isNotEmpty() }?.let { (if (titles.isEmpty()) "Changed " else "changed ") + it.joinToString(", ") },
+            )
+            Notice.show(ctx, if (parts.isEmpty()) "Saved" else parts.joinToString(", "))
         }
     }
 

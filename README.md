@@ -31,6 +31,11 @@ get home, take the bins out" becomes a task with a timed or place reminder.
 "Every Tuesday and Thursday at 4", "every 2 weeks", "every day for the next
 week" or "every 11.46 hours" becomes one repeating task.
 
+A voice note can also change a task you already have: "mark call the dentist
+as done", "move the dentist reminder to Friday", "push the essay back a day",
+"cancel the reminder for the essay" or "delete the dentist task". Redo on that
+capture puts the task back as it was, unless you've changed it since.
+
 ## Privacy
 
 - **Your voice stays on the phone.** Parakeet runs on the phone's CPU
@@ -40,9 +45,10 @@ week" or "every 11.46 hours" becomes one repeating task.
   They're never sent anywhere else.
 - **Text goes to an LLM.** To turn a capture into tasks and notes, the hub
   sends its text (what you said, or the text on screen) to an
-  OpenAI-compatible API. It's set up for OpenRouter's free models. With no
-  key, or once the free quota runs out, a plain built-in parser files it
-  instead.
+  OpenAI-compatible API, along with the titles and times of up to 60 open
+  tasks so that a voice note can change one. It's set up for OpenRouter's
+  free models. With no key, or once the free quota runs out, a plain
+  built-in parser files it instead.
 - **Categories.** Each open task's title, notes and list name are sent to
   TypeSafe to pick its category, or to the same LLM when there is no
   TypeSafe key. With neither key, nothing is sent and tasks stay under
@@ -159,7 +165,7 @@ after `since`. Request and response bodies may be gzipped.
 | `list` | `name`, `sort`, `color`, `inbox`, `radicale`, `ignition` |
 | `item` | `type` (task or note), `title`, `notes`, `list`, `due`, `remind_at`, `place`, `place_on` (arrive or leave), `repeat` (an iCalendar RRULE such as `FREQ=WEEKLY;BYDAY=TU,TH`; FREQ, INTERVAL, BYDAY, COUNT and UNTIL are used), `done_at`, `fired_at`, `place_fired_at`, `capture`, `category` (work, chores, projects, fun or other), `category_auto` (set when the hub picked the category: a signature of the title, notes and list it judged; absent when you picked it, and the hub then leaves it alone) |
 | `place` | `name`, `lat`, `lon`, `radius` (metres), `address` |
-| `capture` | `type` (voice, screenshot, text, share), `text`, `voice` (a screenshot with a voice note), `screen_text`, `app`, `image`, `list` (typed while that list was open; tasks go there unless the filer picks one), `status` (new or done), `summary`, `items` |
+| `capture` | `type` (voice, screenshot, text, share), `text`, `voice` (a screenshot with a voice note), `screen_text`, `app`, `image`, `list` (typed while that list was open; tasks go there unless the filer picks one), `status` (new or done), `summary`, `items`, `changed` (tasks it changed: `uid`, `title`, `before`, the task as it was, and `sig`, so Redo only puts it back if nothing changed it since) |
 
 Other endpoints: `GET /api/status`, `GET /api/geocode?q=`,
 `GET /api/reverse?lat=&lon=`,

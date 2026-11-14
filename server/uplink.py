@@ -440,6 +440,32 @@ class Model:
     def places(self):
         return self.s.all("place")
 
+    def describe(self, d):
+        """One line about a task, for the LLM: its title and when or where it comes up."""
+        bits = []
+        lst = self.s.one("list", d["list"]) if d.get("list") else None
+        if lst and not lst["data"].get("inbox"):
+            bits.append(f"list {lst['data'].get('name', '')}")
+        if d.get("due"):
+            t = parse_local(d["due"])
+            bits.append("due " + (t.strftime("%a %Y-%m-%d") if len(d["due"]) == 10 else t.strftime("%a %Y-%m-%dT%H:%M")))
+        if d.get("remind_at"):
+            bits.append("remind " + datetime.fromtimestamp(d["remind_at"], TZ).strftime("%a %Y-%m-%dT%H:%M"))
+        if d.get("place"):
+            p = self.s.one("place", d["place"])
+            bits.append(f"{d.get('place_on') or 'arrive'} {p['data'].get('name', '') if p else 'a place'}")
+        if d.get("repeat"):
+            bits.append(f"repeat {d['repeat']}")
+        title = re.sub(r"\s+", " ", d.get("title") or "")[:120]
+        return title + (f" ({', '.join(bits)})" if bits else "")
+
+    def open_tasks(self, skip=(), limit=60):
+        """The open tasks a capture might change, most recently touched first."""
+        recs = [r for r in self.s.all("item") if r["data"].get("type") == "task" and not r["data"].get("done_at")
+                and r["uid"] not in skip]
+        recs.sort(key=lambda r: -r["updated_at"])
+        return [(f"t{i + 1}", r) for i, r in enumerate(recs[:limit])]
+
     def roll_done(self, recs=None):
         """Repeating tasks marked done move on to their next time (see roll()). Returns how many."""
         n = 0
@@ -486,7 +512,8 @@ Reply with one JSON object only, no prose:
  "items": [{"type": "task" or "note", "title": "...", "notes": "...", "list": "<list name or null>",
             "due": "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" or null,
             "remind_at": "YYYY-MM-DDTHH:MM" or null, "repeat": "<RRULE>" or null,
-            "place": "<place name or null>", "place_on": "arrive" or "leave" or null}]}
+            "place": "<place name or null>", "place_on": "arrive" or "leave" or null}],
+ "changes": [{"task": "<id of an open task, like t3>", "done": true, ...any item field to change}]}
 
 Rules:
 - Voice notes and typed lines are what the person said. Fix obvious speech-to-text slips.
@@ -495,6 +522,11 @@ Rules:
   school, gym, a shop name); reuse a known place when it matches.
 - "Remind me at 5" or "tomorrow morning" sets remind_at (morning 09:00, afternoon 14:00, evening 19:00,
   tonight 20:00). A deadline ("due Friday", "by the 20th") sets due. Times are local; the current time is below.
+- "Remind me" (or "don't let me forget") always sets remind_at, also when only a day is said ("remind me
+  Tuesday", "in 3 days", "this weekend"): then 09:00 that day. Only a deadline with no "remind me" is due alone.
+- A time of day that has already gone by today means that time tomorrow ("at noon" said in the evening).
+- Take weekdays and dates from the calendar below; never work them out yourself. "Friday" and "next
+  Friday" are the coming Friday, a week from today when today is Friday.
 - A to-do that repeats ("every day", "every other week", "every Tuesday and Thursday", "every 3 hours")
   is ONE task with repeat set to an iCalendar RRULE, never one task per time. FREQ is MINUTELY, HOURLY,
   DAILY, WEEKLY, MONTHLY or YEARLY; INTERVAL=n for every n; BYDAY=MO,TU,WE,TH,FR,SA,SU for set weekdays
@@ -515,6 +547,13 @@ Rules:
 - A screenshot with something said about it: what they said decides what to make (a task, a note, a
   reminder); use the screen for the details it points at, and don't file the rest of the screen.
 - When a list name clearly fits (for example homework for a school task), use it; otherwise null.
+- Changing a task they already have goes in "changes", not "items": "mark X as done", "I did X", "move X
+  to Friday", "rename X to Y", "cancel the reminder for X", "delete X". Find it in the open tasks below and
+  use its id. List only the fields that change: "done": true, "title", "notes", "list", "due", "remind_at",
+  "repeat", "place" and "place_on" (null clears one), or "delete": true. Moving a task to another day
+  keeps its time of day unless a new one is said, and moves its reminder too. Use changes only when the
+  capture plainly asks to change, finish or remove one of those tasks. "Remind me to X" and any other new
+  to-do is a new item, even when an open task looks the same. Leave "changes" out when there are none.
 - Never invent facts that aren't in the capture."""
 
 
@@ -545,19 +584,27 @@ class Brain:
                 k = ""
         return k
 
-    def ask(self, capture):
+    def ask(self, capture, tasks=()):
+        """tasks: (id, item record) pairs the capture may change, named by id in the prompt."""
         key = self.key()
         if not key or time.time() < self.out_until:
             return None
         lists = ", ".join(l["data"].get("name", "") for l in self.m.lists()) or "none"
         places = ", ".join(p["data"].get("name", "") for p in self.m.places()) or "none"
         n = local_now()
+        days = []
+        for i in range(15):
+            d = n + timedelta(days=i)
+            days.append(f"  {d.strftime('%A %Y-%m-%d')}" + (" (today)" if i == 0 else " (tomorrow)" if i == 1 else ""))
         parts = [
             f"Now: {n.strftime('%A %Y-%m-%d %H:%M')} (local time)",
+            "Calendar:\n" + "\n".join(days),
             f"Lists: {lists}",
             f"Known places: {places}",
             f"Capture type: {capture.get('type')}",
         ]
+        if tasks:
+            parts.append("Open tasks:\n" + "\n".join(f"  {i}: {self.m.describe(r['data'])}" for i, r in tasks))
         hint = self.m.hint_list(capture)
         if hint:
             parts.append(f"Typed while looking at the list: {hint['data'].get('name', '')}")
@@ -568,7 +615,7 @@ class Brain:
         if capture.get("screen_text"):
             parts.append("Text on screen:\n" + capture["screen_text"][:6000])
         msg = [{"role": "system", "content": PROMPT}, {"role": "user", "content": "\n".join(parts)}]
-        return self.chat(msg, lambda p: isinstance(p.get("items"), list))
+        return self.chat(msg, lambda p: isinstance(p.get("items"), list) or isinstance(p.get("changes"), list))
 
     def chat(self, msg, ok, max_tokens=1500):
         """The JSON object from the first model whose answer passes ok(), or None."""
@@ -634,8 +681,27 @@ WORDNUM = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seve
 DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
-def basic_parse(capture):
-    """What we can do without the LLM: one task or note, with place and time phrases pulled out."""
+VERBS = (r"buy|call|email|e-mail|text|message|get|grab|pick up|book|pay|send|finish|fix|clean|tidy|study|write|"
+         r"read|order|return|check|ask|tell|make|take|bring|start|hand in|water|wash|do|go|cook|feed|renew|"
+         r"submit|charge|follow up|print|meet|visit|cancel|schedule|reply|post|drop off|put|walk|practi[cs]e|"
+         r"review|sign|fill|empty|vacuum|mow|sweep|load|unload|change|install|update|backup|back up|look up|"
+         r"find|try|plan|prep|prepare|pack|move|sell|ship|mail|phone|research")
+COMMON_PLACES = ("home", "work", "school", "gym", "office", "store", "grocery store", "supermarket", "library",
+                 "mall", "church", "bank", "pharmacy", "post office", "doctor's", "dentist", "station", "airport",
+                 "park", "class", "practice", "the cottage", "my mom's", "my dad's", "grandma's")
+LEADS = (r"^(?:please\s+)?(?:(?:can you\s+)?remind me\s+(?:to\s+|that\s+|about\s+)?|don'?t\s+(?:let me\s+)?forget\s+(?:to\s+)?"
+         r"|remember\s+to\s+|todo:?\s*|to do:?\s*|i\s+(?:need|have|want|ought)\s+to\s+|i(?:'ve| have)?\s+got\s+to\s+"
+         r"|i\s+gotta\s+|i\s+should\s+|i\s+must\s+)")
+
+
+EDITS = re.compile(r"\b(?:move|moved|push|pushed|change|changed|rename|cancel|delete|remove|mark|done|"
+                   r"finished|completed|did|reschedule|postpone|instead|already|tick|check off|cross off|"
+                   r"no longer|don'?t need|undo|update)\b", re.I)
+
+
+def basic_parse(capture, places=(), tasks=()):
+    """What we can do without the LLM: tasks or a note, with place, time and repeat phrases pulled
+    out, and "mark X done" for an open task (tasks: (id, record) pairs, as the LLM gets them)."""
     text = (capture.get("text") or "").strip()
     if capture.get("type") == "screenshot" and not text:
         screen = (capture.get("screen_text") or "").strip()
@@ -644,36 +710,152 @@ def basic_parse(capture):
                 "items": [{"type": "note", "title": f"Screenshot: {title}", "notes": screen[:2000]}]}
     if not text:
         return {"summary": "Empty", "items": []}
-    t = text.rstrip(".!")
-    item = {"type": "note", "title": t, "notes": ""}
+    t = re.sub(r"\s+", " ", text).strip().rstrip(".!?")
+    done = basic_done(t, tasks)
+    if done:
+        return {"summary": f"Done: {done[1]}", "items": [], "changes": [{"task": done[0], "done": True}]}
+    moved = basic_move(t, tasks)
+    if moved:
+        return moved
+    task = False
     rep, t = pull_repeat(t)
-    m = re.match(r"^(?:please\s+)?(?:remind me (?:to |that |about )?|todo:?\s*|to do:?\s*|i need to |i have to |don't forget to )(.+)$", t, re.I)
+    lst = None
+    m = re.match(r"^(?:please\s+)?(?:put|add)\s+(.+?)\s+(?:on|to|in|into)\s+(?:my|the)\s+(.+?)\s+list$", t, re.I)
     if m:
-        item["type"] = "task"
-        t = m.group(1)
-    elif re.match(r"^(buy|call|email|text|get|pick up|book|pay|send|finish|fix|clean|study|write|read|order|return|check|ask|tell|make|take)\b", t, re.I):
-        item["type"] = "task"
-    pm = re.search(r"\b(?:when|once|as soon as) i (get|arrive|am|get back|leave|head out of|go to|get to)\s+(?:to |at |from |back )?((?:the |my )?[\w' ]{2,30}?)$", t, re.I)
-    if pm:
-        verb = pm.group(1).lower()
-        item["place"] = re.sub(r"^(the|my) ", "", pm.group(2).strip(), flags=re.I)
-        item["place_on"] = "leave" if verb in ("leave", "head out of") else "arrive"
-        item["type"] = "task"
-        t = t[:pm.start()].strip(" ,")
-    when, t = pull_time(t)
+        t, lst, task = m.group(1), m.group(2), True
+    m = re.match(LEADS, t, re.I)
+    if m:
+        t, task = t[m.end():], True
+    place, place_on, t = pull_place(t, places)
+    when, t, info = pull_time(t)
+    remind = bool(REMIND.search(text))
+    due2 = None
+    if when and remind and not info["deadline"]:
+        # "remind me Wednesday that the homework is due Friday": the second day is the deadline
+        w2, t2, i2 = pull_time(t)
+        if w2 and i2["deadline"]:
+            due2, t = (w2 if i2["timed"] else w2[:10]), t2
+    notes = ""
+    b = re.search(rf"\b({NUMWORD})\s+(minutes?|mins?|hours?)\s+before\b", t, re.I)
+    if b and when and not rep:
+        # "10 minutes before my 3 pm meeting": ring that much earlier; the meeting goes in notes
+        k = amount(b.group(1))
+        when = (parse_local(when) - (timedelta(hours=k) if b.group(2).lower()[0] == "h" else timedelta(minutes=k))).strftime("%Y-%m-%dT%H:%M")
+        t = t[:b.start()] + " before " + t[b.end():]
+        v = re.search(rf"\bto\s+(?=(?:{VERBS})\b)", t, re.I)
+        if v:
+            notes = tidy(t[:v.start()]).capitalize()
+            t = t[v.end():]
     if rep:
-        item["type"] = "task"
-        item["repeat"] = rep
         when = first_time(when, parse_rrule(rep))
-    if when:
-        item["remind_at"] = when
-        item["type"] = "task"
-    t = re.sub(r"^(?:to|that|about)\s+", "", t.strip(" ,"), flags=re.I)
-    item["title"] = (t[:1].upper() + t[1:]) if t else text
-    if item["type"] == "note" and len(item["title"]) > 80:
-        item["notes"] = item["title"]
-        item["title"] = item["title"][:60].rsplit(" ", 1)[0] + "…"
-    return {"summary": item["title"], "items": [item]}
+    t = tidy(t)
+    if rep or place or when or re.match(rf"(?:{VERBS})\b", t, re.I):
+        task = True
+    if not task:
+        title = t[:1].upper() + t[1:] if t else text
+        item = {"type": "note", "title": title, "notes": ""}
+        if len(title) > 80:
+            item["notes"], item["title"] = title, title[:60].rsplit(" ", 1)[0] + "…"
+        return {"summary": item["title"], "items": [item]}
+    # "buy eggs, call the bank and email Mr. Smith": a task each, when every part starts with a verb
+    parts = [x for x in re.split(rf",\s*(?:and\s+|then\s+)?|\s+(?:and\s+)?then\s+|\s+and\s+(?=(?:{VERBS})\b)", t, flags=re.I) if x.strip()]
+    if len(parts) < 2 or not all(re.match(rf"(?:{VERBS})\b", x.strip(), re.I) for x in parts):
+        parts = [t]
+    items = []
+    for part in parts:
+        part = tidy(part) or text
+        item = {"type": "task", "title": part[:1].upper() + part[1:], "notes": notes}
+        if due2:
+            item["due"] = due2
+        if lst:
+            item["list"] = lst
+        if place:
+            item["place"], item["place_on"] = place, place_on
+        if rep:
+            item["repeat"] = rep
+        if when:
+            if info["deadline"] and not rep:
+                item["due"] = when if info["timed"] else when[:10]
+                if remind:
+                    item["remind_at"] = when
+            else:
+                item["remind_at"] = when
+        items.append(item)
+    return {"summary": ", ".join(i["title"] for i in items), "items": items}
+
+
+def tidy(t):
+    """The words left once the phrases are out, as a title."""
+    t = re.sub(r"\s+", " ", t).strip(" ,;:-")
+    for _ in range(3):
+        t = re.sub(r"^(?:to|that|about|and|then|also|so|please)\s+", "", t, flags=re.I)
+        t = re.sub(r"\s+(?:by|due|on|at|next|the|is|are|and|to|for|in|from)$", "", t, flags=re.I).strip(" ,;:-")
+    return t
+
+
+def pull_place(t, places=()):
+    """'when I get home', 'once I leave work', 'when I'm at the library' -> (place, arrive|leave, rest)."""
+    m = re.search(r"\b(?:when|once|as soon as|whenever|after)\s+i(?:'m|\s+am)?\s*(get back to|get back|get to|get|"
+                  r"arrive at|arrive|reach|go to|leave|head out of|walk out of|am at|at|)\s+(?:to\s+|at\s+|from\s+)?", t, re.I)
+    if not m:
+        return None, None, t
+    after = t[m.end():]
+    known = sorted({p.lower() for p in places if p} | set(COMMON_PLACES), key=len, reverse=True)
+    pm = None
+    for name in known:
+        pm = re.match(rf"(?:the\s+|my\s+)?{re.escape(name)}\b", after, re.I)
+        if pm:
+            break
+    if not pm:  # a place we don't know: up to a comma, or the next few words
+        pm = re.match(r"(?:the\s+|my\s+)?[\w']+(?:\s+(?!to\b|and\b|i\b|remind\b)[\w']+){0,2}(?=\s*,|\s*$)", after, re.I) \
+            or re.match(r"(?:the\s+|my\s+)?[\w']+", after, re.I)
+    if not pm:
+        return None, None, t
+    name = re.sub(r"^(?:the|my)\s+", "", pm.group(0).strip(), flags=re.I)
+    verb = (m.group(1) or "").lower()
+    on = "leave" if verb in ("leave", "head out of", "walk out of") else "arrive"
+    return name, on, t[:m.start()] + " " + after[pm.end():]
+
+
+def find_task(name, tasks):
+    """The one open task called name (or whose title holds it): (id, record), or None."""
+    want = norm(re.sub(r"^(?:the|my)\s+", "", name, flags=re.I))
+    hits = [(i, r) for i, r in tasks if norm(r["data"].get("title", "")) == want]
+    if not hits:
+        hits = [(i, r) for i, r in tasks if want and want in norm(r["data"].get("title", ""))]
+    return hits[0] if len(hits) == 1 else None
+
+
+def basic_move(t, tasks):
+    """'move the dentist reminder to Friday', 'push X to tomorrow at 4' -> a change to that task."""
+    m = re.match(r"^(?:please\s+)?(?:move|push|push back|reschedule|change|put off|postpone)\s+(.+?)"
+                 r"(?:\s+(?:task|reminder))?\s+(?:to|till|until|for)\s+(.+)$", t, re.I)
+    hit = m and find_task(m.group(1), tasks)
+    if not hit:
+        return None
+    when, _, info = pull_time(m.group(2))
+    if not when:
+        return None
+    d = hit[1]["data"]
+    ch = {"task": hit[0]}
+    if d.get("due"):  # the reminder moves with it (see change_item)
+        ch["due"] = when if info["timed"] else when[:10] + d["due"][10:]  # keeps a timed due's time
+    else:
+        if not info["timed"] and d.get("remind_at"):  # a new day keeps the old time of day
+            when = when[:11] + datetime.fromtimestamp(d["remind_at"], TZ).strftime("%H:%M")
+        ch["remind_at"] = when
+    return {"summary": f"Moved {d.get('title', '')}", "items": [], "changes": [ch]}
+
+
+def basic_done(t, tasks):
+    """'mark X as done', 'tick off X', 'I finished X' -> (id, title) of the one open task called X."""
+    m = re.match(r"^(?:please\s+)?(?:mark|tick off|check off|cross off|complete)\s+(?:the\s+)?(.+?)"
+                 r"(?:\s+task)?(?:\s+(?:as\s+)?(?:done|complete|completed|finished))?$", t, re.I) \
+        or re.match(r"^i(?:'ve|\s+have)?\s+(?:just\s+)?(?:finished|completed|done)\s+(?:the\s+)?(.+?)(?:\s+task)?$", t, re.I)
+    if not m or not tasks:
+        return None
+    hit = find_task(m.group(1), tasks)
+    return (hit[0], hit[1]["data"].get("title", "")) if hit else None
 
 
 UNITS = {"minute": "MINUTELY", "min": "MINUTELY", "hour": "HOURLY", "day": "DAILY", "week": "WEEKLY",
@@ -690,8 +872,13 @@ def pull_repeat(t):
     unit = r"(minutes?|mins?|hours?|days?|weeks?|months?|years?)"
     day = r"(?:mon|tues|wednes|thurs|fri|satur|sun)days?"
     rule = None
-    m = re.search(rf"\bevery\s+(?:{num}\s+)?{unit}\b", t, re.I)
+    m = re.search(rf"\b(?:on\s+)?the\s+({ORDINAL})\s+(?:day\s+)?of\s+(?:every|each|the)\s+month\b"
+                  rf"|\bevery\s+month\s+on\s+the\s+({ORDINAL})\b", t, re.I)
     if m:
+        rule = f"FREQ=MONTHLY;BYMONTHDAY={ordinal(m.group(1) or m.group(2))}"
+    else:
+        m = re.search(rf"\bevery\s+(?:{num}\s+)?{unit}\b", t, re.I)
+    if m and not rule:
         k = (m.group(1) or "1").lower()
         n = 2 if k in ("other", "second") else float(k) if k[0].isdigit() else WORDNUM.get(k, 1)
         freq = UNITS[re.sub(r"s$", "", m.group(2).lower())]
@@ -704,11 +891,11 @@ def pull_repeat(t):
         if m:
             rule = "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
     if not m:
-        m = re.search(rf"\b(every|on)\s+({day}(?:\s*(?:,\s*and|,|and|&)\s*{day})*)", t, re.I)
-        if m and (m.group(1).lower() == "every" or m.group(2).lower().endswith("s")):
-            found = re.findall(day, m.group(2), re.I)
+        m = re.search(rf"\b(every|on)\s+(?:(other|second)\s+)?({day}(?:\s*(?:,\s*and|,|and|&)\s*{day})*)", t, re.I)
+        if m and (m.group(1).lower() == "every" or m.group(3).lower().endswith("s")):
+            found = re.findall(day, m.group(3), re.I)
             byday = sorted({DAYS.index(re.sub(r"s$", "", d.lower())) for d in found})
-            rule = "FREQ=WEEKLY;BYDAY=" + ",".join(WEEKDAYS[d] for d in byday)
+            rule = "FREQ=WEEKLY;" + ("INTERVAL=2;" if m.group(2) else "") + "BYDAY=" + ",".join(WEEKDAYS[d] for d in byday)
         else:
             m = None
     if not m:
@@ -761,31 +948,97 @@ def first_time(when, rule):
     return t.strftime("%Y-%m-%dT%H:%M")
 
 
+ORDINAL = (r"\d{1,2}(?:st|nd|rd|th)?|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|"
+           r"eleventh|twelfth|fifteenth|twentieth|last")
+ORDWORDS = {"first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7, "eighth": 8,
+            "ninth": 9, "tenth": 10, "eleventh": 11, "twelfth": 12, "fifteenth": 15, "twentieth": 20, "last": -1}
+MONTH_NAMES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+
+
+def ordinal(s):
+    s = s.lower()
+    return int(re.sub(r"\D", "", s)) if s[0].isdigit() else ORDWORDS.get(s, 1)
+
+
+def amount(k):
+    k = k.lower()
+    return float(k) if k[0].isdigit() else WORDNUM.get(k, 1)
+
+
 def pull_time(t):
+    """Pulls the time phrases out of t. Returns (when 'YYYY-MM-DDTHH:MM' or None, the rest,
+    {"deadline": said as "due"/"by", "timed": a time of day was said})."""
     n = local_now()
-    day = None
-    hour = None
-    m = re.search(r"\bin (\d+|an?|one|two|three|four|five|ten|twenty|thirty) (minutes?|mins?|hours?)\b", t, re.I)
-    if m:
-        k = m.group(1).lower()
-        amount = int(k) if k.isdigit() else WORDNUM.get(k, {"twenty": 20, "thirty": 30}.get(k, 1))
-        delta = timedelta(hours=amount) if m.group(2).lower().startswith("h") else timedelta(minutes=amount)
-        return (n + delta).strftime("%Y-%m-%dT%H:%M"), (t[:m.start()] + t[m.end():]).strip(" ,")
+    day = hour = None
+    evening = None  # "tonight": 20:00 unless a time is said, and "at 7" then means 7 pm
+    info = {"deadline": False, "timed": False}
     rest = t
-    m = re.search(r"\b(today|tonight|tomorrow|on (?:" + "|".join(DAYS) + r")|(?:" + "|".join(DAYS) + r"))\b", rest, re.I)
+
+    def cut(m):
+        nonlocal rest
+        rest = rest[:m.start()] + " " + rest[m.end():]
+
+    def deadline_before(m):
+        """'due Friday', 'by the 20th': the word before the day makes it a deadline."""
+        d = re.search(r"\b(?:(?:is|are)\s+)?(?:due|by)(?:\s+on)?\s*$", rest[:m.start()], re.I)
+        if d:
+            info["deadline"] = True
+            return d
+        return None
+
+    m = re.search(rf"\bin\s+(?:({NUMWORD}|\d+\.\d+)\s+(minutes?|mins?|hours?)(\s+and\s+a\s+half)?|(half\s+an?\s+hour)"
+                  rf"|(an?\s+hour\s+and\s+a\s+half))\b", rest, re.I)
     if m:
-        w = m.group(1).lower().replace("on ", "")
-        if w in ("today", "tonight"):
-            day = n.date()
-            if w == "tonight":
-                hour = (20, 0)
-        elif w == "tomorrow":
-            day = n.date() + timedelta(days=1)
+        if m.group(4):
+            delta = timedelta(minutes=30)
+        elif m.group(5):
+            delta = timedelta(minutes=90)
         else:
-            ahead = (DAYS.index(w) - n.weekday()) % 7 or 7
-            day = n.date() + timedelta(days=ahead)
-        rest = (rest[:m.start()] + rest[m.end():]).strip(" ,")
-    m = re.search(r"\bat (\d{1,2})(?::(\d\d))?\s*(am|pm|a\.m\.|p\.m\.)?\b", rest, re.I)
+            k = amount(m.group(1)) + (0.5 if m.group(3) else 0)
+            delta = timedelta(hours=k) if m.group(2).lower().startswith("h") else timedelta(minutes=k)
+        cut(m)
+        info["timed"] = True
+        return (n + delta).strftime("%Y-%m-%dT%H:%M"), rest, info
+    months = MONTHS
+    pats = [
+        (rf"\bin\s+({NUMWORD})\s+(days?|weeks?)\b",
+         lambda m: n.date() + timedelta(days=int(amount(m.group(1))) * (7 if m.group(2).lower()[0] == "w" else 1))),
+        (r"\b(?:the\s+)?day\s+after\s+tomorrow\b", lambda m: n.date() + timedelta(days=2)),
+        (r"\btomorrow\b", lambda m: n.date() + timedelta(days=1)),
+        (r"\b(?:today|tonight)\b", lambda m: n.date()),
+        (rf"\b(?:on\s+)?(?:the\s+)?({ORDINAL})\s+of\s+({months})\b|\b(?:on\s+)?({months})\.?\s+(?:the\s+)?({ORDINAL})\b",
+         lambda m: month_day(n.date(), m.group(2) or m.group(3), m.group(1) or m.group(4))),
+        (r"\b(?:on\s+)?the\s+(\d{1,2}(?:st|nd|rd|th)|first|second|third|fifteenth|twentieth|last)\b(?!\s+(?:time|one|thing|step|day|week))",
+         lambda m: month_day(n.date(), None, m.group(1))),
+        (rf"\b(?:on\s+|next\s+|this\s+|coming\s+)?({'|'.join(DAYS)})\b",
+         lambda m: n.date() + timedelta(days=(DAYS.index(m.group(1).lower()) - n.weekday()) % 7 or 7)),
+        (r"\b(?:on\s+|this\s+|next\s+)?the\s+weekend\b|\b(?:this|next)\s+weekend\b",
+         lambda m: n.date() + timedelta(days=(5 - n.weekday()) % 7)),
+    ]
+    for pat, fn in pats:
+        m = re.search(pat, rest, re.I)
+        if m:
+            day = fn(m)
+            if day is None:
+                continue
+            dl = deadline_before(m)
+            if re.match(r"tonight", m.group(0), re.I):
+                evening = (20, 0)
+            cut(m)
+            if dl:
+                rest = rest[:dl.start()] + " " + rest[dl.end():]
+            break
+    m = re.search(r"\b(?:at\s+|by\s+)?(noon|midday|midnight)\b", rest, re.I)
+    if m:
+        if m.group(1).lower() == "midnight":
+            hour = (0, 0)
+            day = (day or n.date()) + timedelta(days=1)  # "Friday at midnight" is the night of Friday
+        else:
+            hour = (12, 0)
+        cut(m)
+        info["timed"] = True
+    m = None if hour else (re.search(r"\b(?:at\s+|by\s+)?(\d{1,2})(?::(\d\d))?\s*(am|pm|a\.m\.|p\.m\.)(?!\w)", rest, re.I)
+                          or re.search(r"\bat\s+(\d{1,2})(?::(\d\d))?()\b(?!\s*(?:minutes?|mins?|hours?|days?|%))", rest, re.I))
     if m:
         h, mi = int(m.group(1)), int(m.group(2) or 0)
         ap = (m.group(3) or "").lower().replace(".", "")
@@ -793,24 +1046,232 @@ def pull_time(t):
             h += 12
         elif ap == "am" and h == 12:
             h = 0
-        elif not ap and h < 7:
+        elif not ap and (h < 7 or evening and h < 12):
             h += 12  # "at 5" means 5 pm
-        if h < 24:
+        if h < 24 and mi < 60:
             hour = (h, mi)
-            rest = (rest[:m.start()] + rest[m.end():]).strip(" ,")
-    for word, hh in (("morning", 9), ("afternoon", 14), ("evening", 19)):
-        mm = re.search(rf"\b(?:in the |this )?{word}\b", rest, re.I)
-        if mm and hour is None:
-            hour = (hh, 0)
-            rest = (rest[:mm.start()] + rest[mm.end():]).strip(" ,")
+            info["timed"] = True
+            if re.match(r"by\b", m.group(0), re.I):
+                info["deadline"] = True
+            cut(m)
+        m2 = re.search(r"\b(?:in\s+the\s+|this\s+)?(afternoon|evening|night)\b", rest, re.I)
+        if hour and m2 and not ap and hour[0] < 12:
+            hour = (hour[0] + 12, hour[1])
+    for word, hh in (("morning", 9), ("afternoon", 14), ("evening", 19), ("night", 20),
+                     (r"(?:the\s+)?end\s+of\s+(?:the\s+)?(?:work\s+)?day", 17)):
+        mm = re.search(rf"\b(?:in\s+the\s+|this\s+|at\s+|by\s+)?{word}\b", rest, re.I)
+        if mm:
+            if hour is None:
+                hour = (hh, 0)
+                info["timed"] = True
+            cut(mm)
+    if evening and hour is None:
+        hour = evening
+        info["timed"] = True
     if day is None and hour is None:
-        return None, t
+        return None, t, info
     day = day or n.date()
     hour = hour or (9, 0)
     when = datetime(day.year, day.month, day.day, hour[0], hour[1], tzinfo=TZ)
     if when < n and day == n.date():
         when += timedelta(days=1)
-    return when.strftime("%Y-%m-%dT%H:%M"), rest
+    return when.strftime("%Y-%m-%dT%H:%M"), rest, info
+
+
+def month_day(today, month, day):
+    """'the 20th' (this month, or next once it's gone), 'December 3rd' (this year, or next)."""
+    d = ordinal(day)
+    if month:
+        mo = MONTH_NAMES.index(month.lower()[:3]) + 1
+        for y in (today.year, today.year + 1):
+            try:
+                c = date(y, mo, d if d > 0 else 1)
+            except ValueError:
+                return None
+            if d < 0:
+                c = add_months(datetime(y, mo, 1), 1).date() - timedelta(days=1)
+            if c >= today:
+                return c
+        return None
+    for k in range(13):
+        first = add_months(datetime(today.year, today.month, 1), k).date()
+        last = add_months(datetime(first.year, first.month, 1), 1).date() - timedelta(days=1)
+        c = last if d < 0 else first.replace(day=d) if d <= last.day else None
+        if c and c >= today:
+            return c
+    return None
+
+
+# ---------------------------------------------------------------- checking the filer's dates
+#
+# The LLM gets weekdays and "in 3 days" wrong now and then, and sets reminders that have already
+# gone by. When the capture's own words pin down one day ("tomorrow", "Thursday", "in 3 days"),
+# the hub checks the dates against it; then it moves any reminder still in the past forward.
+
+MONTHS = (r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|"
+          r"oct(?:ober)?|nov(?:ember)?|dec(?:ember)?")
+NUMWORD = r"\d+|an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve"
+REMIND = re.compile(r"\bremind\b|\bdon'?t (?:let me )?forget\b|\bremember to\b", re.I)
+
+
+def said_days(text, today):
+    """The days the capture's words name: a list of (dates that fit, the date to use, said as a
+    deadline), empty when they name none. None when they say something the hub won't second-guess:
+    a calendar date, a repeat, or a span of minutes or hours (which can cross midnight)."""
+    t = " " + re.sub(r"\s+", " ", (text or "").lower()) + " "
+    if re.search(rf"\b(?:every|each|daily|weekly|nightly|yesterday|last|ago|next (?:week|month|year))\b"
+                 rf"|\b(?:{MONTHS})\.? ?\d|\d(?:st|nd|rd|th)? (?:of )?(?:{MONTHS})\b|\bthe \d{{1,2}}(?:st|nd|rd|th)\b"
+                 rf"|\d{{1,2}}/\d{{1,2}}|\d{{4}}-\d\d|\bin (?:{NUMWORD}|half an?) (?:minutes?|mins?|hours?)\b"
+                 rf"|\b(?:{'|'.join(DAYS)})s\b", t):
+        return None
+    found = []
+
+    def add(m, ok, use):
+        dl = bool(re.search(r"\b(?:due|by|before|deadline)(?: on)?\s*$", t[:m.start()]))
+        found.append((frozenset(ok), use, dl))
+
+    m = re.search(r"\bday after tomorrow\b", t)
+    if m:
+        add(m, {today + timedelta(days=2)}, today + timedelta(days=2))
+        t = t.replace("day after tomorrow", " " * len("day after tomorrow"))
+    for m in re.finditer(r"\btomorrow\b", t):
+        add(m, {today + timedelta(days=1)}, today + timedelta(days=1))
+    for m in re.finditer(r"\b(?:today|this (?:morning|afternoon|evening))\b", t):
+        add(m, {today}, today)
+    for m in re.finditer(r"\btonight\b", t):
+        add(m, {today, today + timedelta(days=1)}, today)
+    for m in re.finditer(rf"\bin ({NUMWORD}) (days?|weeks?)\b", t):
+        k = m.group(1)
+        n = int(k) if k.isdigit() else WORDNUM.get(k, 1)
+        d = today + timedelta(days=n * (7 if m.group(2).startswith("w") else 1))
+        add(m, {d}, d)
+    for m in re.finditer(rf"\b(next |this |coming )?({'|'.join(DAYS)})\b", t):
+        ahead = (DAYS.index(m.group(2)) - today.weekday()) % 7
+        coming = today + timedelta(days=ahead or 7)
+        if m.group(1) == "next ":
+            add(m, {coming, coming + timedelta(days=7)}, coming)
+        else:
+            add(m, {today + timedelta(days=ahead), coming}, coming)
+    m = re.search(r"\b(next |this |the |on the )?weekend\b", t)
+    if m:
+        sat = today + timedelta(days=(5 - today.weekday()) % 7)
+        if today.weekday() == 6:
+            sat = today - timedelta(days=1)
+        ok = {d for d in (sat, sat + timedelta(days=1)) if d >= today}
+        if m.group(1) == "next ":
+            ok |= {sat + timedelta(days=7), sat + timedelta(days=8)}
+        add(m, ok, min(ok))
+    return found
+
+
+def day_for(found, field):
+    """The one day phrase a field should match: a deadline phrase for due, another one for
+    remind_at, or the only phrase there is. None when that isn't clear."""
+    if not found:
+        return None
+    pick = [f for f in found if f[2] == (field == "due")] or found
+    return pick[0] if len({f[0] for f in pick}) == 1 else None
+
+
+TIME_WORDS = re.compile(r"\b(?:morning|afternoon|evening|night|tonight|noon|midday|midnight|lunch|dinner|"
+                        r"breakfast|supper|bed|bedtime|end of (?:the )?(?:work ?)?day|after|before|later|soon|"
+                        r"earlier|now|minutes?|mins?|hours?|o'?clock)\b|\d", re.I)
+CLOCK = re.compile(r"\b\d{1,2}(?::\d\d)?\s*(?:am|pm|a\.m\.|p\.m\.)(?!\w)|\bat \d{1,2}(?::\d\d)?\b|\b(?:noon|midday|midnight)\b", re.I)
+
+
+def said_time(text):
+    """The time of day the words give: "HH:MM" when there's exactly one clock time and nothing
+    that shifts it, "" when no time of day is said at all, None when it isn't that simple."""
+    t = (text or "").lower()
+    if re.search(r"\b(?:before|after|earlier|later|ago|in (?:\d+|an?|half)[^.,]{0,12}(?:minutes?|mins?|hours?))\b", t):
+        return None
+    clocks = CLOCK.findall(t)
+    if len(clocks) == 1:
+        _, rest = pull_repeat(text)
+        when, _, info = pull_time(rest)
+        return when[11:16] if when and info["timed"] else None
+    if not clocks and not TIME_WORDS.search(re.sub(rf"\b(?:{NUMWORD}) (?:days?|weeks?)\b", "", t)):
+        return ""
+    return None
+
+
+def settle(it, text, now, fresh=True):
+    """Check the due and remind_at strings an item or change came with (in place, and returned).
+    fresh: a new item, where "remind me" with only a day still wants a reminder."""
+    rule = parse_rrule(it.get("repeat")) if it.get("repeat") else None
+    found = None if rule else said_days(text, now.date())
+    for f in ("due", "remind_at"):
+        v = clean_due(it.get(f))
+        said = day_for(found, f)
+        if v and said and date.fromisoformat(v[:10]) not in said[0]:
+            it[f] = said[1].isoformat() + v[10:]
+    v = clean_due(it.get("remind_at"))
+    if found == [] and v and parse_local(v) > now + timedelta(days=1):
+        # No day said ("at the end of the day"): the next time that time of day comes round.
+        t = datetime.combine(now.date(), parse_local(v).time(), TZ)
+        it["remind_at"] = (t if t >= now - timedelta(minutes=15) else t + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+    if fresh and REMIND.search(text or "") and not any(clean_due(it.get(f)) for f in ("remind_at", "due")) \
+            and not it.get("place") and not rule:
+        # Asked to be reminded but given no time: take the plain parser's reading of the words.
+        rep, rest = pull_repeat(text)
+        when = pull_time(rest)[0] if not rep else None
+        if when:
+            it["remind_at"] = when
+    if not rule or rule["freq"] not in ("MINUTELY", "HOURLY"):
+        clock = said_time(text)
+        for f in ("remind_at", "due"):
+            v = clean_due(it.get(f))
+            if v and len(v) > 10 and clock is not None and (clock or fresh and f == "remind_at"):
+                it[f] = v[:11] + (clock or "09:00")  # a new reminder with no time said is at 09:00
+    due = clean_due(it.get("due"))
+    if fresh and due and not clean_due(it.get("remind_at")) and not it.get("place") and REMIND.search(text or ""):
+        it["remind_at"] = due if len(due) > 10 else due + "T09:00"
+    if rule:
+        return start_on_rule(it, rule, text, now)
+    for f in ("remind_at", "due"):
+        v = clean_due(it.get(f))
+        t = parse_local(v) if v and len(v) > 10 else None
+        if not t or t >= now - timedelta(minutes=15) or (f == "due" and t.date() != now.date()):
+            # A few minutes back is "in a minute" that took a while to file: the phone rings at
+            # once. A deadline on an earlier day is just late.
+            continue
+        named = re.search(rf"\b(?:{'|'.join(DAYS)})\b", (text or "").lower())
+        month = re.search(rf"\b(?:{MONTHS})\b", (text or "").lower())
+        while t < now:
+            if now - t > timedelta(days=1) and month and not named:
+                t = add_months(t.replace(tzinfo=None), 12).replace(tzinfo=TZ)
+            elif now - t > timedelta(days=1) and named:
+                t = (t.replace(tzinfo=None) + timedelta(days=7)).replace(tzinfo=TZ)
+            else:
+                t = (t.replace(tzinfo=None) + timedelta(days=1)).replace(tzinfo=TZ)
+        it[f] = t.strftime("%Y-%m-%dT%H:%M")
+    return it
+
+
+def start_on_rule(it, rule, text, now):
+    """A repeating task's first time on a day its rule allows: "every Monday" starts on a Monday,
+    "the 15th of every month" on the coming 15th."""
+    for f in ("remind_at", "due"):
+        v = clean_due(it.get(f))
+        if not v:
+            continue
+        t = parse_local(v)
+        if rule["freq"] in ("DAILY", "WEEKLY") and rule["byday"] and t.weekday() not in rule["byday"]:
+            # the soonest allowed day from now, at the time given
+            t = datetime.combine(now.date(), t.time(), TZ)
+            for _ in range(8):
+                if t.weekday() in rule["byday"] and t >= now - timedelta(minutes=15):
+                    break
+                t = (t.replace(tzinfo=None) + timedelta(days=1)).replace(tzinfo=TZ)
+        m = re.search(rf"\bthe\s+({ORDINAL})\b", text or "", re.I) if rule["freq"] == "MONTHLY" else None
+        d = month_day(now.date(), None, m.group(1)) if m else None
+        if d:
+            c = datetime.combine(d, t.time(), TZ)
+            if c < now:
+                c = datetime.combine(month_day(d + timedelta(days=1), None, m.group(1)) or d, t.time(), TZ)
+            t = c
+        it[f] = t.strftime("%Y-%m-%dT%H:%M") if len(v) > 10 else t.strftime("%Y-%m-%d")
+    return it
 
 
 class Processor:
@@ -848,23 +1309,122 @@ class Processor:
 
     def process(self, cap, force=False):
         d = dict(cap["data"])
-        result = self.brain.ask(d)
+        mine = set(cap["data"].get("items") or [])
+        if force:
+            self.undo(cap["data"])
+        text = (d.get("text") or "").strip()
+        # What was said can change tasks already there ("mark X done"), so the LLM sees them.
+        tasks = self.m.open_tasks(skip=mine) if text and d.get("type") in ("voice", "text", "share") else []
+        places = [p["data"].get("name", "") for p in self.m.places()]
+        result = self.brain.ask(d, tasks)
         basic = result is None
         if basic:
-            result = basic_parse(d)
+            result = basic_parse(d, places, tasks)
+        now = local_now()
         made = []
         for it in (result.get("items") or [])[:12]:
-            made.append(self.make_item(it, cap["uid"], d))
+            if isinstance(it, dict):
+                made.append(self.make_item(settle(dict(it), text, now), cap["uid"], d))
+        changed = []
+        ids = dict(tasks)
+        if not basic and re.match(LEADS, text, re.I) and not EDITS.search(text):
+            # "Remind me to X" is a new task even when the LLM would rather fold it into an old one.
+            if result.get("changes"):
+                result["changes"], made = [], made or [self.make_item(settle(dict(it), text, now), cap["uid"], d)
+                                                       for it in basic_parse(d, places)["items"]]
+        for ch in (result.get("changes") or [])[:12] if isinstance(result.get("changes"), list) else []:
+            c = self.change_item(ids, ch, text, now) if isinstance(ch, dict) else None
+            if c and all(x["uid"] != c["uid"] for x in changed):
+                changed.append(c)
+        if not made and not changed and not basic and REMIND.search(text):
+            # Asked to be reminded and the LLM made nothing (it thought a task already covers
+            # it): file it plainly rather than drop it.
+            basic = True
+            for it in basic_parse(d, places)["items"]:
+                made.append(self.make_item(settle(dict(it), text, now), cap["uid"], d))
         d.update(status="done", summary=str(result.get("summary") or "")[:200], items=made,
-                 processed_at=int(time.time()), basic=basic)
+                 processed_at=int(time.time()), basic=basic, changed=changed)
         if force:
             # Reprocessing replaces the items the last pass made.
-            for old in cap["data"].get("items") or []:
+            for old in mine:
                 rec = self.s.one("item", old)
                 if rec and not rec["deleted"]:
                     self.s.put("item", old, rec["data"], deleted=True)
         self.s.put("capture", cap["uid"], d)
-        log(f"capture {cap['uid']} ({d.get('type')}): {len(made)} item(s){' (basic)' if basic else ''}")
+        log(f"capture {cap['uid']} ({d.get('type')}): {len(made)} item(s), {len(changed)} changed"
+            f"{' (basic)' if basic else ''}")
+
+    @staticmethod
+    def edit_sig(rec):
+        """What a change wrote, minus what the hub fills in later (the category)."""
+        d = {k: v for k, v in rec["data"].items() if k not in ("category", "category_auto")}
+        return hashlib.sha1(json.dumps([rec["deleted"], d], sort_keys=True).encode()).hexdigest()[:16]
+
+    def undo(self, capd):
+        """Puts back the tasks a capture changed, unless they've been changed again since."""
+        for c in capd.get("changed") or []:
+            cur = self.s.one("item", str(c.get("uid")))
+            if cur and isinstance(c.get("before"), dict) and self.edit_sig(cur) == c.get("sig"):
+                self.s.put("item", cur["uid"], c["before"])
+
+    def change_item(self, ids, ch, text, now):
+        """Applies one change the filer asked for to an open task. Returns what to keep on the
+        capture to undo it ({uid, title, before, sig}), or None when nothing changed."""
+        cur = ids.get(str(ch.get("task") or "").strip())
+        cur = cur and self.s.one("item", cur["uid"])
+        if not cur or cur["deleted"]:
+            return None
+        uid, before = cur["uid"], cur["data"]
+        nd = dict(before)
+        if ch.get("delete") is True:
+            self.s.put("item", uid, before, deleted=True)
+        else:
+            if ch.get("done") is True:
+                nd["done_at"] = int(time.time())
+            elif ch.get("done") is False:
+                nd["done_at"] = None
+            title = str(ch.get("title") or "").strip().rstrip(".")[:300]
+            if title:
+                nd["title"] = title[:1].upper() + title[1:]
+            if "notes" in ch:
+                nd["notes"] = str(ch.get("notes") or "")[:20000]
+            lst = self.m.list_by_name(ch.get("list")) if ch.get("list") else None
+            if lst:
+                nd["list"] = lst["uid"]
+            if "repeat" in ch:
+                nd["repeat"] = clean_rrule(ch.get("repeat"))
+            t = settle({k: ch.get(k) for k in ("due", "remind_at") if k in ch} | {"repeat": nd.get("repeat")},
+                       text, now, fresh=False)
+            if "due" in ch:
+                due = clean_due(t.get("due"))
+                if due and before.get("due") and before.get("remind_at") and "remind_at" not in ch:
+                    # Moving a task's day moves its reminder with it.
+                    shift = parse_local(due).date() - parse_local(before["due"]).date()
+                    nd["remind_at"] = int((datetime.fromtimestamp(before["remind_at"], TZ) + shift).timestamp())
+                nd["due"] = due
+            if "remind_at" in ch:
+                r = parse_local(clean_due(t.get("remind_at")))
+                if r and before.get("remind_at") and said_time(text) == "":
+                    # "move it to Friday": a new day, the same time of day
+                    r = datetime.combine(r.date(), datetime.fromtimestamp(before["remind_at"], TZ).time(), TZ)
+                nd["remind_at"] = int(r.timestamp()) if r else None
+            if nd.get("remind_at") != before.get("remind_at"):
+                nd.pop("fired_at", None)
+            if "place" in ch:
+                ok = ch.get("place") and len(str(ch["place"]).split()) <= 4
+                nd["place"] = self.m.place_by_name(str(ch["place"])[:40]) if ok else None
+                nd["place_on"] = ("leave" if ch.get("place_on") == "leave" else "arrive") if nd["place"] else None
+            elif ch.get("place_on") in ("arrive", "leave") and nd.get("place"):
+                nd["place_on"] = ch["place_on"]
+            if (nd.get("place"), nd.get("place_on")) != (before.get("place"), before.get("place_on")):
+                nd.pop("place_fired_at", None)
+            if nd == before:
+                return None
+            self.s.put("item", uid, nd)
+            if nd.get("done_at") and nd.get("repeat"):
+                self.m.roll_done([self.s.one("item", uid)])
+        return {"uid": uid, "title": before.get("title", ""), "before": before,
+                "sig": self.edit_sig(self.s.one("item", uid))}
 
     def make_item(self, it, cap_uid, cap):
         kind = "task" if it.get("type") == "task" else "note"
@@ -893,7 +1453,7 @@ class Processor:
             if not data.get("remind_at") and not due:
                 # A repeat needs a first time to count from.
                 data["remind_at"] = int(parse_local(first_time(None, rule)).timestamp())
-        if it.get("place"):
+        if it.get("place") and len(str(it["place"]).split()) <= 4:  # longer is a misheard phrase, not a place
             data["place"] = self.m.place_by_name(str(it["place"])[:40])
             data["place_on"] = "leave" if it.get("place_on") == "leave" else "arrive"
             data["type"] = "task"
