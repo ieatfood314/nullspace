@@ -60,6 +60,8 @@ android {
         versionName = "${project.property("uplinkVersion")}.$commitCount"
         // -Phub=http://10.0.2.2:4698 points a test build at a test hub
         buildConfigField("String", "HUB_URL", "\"${project.findProperty("hub") ?: installProps.getProperty("hub", "")}\"")
+        // android/test.sh runs app/src/androidTest on an emulator, with both hubs off
+        testInstrumentationRunner = "ca.heeney.uplink.OfflineRunner"
         buildConfigField("String", "SQUELCH_HUB", "\"${installProps.getProperty("squelch_hub", "")}\"")
         ndk {
             abiFilters += "arm64-v8a"
@@ -119,4 +121,8 @@ dependencies {
     implementation("androidx.work:work-runtime:2.9.1")
     // Geofences for place reminders (Google Play services, which the phone has).
     implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }
