@@ -631,13 +631,11 @@ class Categorizer:
                     "is work, not this.",
         "fun": "Leisure. Games, shows, books, outings, things done purely for enjoyment.",
     }
-    FITS = ("This to-do is clearly about school or a job, everyday chores and errands, a personal project, "
-            "or leisure.")
+    # Asked beside the choice, which always picks something: can this title be placed at all?
+    FITS = "The title says enough to tell what kind of activity this to-do is."
     FITS_CRITERIA = {
-        "true": "The to-do is plainly schoolwork or a job, a chore or errand, something the person is "
-                "making or building, or something done for fun.",
-        "false": "The to-do is too vague to place, such as a lone word or a name, or is about something "
-                 "none of those cover.",
+        "true": "It names a task, subject, thing or activity a reader can recognise, even in one or two words.",
+        "false": "It is a lone person's name, a filler word like \"thing\" or \"stuff\", or random characters.",
     }
     FITS_BELOW = 0.3  # a `fits` answer under this files the task under other
     NOTES_CHARS = 500  # notes sent, and signed, per task
