@@ -1195,9 +1195,24 @@ def said_time(text):
     return None
 
 
-def settle(it, text, now, fresh=True):
+def said_span(text):
+    """'in 20 minutes', 'in an hour and a half': the one span the words give, or None."""
+    t = (text or "").lower()
+    found = re.findall(rf"\bin\s+(?:(?:{NUMWORD}|\d+\.\d+)\s+(?:minutes?|mins?|hours?)(?:\s+and\s+a\s+half)?"
+                       rf"|half\s+an?\s+hour|an?\s+hour\s+and\s+a\s+half)\b", t)
+    if len(found) != 1 or CLOCK.search(t) or re.search(rf"\b(?:tomorrow|tonight|today|every|before|after)\b|\bin\s+(?:{NUMWORD})\s+(?:days?|weeks?)\b", t):
+        return None
+    when, _, _ = pull_time(found[0])
+    return parse_local(when) - local_now().replace(second=0, microsecond=0) if when else None
+
+
+def settle(it, text, now, fresh=True, said_at=None):
     """Check the due and remind_at strings an item or change came with (in place, and returned).
-    fresh: a new item, where "remind me" with only a day still wants a reminder."""
+    fresh: a new item, where "remind me" with only a day still wants a reminder.
+    said_at: when the capture was made, which "in 20 minutes" counts from."""
+    span = said_span(text)
+    if span and fresh and not it.get("repeat"):
+        it["remind_at"] = ((said_at or now) + span).strftime("%Y-%m-%dT%H:%M")
     rule = parse_rrule(it.get("repeat")) if it.get("repeat") else None
     found = None if rule else said_days(text, now.date())
     for f in ("due", "remind_at"):
@@ -1321,10 +1336,13 @@ class Processor:
         if basic:
             result = basic_parse(d, places, tasks)
         now = local_now()
+        said_at = datetime.fromtimestamp(d["created_at"], TZ) if d.get("created_at") else now
+        if not timedelta(0) <= now - said_at <= timedelta(days=2):
+            said_at = now
         made = []
         for it in (result.get("items") or [])[:12]:
             if isinstance(it, dict):
-                made.append(self.make_item(settle(dict(it), text, now), cap["uid"], d))
+                made.append(self.make_item(settle(dict(it), text, now, said_at=said_at), cap["uid"], d))
         changed = []
         ids = dict(tasks)
         if not basic and re.match(LEADS, text, re.I) and not EDITS.search(text):
@@ -1336,9 +1354,9 @@ class Processor:
             c = self.change_item(ids, ch, text, now) if isinstance(ch, dict) else None
             if c and all(x["uid"] != c["uid"] for x in changed):
                 changed.append(c)
-        if not made and not changed and not basic and REMIND.search(text):
-            # Asked to be reminded and the LLM made nothing (it thought a task already covers
-            # it): file it plainly rather than drop it.
+        if not made and not changed and not basic and (REMIND.search(text) or re.match(LEADS, text, re.I)):
+            # A new to-do and the LLM made nothing (it thought a task already covers it): file it
+            # plainly rather than drop it.
             basic = True
             for it in basic_parse(d, places)["items"]:
                 made.append(self.make_item(settle(dict(it), text, now), cap["uid"], d))
