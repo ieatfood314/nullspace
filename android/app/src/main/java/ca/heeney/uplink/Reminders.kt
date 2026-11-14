@@ -21,7 +21,8 @@ import org.json.JSONObject
 
 /** Time reminders (exact alarms) and place reminders (geofences), rebuilt from the Store
  *  whenever it changes. A reminder fires once: it stamps fired_at / place_fired_at on the
- *  task, which syncs, so editing the time or place in the page arms it again. */
+ *  task, which syncs, so editing the time or place in the page arms it again. A repeating
+ *  task rings at each of its times (see Repeat), done or not; fired_at holds the last one. */
 object Reminders {
     private const val CHANNEL = "reminders"
 
@@ -38,9 +39,11 @@ object Reminders {
         try { synchronized(lock) { alarms(app); fences(app) } } catch (t: Throwable) { Log.w(TAG, "reminders: $t") }
     }
 
-    private fun openTasks() = Store.all("item").filter {
-        it.data.optString("type") != "note" && it.data.isNull("done_at").let { n -> n || it.data.optLong("done_at") == 0L }
-    }
+    private fun isDone(t: Store.Rec) = !t.data.isNull("done_at") && t.data.optLong("done_at") > 0L
+
+    private fun openTasks() = Store.all("item").filter { it.data.optString("type") != "note" && !isDone(it) }
+
+    private fun repeat(t: Store.Rec) = if (t.data.isNull("repeat")) null else Repeat.parse(t.data.optString("repeat"))
 
     // ---- time ----
 
@@ -54,9 +57,16 @@ object Reminders {
         val am = ctx.getSystemService(AlarmManager::class.java)
         val now = System.currentTimeMillis() / 1000
         val want = mutableMapOf<String, Long>()
-        for (t in openTasks()) {
+        for (t in Store.all("item")) {
+            if (t.data.optString("type") == "note") continue
             val at = t.data.optLong("remind_at")
-            if (at <= 0 || t.data.optLong("fired_at") >= at) continue
+            if (at <= 0) continue
+            val rule = repeat(t)
+            if (rule != null) {
+                rule.nextRing(at, t.data.optLong("fired_at"), isDone(t), now)?.let { want[t.uid] = maxOf(it, now + 2) }
+                continue
+            }
+            if (isDone(t) || t.data.optLong("fired_at") >= at) continue
             want[t.uid] = maxOf(at, now + 2)
         }
         val sp = Prefs.sp()
@@ -76,9 +86,17 @@ object Reminders {
             Store.init(ctx)
             val uid = intent.getStringExtra("uid") ?: return
             val t = Store.get("item", uid) ?: return
-            val at = t.data.optLong("remind_at")
-            if (!t.data.isNull("done_at") && t.data.optLong("done_at") > 0) return
-            if (at <= 0 || t.data.optLong("fired_at") >= at) return
+            var at = t.data.optLong("remind_at")
+            val rule = repeat(t)
+            if (rule != null && at > 0) {
+                // Alarms may run a little early; 30 s of slack.
+                at = rule.current(at, t.data.optLong("fired_at"), isDone(t), System.currentTimeMillis() / 1000 + 30) ?: 0L
+            } else if (isDone(t)) return
+            if (at <= 0 || t.data.optLong("fired_at") >= at) {
+                Prefs.sp().edit().putString("alarms", "{}").apply()
+                refresh(ctx)
+                return
+            }
             notify(ctx, t, null)
             Store.put("item", uid, JSONObject(t.data.toString()).put("fired_at", at))
             HubSync.soon(ctx)

@@ -127,6 +127,8 @@ dialog[open] { animation: up .22s ease-out; }
 .field > :last-child { min-width: 0; }
 .field > select, .field > input, .pair > *, .stack > select, .stack > input, .stack > .seg { width: 100%; min-width: 0; }
 .pair.two { display: grid; grid-template-columns: 3fr 2fr; gap: 8px; }
+.pair.rep { display: grid; grid-template-columns: 2fr 3fr; gap: 8px; }
+.pair.rep:has(> input[hidden]) { grid-template-columns: 1fr; }
 .stack { display: grid; gap: 8px; }
 .where { color: var(--fg); line-height: 1.35; padding: 12px 0; }
 .where.unset { color: var(--accent); }

@@ -28,6 +28,8 @@ in the app.
 
 A voice note like "remind me to call the dentist tomorrow at 3" or "when I
 get home, take the bins out" becomes a task with a timed or place reminder.
+"Every Tuesday and Thursday at 4", "every 2 weeks", "every day for the next
+week" or "every 11.46 hours" becomes one repeating task.
 
 ## Privacy
 
@@ -73,6 +75,11 @@ The meter is under Settings, Mobile data.
   doesn't know yet, it adds it without a location until you set one.
 - A reminder fires once. It has a Done button, and changing the time or
   place arms it again.
+- **Repeats:** any number of minutes, hours, days, weeks, months or years,
+  on set weekdays if you like, with an optional end. A repeating task
+  reminds at each of its times whether or not you ticked the last one off.
+  Ticking it off moves it to its next time after now. tasks.org sees the
+  same repeat.
 
 ## Hub
 
@@ -150,7 +157,7 @@ after `since`. Request and response bodies may be gzipped.
 | Kind | Fields |
 |---|---|
 | `list` | `name`, `sort`, `color`, `inbox`, `radicale`, `ignition` |
-| `item` | `type` (task or note), `title`, `notes`, `list`, `due`, `remind_at`, `place`, `place_on` (arrive or leave), `done_at`, `fired_at`, `place_fired_at`, `capture`, `category` (work, chores, projects, fun or other), `category_auto` (set when the hub picked the category: a signature of the title, notes and list it judged; absent when you picked it, and the hub then leaves it alone) |
+| `item` | `type` (task or note), `title`, `notes`, `list`, `due`, `remind_at`, `place`, `place_on` (arrive or leave), `repeat` (an iCalendar RRULE such as `FREQ=WEEKLY;BYDAY=TU,TH`; FREQ, INTERVAL, BYDAY, COUNT and UNTIL are used), `done_at`, `fired_at`, `place_fired_at`, `capture`, `category` (work, chores, projects, fun or other), `category_auto` (set when the hub picked the category: a signature of the title, notes and list it judged; absent when you picked it, and the hub then leaves it alone) |
 | `place` | `name`, `lat`, `lon`, `radius` (metres), `address` |
 | `capture` | `type` (voice, screenshot, text, share), `text`, `voice` (a screenshot with a voice note), `screen_text`, `app`, `image`, `list` (typed while that list was open; tasks go there unless the filer picks one), `status` (new or done), `summary`, `items` |
 

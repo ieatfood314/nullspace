@@ -226,6 +226,177 @@ def clean_due(s):
     return None
 
 
+# ---------------------------------------------------------------- repeats
+#
+# A repeating task keeps an iCalendar RRULE in `repeat` ("FREQ=WEEKLY;INTERVAL=2"), the same
+# string tasks.org writes. Its current time is remind_at, or due when there's no reminder.
+# Marking it done moves it to the next time after now and opens it again (tasks.org does the
+# same). We act on FREQ, INTERVAL, BYDAY, COUNT and UNTIL; other parts are kept but ignored.
+# web/app.js and the phone's Reminders.kt walk the same rule; keep the three in step.
+
+FREQS = ("MINUTELY", "HOURLY", "DAILY", "WEEKLY", "MONTHLY", "YEARLY")
+WEEKDAYS = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+
+
+def parse_rrule(s):
+    if not s or not isinstance(s, str):
+        return None
+    parts = {}
+    for p in s.strip().upper().removeprefix("RRULE:").split(";"):
+        k, _, v = p.partition("=")
+        if k.strip():
+            parts[k.strip()] = v.strip()
+    if parts.get("FREQ") not in FREQS:
+        return None
+    try:
+        interval = min(100000, max(1, int(parts.get("INTERVAL") or 1)))
+    except ValueError:
+        interval = 1
+    byday = sorted({WEEKDAYS.index(d[-2:]) for d in parts.get("BYDAY", "").split(",") if d[-2:] in WEEKDAYS})
+    count = int(parts["COUNT"]) if parts.get("COUNT", "").isdigit() else None
+    return {"freq": parts["FREQ"], "interval": interval, "byday": byday, "count": count,
+            "until": parse_until(parts.get("UNTIL")), "parts": parts}
+
+
+def parse_until(v):
+    if not v:
+        return None
+    try:
+        if re.fullmatch(r"\d{8}", v):
+            d = datetime.strptime(v, "%Y%m%d")
+            return d.replace(hour=23, minute=59, second=59, tzinfo=TZ)
+        t = datetime.strptime(v.rstrip("Z"), "%Y%m%dT%H%M%S")
+        return t.replace(tzinfo=timezone.utc) if v.endswith("Z") else t.replace(tzinfo=TZ)
+    except ValueError:
+        return None
+
+
+def format_rrule(rule, **change):
+    """Back to a string, keeping parts we don't act on."""
+    parts = dict(rule["parts"])
+    parts.update({k.upper(): str(v) for k, v in change.items() if v is not None})
+    for k, v in change.items():
+        if v is None:
+            parts.pop(k.upper(), None)
+    order = ["FREQ", "INTERVAL", "BYDAY", "COUNT", "UNTIL"]
+    keys = [k for k in order if k in parts] + [k for k in parts if k not in order]
+    return ";".join(f"{k}={parts[k]}" for k in keys)
+
+
+def clean_rrule(s):
+    """A rule from the LLM or a client, checked and tidied, or None."""
+    rule = parse_rrule(s)
+    if not rule:
+        return None
+    keep = {"FREQ": rule["freq"]}
+    if rule["interval"] > 1:
+        keep["INTERVAL"] = rule["interval"]
+    if rule["byday"]:
+        keep["BYDAY"] = ",".join(WEEKDAYS[d] for d in rule["byday"])
+    if rule["count"]:
+        keep["COUNT"] = rule["count"]
+    if rule["until"]:
+        keep["UNTIL"] = rule["parts"]["UNTIL"]
+    return ";".join(f"{k}={v}" for k, v in keep.items())
+
+
+def add_months(t, n):
+    m = t.month - 1 + n
+    y, m = t.year + m // 12, m % 12 + 1
+    last = (date(y + (m == 12), m % 12 + 1, 1) - timedelta(days=1)).day
+    return t.replace(year=y, month=m, day=min(t.day, last))
+
+
+def occurrences(anchor, rule, after=None):
+    """(index, time) for the anchor (index 0) and each later time the rule gives, in local time.
+    `after` lets fixed-length rules skip ahead instead of walking there."""
+    f, n, days = rule["freq"], rule["interval"], rule["byday"]
+    base = anchor.astimezone(TZ)
+    wall = base.replace(tzinfo=None)
+
+    def ok(i, t):
+        return (rule["count"] is None or i < rule["count"]) and (rule["until"] is None or t <= rule["until"])
+
+    yield 0, base
+    if f == "WEEKLY" and days:
+        monday = wall - timedelta(days=wall.weekday())
+        i, w = 0, 0
+        while w < 100000:
+            for wd in days:
+                t = (monday + timedelta(weeks=w * n, days=wd)).replace(tzinfo=TZ)
+                if t <= base:
+                    continue
+                i += 1
+                if not ok(i, t):
+                    return
+                yield i, t
+            w += 1
+        return
+    step = {"MINUTELY": timedelta(minutes=n), "HOURLY": timedelta(hours=n)}.get(f)
+    k = 1
+    if step and after is not None and not days and after > base:
+        k = max(1, int((after - base) / step))
+    i = k - 1
+    for k in range(k, k + 200000):
+        if step:
+            t = (base.astimezone(timezone.utc) + k * step).astimezone(TZ)
+        elif f == "DAILY":
+            t = (wall + timedelta(days=k * n)).replace(tzinfo=TZ)
+        elif f == "WEEKLY":
+            t = (wall + timedelta(weeks=k * n)).replace(tzinfo=TZ)
+        else:
+            t = add_months(wall, k * n * (12 if f == "YEARLY" else 1)).replace(tzinfo=TZ)
+        if days and f in ("MINUTELY", "HOURLY", "DAILY") and t.weekday() not in days:
+            continue
+        i += 1
+        if not ok(i, t):
+            return
+        yield i, t
+
+
+def next_after(anchor, rule, t):
+    for i, o in occurrences(anchor, rule, after=t):
+        if i > 0 and o > t:
+            return i, o
+    return None
+
+
+def anchor_of(d):
+    if d.get("remind_at"):
+        return datetime.fromtimestamp(d["remind_at"], TZ)
+    return parse_local(d.get("due"))
+
+
+def roll(d, now=None):
+    """A repeating task that was marked done, moved to its next time and opened again.
+    None when it doesn't repeat or its repeats are used up (it stays done)."""
+    rule = parse_rrule(d.get("repeat"))
+    if not rule or not d.get("done_at") or d.get("type") == "note":
+        return None
+    now = now or local_now()
+    nd = dict(d, done_at=None)
+    nd.pop("place_fired_at", None)
+    anchor = anchor_of(d)
+    if anchor is None:
+        return nd  # nothing to move: it just opens again
+    nxt = next_after(anchor, rule, max(now, anchor))
+    if nxt is None:
+        return None
+    i, when = nxt
+    if rule["count"] is not None:
+        nd["repeat"] = format_rrule(rule, count=rule["count"] - i)
+    if d.get("remind_at"):
+        nd["remind_at"] = int(when.timestamp())
+    due = d.get("due")
+    if due:
+        if len(due) == 10:
+            nd["due"] = (date.fromisoformat(due) + (when.date() - anchor.date())).isoformat()
+        else:
+            old = parse_local(due).replace(tzinfo=None)
+            nd["due"] = (old + (when.replace(tzinfo=None) - anchor.replace(tzinfo=None))).strftime("%Y-%m-%dT%H:%M")
+    return nd
+
+
 # ---------------------------------------------------------------- lists, places
 
 
@@ -268,6 +439,21 @@ class Model:
     def places(self):
         return self.s.all("place")
 
+    def roll_done(self, recs=None):
+        """Repeating tasks marked done move on to their next time (see roll()). Returns how many."""
+        n = 0
+        with self.s.lock:
+            for it in self.s.all("item") if recs is None else recs:
+                d = it["data"]
+                if it["kind"] != "item" or it["deleted"] or not d.get("repeat") or not d.get("done_at"):
+                    continue
+                nd = roll(d)
+                if nd:
+                    self.s.put("item", it["uid"], nd)
+                    n += 1
+                    log(f"repeat {it['uid']}: next {nd.get('remind_at') or nd.get('due') or 'open again'}")
+        return n
+
     def place_by_name(self, name, create=True):
         if not name:
             return None
@@ -294,7 +480,7 @@ Reply with one JSON object only, no prose:
 {"summary": "<one short line saying what this capture is>",
  "items": [{"type": "task" or "note", "title": "...", "notes": "...", "list": "<list name or null>",
             "due": "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" or null,
-            "remind_at": "YYYY-MM-DDTHH:MM" or null,
+            "remind_at": "YYYY-MM-DDTHH:MM" or null, "repeat": "<RRULE>" or null,
             "place": "<place name or null>", "place_on": "arrive" or "leave" or null}]}
 
 Rules:
@@ -304,6 +490,15 @@ Rules:
   school, gym, a shop name); reuse a known place when it matches.
 - "Remind me at 5" or "tomorrow morning" sets remind_at (morning 09:00, afternoon 14:00, evening 19:00,
   tonight 20:00). A deadline ("due Friday", "by the 20th") sets due. Times are local; the current time is below.
+- A to-do that repeats ("every day", "every other week", "every Tuesday and Thursday", "every 3 hours")
+  is ONE task with repeat set to an iCalendar RRULE, never one task per time. FREQ is MINUTELY, HOURLY,
+  DAILY, WEEKLY, MONTHLY or YEARLY; INTERVAL=n for every n; BYDAY=MO,TU,WE,TH,FR,SA,SU for set weekdays
+  (weekdays: FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR). An end goes in COUNT=n ("for the next week" is
+  FREQ=DAILY;COUNT=7) or UNTIL=YYYYMMDD ("until the 20th"). A gap that isn't a whole number goes in the
+  next smaller unit: every 11.46 hours is FREQ=MINUTELY;INTERVAL=688, every 1.5 days is
+  FREQ=HOURLY;INTERVAL=36. Set remind_at (or due, for a deadline) to the first time; if no time of day
+  is said, use 09:00, and the first time is the soonest one still ahead. A repeat in minutes or hours
+  with no start said starts one gap from now.
 - Titles are short imperative phrases in the person's words, no trailing period. Put any detail in notes.
 - Several separate to-dos in one capture become several tasks.
 - Something to remember but not to do (an idea, a fact, a quote) is a note: title is a short label,
@@ -446,6 +641,7 @@ def basic_parse(capture):
         return {"summary": "Empty", "items": []}
     t = text.rstrip(".!")
     item = {"type": "note", "title": t, "notes": ""}
+    rep, t = pull_repeat(t)
     m = re.match(r"^(?:please\s+)?(?:remind me (?:to |that |about )?|todo:?\s*|to do:?\s*|i need to |i have to |don't forget to )(.+)$", t, re.I)
     if m:
         item["type"] = "task"
@@ -460,14 +656,103 @@ def basic_parse(capture):
         item["type"] = "task"
         t = t[:pm.start()].strip(" ,")
     when, t = pull_time(t)
+    if rep:
+        item["type"] = "task"
+        item["repeat"] = rep
+        when = first_time(when, parse_rrule(rep))
     if when:
         item["remind_at"] = when
         item["type"] = "task"
+    t = re.sub(r"^(?:to|that|about)\s+", "", t.strip(" ,"), flags=re.I)
     item["title"] = (t[:1].upper() + t[1:]) if t else text
     if item["type"] == "note" and len(item["title"]) > 80:
         item["notes"] = item["title"]
         item["title"] = item["title"][:60].rsplit(" ", 1)[0] + "…"
     return {"summary": item["title"], "items": [item]}
+
+
+UNITS = {"minute": "MINUTELY", "min": "MINUTELY", "hour": "HOURLY", "day": "DAILY", "week": "WEEKLY",
+         "month": "MONTHLY", "year": "YEARLY"}
+UNIT_MIN = {"MINUTELY": 1, "HOURLY": 60, "DAILY": 1440, "WEEKLY": 10080}
+SMALLER = {"HOURLY": "MINUTELY", "DAILY": "HOURLY", "WEEKLY": "DAILY"}
+ADVERBS = {"hourly": "FREQ=HOURLY", "daily": "FREQ=DAILY", "nightly": "FREQ=DAILY", "weekly": "FREQ=WEEKLY",
+           "monthly": "FREQ=MONTHLY", "yearly": "FREQ=YEARLY", "annually": "FREQ=YEARLY"}
+
+
+def pull_repeat(t):
+    """'every 2 weeks', 'every Tuesday and Thursday', 'daily for the next week' -> an RRULE."""
+    num = r"(\d+(?:\.\d+)?|an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|other|second)"
+    unit = r"(minutes?|mins?|hours?|days?|weeks?|months?|years?)"
+    day = r"(?:mon|tues|wednes|thurs|fri|satur|sun)days?"
+    rule = None
+    m = re.search(rf"\bevery\s+(?:{num}\s+)?{unit}\b", t, re.I)
+    if m:
+        k = (m.group(1) or "1").lower()
+        n = 2 if k in ("other", "second") else float(k) if k[0].isdigit() else WORDNUM.get(k, 1)
+        freq = UNITS[re.sub(r"s$", "", m.group(2).lower())]
+        while n != int(n) and freq in SMALLER:  # 11.46 hours -> 688 minutes
+            n, freq = n * UNIT_MIN[freq] / UNIT_MIN[SMALLER[freq]], SMALLER[freq]
+        n = max(1, round(n))
+        rule = f"FREQ={freq}" + (f";INTERVAL={n}" if n > 1 else "")
+    if not m:
+        m = re.search(r"\bevery\s+weekday\b", t, re.I)
+        if m:
+            rule = "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
+    if not m:
+        m = re.search(rf"\b(every|on)\s+({day}(?:\s*(?:,\s*and|,|and|&)\s*{day})*)", t, re.I)
+        if m and (m.group(1).lower() == "every" or m.group(2).lower().endswith("s")):
+            found = re.findall(day, m.group(2), re.I)
+            byday = sorted({DAYS.index(re.sub(r"s$", "", d.lower())) for d in found})
+            rule = "FREQ=WEEKLY;BYDAY=" + ",".join(WEEKDAYS[d] for d in byday)
+        else:
+            m = None
+    if not m:
+        m = re.search(r"\bevery\s+(morning|afternoon|evening|night)\b", t, re.I)
+        if m:
+            rule = "FREQ=DAILY"
+            t = t[:m.start()] + ("tonight" if m.group(1).lower() == "night" else m.group(1)) + t[m.end():]
+            m = None  # keep the time-of-day word for pull_time
+    if not m and rule is None:
+        m = re.search(r"\b(" + "|".join(ADVERBS) + r")\b", t, re.I)
+        if m:
+            rule = ADVERBS[m.group(1).lower()]
+    if rule is None:
+        return None, t
+    if m:
+        t = (t[:m.start()] + t[m.end():]).strip(" ,")
+    e = re.search(rf"\bfor (?:the )?(?:next )?(?:{num}\s+)?{unit}\b", t, re.I)
+    if e:
+        k = (e.group(1) or "1").lower()
+        n = float(k) if k[0].isdigit() else WORDNUM.get(k, 1)
+        u = UNITS[re.sub(r"s$", "", e.group(2).lower())]
+        span = {"MONTHLY": timedelta(days=30.5 * n), "YEARLY": timedelta(days=365 * n)}.get(u) or timedelta(minutes=UNIT_MIN[u] * n)
+        last = local_now() + span
+        rule += f";UNTIL={last.strftime('%Y%m%d') if span >= timedelta(days=1) else last.astimezone(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        t = (t[:e.start()] + t[e.end():]).strip(" ,")
+    return rule, re.sub(r"\s{2,}", " ", t)
+
+
+def first_time(when, rule):
+    """The first reminder of a repeating task: the time said, else 09:00, on a day the rule allows."""
+    n = local_now()
+    if when:
+        t = parse_local(when)
+    elif rule["freq"] in ("MINUTELY", "HOURLY"):
+        t = n.replace(second=0, microsecond=0)
+        return (t + (timedelta(minutes=rule["interval"]) if rule["freq"] == "MINUTELY" else timedelta(hours=rule["interval"]))).strftime("%Y-%m-%dT%H:%M")
+    else:
+        t = n.replace(hour=9, minute=0, second=0, microsecond=0)
+        if t < n:
+            t += timedelta(days=1)
+    md = rule["parts"].get("BYMONTHDAY", "")
+    for _ in range(366):
+        if md.isdigit() and t.day != int(md):  # "the 1st of every month": start on the 1st
+            t += timedelta(days=1)
+            continue
+        if not rule["byday"] or t.weekday() in rule["byday"]:
+            break
+        t += timedelta(days=1)
+    return t.strftime("%Y-%m-%dT%H:%M")
 
 
 def pull_time(t):
@@ -596,6 +881,12 @@ class Processor:
         rem = parse_local(clean_due(it.get("remind_at")))
         if rem:
             data["remind_at"] = int(rem.timestamp())
+        rule = parse_rrule(it.get("repeat")) if kind == "task" else None
+        if rule:
+            data["repeat"] = clean_rrule(it.get("repeat"))
+            if not data.get("remind_at") and not due:
+                # A repeat needs a first time to count from.
+                data["remind_at"] = int(parse_local(first_time(None, rule)).timestamp())
         if it.get("place"):
             data["place"] = self.m.place_by_name(str(it["place"])[:40])
             data["place_on"] = "leave" if it.get("place_on") == "leave" else "arrive"
@@ -992,7 +1283,7 @@ class Radicale:
                     if cur["deleted"] and mtime <= cur["updated_at"]:
                         pass  # deleted here after that edit; push() removes the file
                     else:
-                        self.s.put("item", uid, {**cur["data"], **fields}, at=mtime)
+                        self.s.put("item", uid, follow_due({**cur["data"], **fields}, cur["data"]), at=mtime)
                 # Moving between lists in tasks.org writes the new file before deleting the old one.
                 for other in self.s.ext_by_uid(self.SYSTEM, uid):
                     if other["ext_id"] != ext_id and not (self.dir / other["ext_id"]).exists():
@@ -1042,13 +1333,26 @@ class Radicale:
                            {"hash": hashlib.sha1(raw).hexdigest(), "sig": sig(d)})
 
 
+def follow_due(new, old):
+    """tasks.org moves a repeating task on by changing its due date; move our reminder with it."""
+    if not new.get("repeat") or not new.get("remind_at") or new.get("done_at"):
+        return new
+    a, b = parse_local(old.get("due")), parse_local(new.get("due"))
+    if a and b and a != b and new.get("remind_at") == old.get("remind_at"):
+        shift = b.replace(tzinfo=None) - a.replace(tzinfo=None)
+        t = datetime.fromtimestamp(new["remind_at"], TZ).replace(tzinfo=None) + shift
+        new = dict(new, remind_at=int(t.replace(tzinfo=TZ).timestamp()))
+        new.pop("place_fired_at", None)
+    return new
+
+
 def safe_uid(u):
     u = re.sub(r"[^A-Za-z0-9._@:-]", "-", u or "")[:64]
     return u or new_uid()
 
 
 def sig(d):
-    keys = ("title", "notes", "done_at", "due", "priority", "list", "type")
+    keys = ("title", "notes", "done_at", "due", "priority", "list", "type", "repeat")
     return hashlib.sha1(json.dumps([d.get(k) for k in keys]).encode()).hexdigest()
 
 
@@ -1089,6 +1393,8 @@ def parse_vtodo(raw):
     except ValueError:
         p = 0
     f["priority"] = 0 if p == 0 else 3 if p <= 4 else 2 if p == 5 else 1
+    rrule = str(val("rrule") or "").strip()
+    f["repeat"] = rrule or None
     created = val("created")
     if isinstance(created, datetime):
         f["created_at"] = int(to_dt(created).timestamp())
@@ -1149,6 +1455,7 @@ def build_vtodo(uid, d, old=None):
             todo.add("due").value = dt.astimezone(utc)
     pri = ICAL_PRI.get(int(d.get("priority") or 0), 0)
     set_("priority", str(pri) if pri else None)
+    set_("rrule", d.get("repeat") or None)
     return cal.serialize().encode()
 
 
@@ -1399,16 +1706,21 @@ class App:
             raise ApiError(400, "bad since")
         new_caps = []
         took = 0
+        items = []
         for rec in body.get("records") or []:
             fresh = rec.get("kind") == "capture" and self.s.one("capture", str(rec.get("uid"))) is None
             if self.s.merge(rec):
                 took += 1
+                if rec.get("kind") == "item":
+                    items.append(rec["uid"])
                 if fresh and not rec.get("deleted"):
                     new_caps.append(rec["uid"])
         dev = str(body.get("device") or "")[:40]
         if dev:
             self.devices[dev] = {"seen": int(time.time()), **({"usage": body["usage"]} if isinstance(body.get("usage"), dict) else {})}
             self.s.set("devices", self.devices)
+        if items:
+            self.m.roll_done([r for r in (self.s.one("item", u) for u in items) if r])
         if new_caps:
             self.proc.wake.set()
         if took:
@@ -1593,6 +1905,11 @@ class App:
                 except Exception as e:
                     b.last_error = f"{type(e).__name__}: {e}"
                     log(type(b).__name__, "failed:", b.last_error)
+            try:
+                if self.m.roll_done():  # done in a CalDAV client or Ignition
+                    self.kick.set()
+            except Exception:
+                traceback.print_exc()
 
     def start(self):
         self.m.inbox()
