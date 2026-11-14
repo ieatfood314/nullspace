@@ -186,7 +186,7 @@ object HubSync {
             val d = c.data
             if (d.optString("type") != "screenshot" || d.optBoolean("image_on_hub") || !d.optBoolean("image")) continue
             val f = Capture.shotFile(ctx, c.uid)
-            if (!f.exists()) continue
+            if (!f.exists() || f.length() == 0L) continue
             if (Net.metered(ctx)) return
             try {
                 post(ctx, "$url/api/shot/${c.uid}", f.readBytes(), false, 60_000, "image/webp")

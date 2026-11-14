@@ -316,8 +316,9 @@ function renderCaptures(view) {
     const said = d.text || "";
     const img = d.type === "screenshot" && (N ? d.image !== false : d.image_on_hub)
       ? `<img src="${shotUrl(c)}" alt="Screenshot" loading="lazy" data-shot="${esc(c.uid)}">` : "";
+    const word = d.type === "screenshot" && d.voice ? "Screenshot with voice note" : CAP_WORD[d.type] || "Capture";
     return `<div class="cap">
-      <div class="when">${esc(CAP_WORD[d.type] || "Capture")}, ${esc(whenText(d.created_at || 0))}${d.app ? ", " + esc(appName(d.app)) : ""}</div>
+      <div class="when">${esc(word)}, ${esc(whenText(d.created_at || 0))}${d.app ? ", " + esc(appName(d.app)) : ""}</div>
       ${(d.status || "new") === "new" ? `<div class="wait">Filing</div>` : d.summary ? `<div class="sum">${esc(d.summary)}</div>` : ""}
       ${said && said !== d.summary ? `<div class="said">${esc(said)}</div>` : ""}
       ${img}

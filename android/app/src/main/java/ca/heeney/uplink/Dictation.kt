@@ -47,7 +47,7 @@ object Dictation {
     /** Start listening. sink gets the cleaned-up transcript (never empty).
      *  mic = false is for debug-build wav runs, which feed() the audio themselves. */
     fun start(ctx: Context, sink: (String) -> Unit, mic: Boolean = true) {
-        if (phase.value != Phase.Idle) return
+        if (phase.value != Phase.Idle) { Log.i(TAG, "busy (${phase.value}), not starting"); return }
         val app = ctx.applicationContext
         if (mic && !Engine.installed(app)) { Notice.show(app, "Open Uplink settings to download the speech model"); return }
         Engine.warm(app)

@@ -31,6 +31,7 @@ class UplinkService : AccessibilityService() {
 
     override fun onDestroy() {
         unlisten?.invoke()
+        card?.keep()
         hidePill()
         if (instance === this) instance = null
         super.onDestroy()
@@ -68,7 +69,8 @@ class UplinkService : AccessibilityService() {
 
     // ---- the key ----
     //   hold                  dictate into the field you're in (Squelch)
-    //   press                 capture the screen
+    //   press                 capture the screen; a card shows it, and holding the key
+    //                         (or tapping its mic) while it's up adds a voice note to it
     //   press, then hold      voice note
     //   double press          open Uplink
     // Listening starts on every key down, so neither hold loses its first word; a press that
@@ -77,15 +79,24 @@ class UplinkService : AccessibilityService() {
     private var presses = 0
     private var downAt = 0L
     private var shot: Capture.Pending? = null
+    private var card: ShotCard? = null
+    /** this press went to the card */
+    private var toCard = false
     private val single = Runnable {
         presses = 0
-        shot?.let { Capture.commit(this, it); Notice.show(this, "Captured") }
+        shot?.let { p ->
+            val c = ShotCard(this, p)
+            if (c.show()) card = c
+            else { Capture.commit(this, p); Notice.show(this, "Captured") }
+        }
         shot = null
     }
 
     private fun down() {
         main.removeCallbacks(single)
         downAt = android.os.SystemClock.uptimeMillis()
+        card?.takeIf { it.open }?.let { toCard = true; it.keyDown(); return }
+        card = null
         if (Dictation.listening) Dictation.cancel()
         presses = if (presses == 1) 2 else 1
         // Without a model only the presses work; a hold says so in up().
@@ -96,6 +107,14 @@ class UplinkService : AccessibilityService() {
 
     private fun up() {
         val held = android.os.SystemClock.uptimeMillis() - downAt
+        if (toCard) {
+            toCard = false
+            card?.keyUp(held)
+            // A press that closed the card counts as the first of a double press, so a second
+            // one opens Uplink rather than taking another screenshot.
+            if (held < HOLD_MS && card?.open == false) { card = null; presses = 1; main.postDelayed(single, GAP_MS) }
+            return
+        }
         if (held >= HOLD_MS) {
             // A hold: dictation on the first press, a voice note on the second.
             shot?.dropped = true
@@ -118,7 +137,7 @@ class UplinkService : AccessibilityService() {
         }
     }
 
-    private fun openApp() {
+    fun openApp() {
         try {
             startActivity(android.content.Intent(this, MainActivity::class.java)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
@@ -128,11 +147,13 @@ class UplinkService : AccessibilityService() {
     // ---- the pill ----
 
     private fun showPhase(p: Dictation.Phase) {
+        // The card's mic shows it instead.
+        if (card?.open == true) { hidePill(); return }
         when (p) {
             Dictation.Phase.Idle -> hidePill()
             // Only once the press is a hold: a short press is a screenshot, which mustn't catch the pill.
             Dictation.Phase.Listening -> main.postDelayed({
-                if (Dictation.phase.value == Dictation.Phase.Listening) { showPill(); pill?.phase = Dictation.Phase.Listening }
+                if (Dictation.phase.value == Dictation.Phase.Listening && card?.open != true) { showPill(); pill?.phase = Dictation.Phase.Listening }
             }, HOLD_MS)
             else -> { showPill(); pill?.phase = p }
         }

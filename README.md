@@ -22,6 +22,7 @@ in the app.
 |---|---|
 | Hold | Dictation into the field you're typing in |
 | Press | Keeps a screenshot and the text on screen |
+| Press, then hold once the card shows | A voice note about the screenshot |
 | Press, then hold | A voice note |
 | Double press | Opens Uplink |
 
@@ -151,7 +152,7 @@ after `since`. Request and response bodies may be gzipped.
 | `list` | `name`, `sort`, `color`, `inbox`, `radicale`, `ignition` |
 | `item` | `type` (task or note), `title`, `notes`, `list`, `due`, `remind_at`, `place`, `place_on` (arrive or leave), `done_at`, `fired_at`, `place_fired_at`, `capture`, `category` (work, chores, projects, fun or other), `category_auto` (set when the hub picked the category: a signature of the title, notes and list it judged; absent when you picked it, and the hub then leaves it alone) |
 | `place` | `name`, `lat`, `lon`, `radius` (metres), `address` |
-| `capture` | `type` (voice, screenshot, text, share), `text`, `screen_text`, `app`, `image`, `list` (typed while that list was open; tasks go there unless the filer picks one), `status` (new or done), `summary`, `items` |
+| `capture` | `type` (voice, screenshot, text, share), `text`, `voice` (a screenshot with a voice note), `screen_text`, `app`, `image`, `list` (typed while that list was open; tasks go there unless the filer picks one), `status` (new or done), `summary`, `items` |
 
 Other endpoints: `GET /api/status`, `GET /api/geocode?q=`,
 `GET /api/reverse?lat=&lon=`,

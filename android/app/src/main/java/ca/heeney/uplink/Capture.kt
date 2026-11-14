@@ -46,14 +46,15 @@ object Capture {
         return p
     }
 
-    /** It was a single press: keep it. */
-    fun commit(ctx: Context, p: Pending) {
+    /** It was a single press: keep it, with what was said about it if anything. */
+    fun commit(ctx: Context, p: Pending, said: String? = null) {
         val app = ctx.applicationContext
         io.execute {
             // The screenshot callback can land a moment after the press is decided.
             var waited = 0
             while (p.bitmap == null && waited < 1500) { Thread.sleep(50); waited += 50 }
             val bmp = p.bitmap
+            p.bitmap = null
             var saved = false
             if (bmp != null) {
                 try {
@@ -61,17 +62,25 @@ object Capture {
                     f.parentFile?.mkdirs()
                     val w = 720
                     val scaled = if (bmp.width > w) Bitmap.createScaledBitmap(bmp, w, bmp.height * w / bmp.width, true) else bmp
-                    f.outputStream().use { scaled.compress(Bitmap.CompressFormat.WEBP_LOSSY, 72, it) }
+                    writeShot(f) { scaled.compress(Bitmap.CompressFormat.WEBP_LOSSY, 72, it) }
                     saved = true
                 } catch (t: Throwable) { Log.w(TAG, "save shot: $t") }
             }
             val d = JSONObject()
                 .put("type", "screenshot").put("status", "new").put("created_at", System.currentTimeMillis() / 1000)
                 .put("app", p.app).put("screen_text", p.text.take(12000)).put("image", saved).put("device", "phone")
+            if (!said.isNullOrBlank()) d.put("text", said).put("voice", true).put("announce", true)
             Store.put("capture", p.uid, d)
-            HubSync.soon(app)
+            HubSync.soon(app, wait = if (said.isNullOrBlank()) 0 else 20)
             Reminders.refresh(app)
         }
+    }
+
+    /** Write to a temp file and rename, so a crash mid-write never leaves a half-written shot. */
+    private fun writeShot(f: File, write: (java.io.OutputStream) -> Unit) {
+        val tmp = File(f.parentFile, f.name + ".tmp")
+        tmp.outputStream().use(write)
+        if (!tmp.renameTo(f)) { tmp.delete(); error("rename failed") }
     }
 
     fun voiceNote(ctx: Context, text: String) {
@@ -95,7 +104,7 @@ object Capture {
                     val f = shotFile(app, uid); f.parentFile?.mkdirs()
                     val w = 1080
                     val scaled = if (bmp.width > w) Bitmap.createScaledBitmap(bmp, w, bmp.height * w / bmp.width, true) else bmp
-                    f.outputStream().use { scaled.compress(Bitmap.CompressFormat.WEBP_LOSSY, 75, it) }
+                    writeShot(f) { scaled.compress(Bitmap.CompressFormat.WEBP_LOSSY, 75, it) }
                     saved = true
                 }
             } catch (t: Throwable) { Log.w(TAG, "share image: $t") }

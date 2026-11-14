@@ -312,6 +312,8 @@ Rules:
   task with due, an order or ticket becomes a note with the useful numbers, an article becomes a note
   with its title and a two-line gist. Ignore buttons, menus and status-bar noise. If nothing on screen
   is worth keeping, make one note that says what the screen was.
+- A screenshot with something said about it: what they said decides what to make (a task, a note, a
+  reminder); use the screen for the details it points at, and don't file the rest of the screen.
 - When a list name clearly fits (for example homework for a school task), use it; otherwise null.
 - Never invent facts that aren't in the capture."""
 

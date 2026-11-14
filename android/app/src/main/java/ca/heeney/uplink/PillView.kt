@@ -36,10 +36,8 @@ class PillView(ctx: Context) : View(ctx) {
     }
 
     private fun push(r: Float) {
-        // dB-ish: 0.001 (quiet room) to 0.3 (loud) maps to 0..1
-        val v = ((ln(maxOf(r, 1e-4f)) - ln(0.001f)) / (ln(0.3f) - ln(0.001f))).coerceIn(0f, 1f)
         System.arraycopy(levels, 1, levels, 0, BARS - 1)
-        levels[BARS - 1] = v
+        levels[BARS - 1] = norm(r)
         invalidate()
     }
 
@@ -74,6 +72,8 @@ class PillView(ctx: Context) : View(ctx) {
 
     companion object {
         const val BARS = 9
+        /** dB-ish: 0.001 (quiet room) to 0.3 (loud) maps to 0..1 */
+        fun norm(r: Float) = ((ln(maxOf(r, 1e-4f)) - ln(0.001f)) / (ln(0.3f) - ln(0.001f))).coerceIn(0f, 1f)
         val ACCENT = 0xFF6F93B8.toInt()
     }
 }
