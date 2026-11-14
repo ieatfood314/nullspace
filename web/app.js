@@ -594,10 +594,12 @@ function editItem(id) {
           const days = [...f.querySelectorAll("[data-days] .on")].map((b) => BYDAY[+b.dataset.d]).join(",");
           const same = rule && rule.freq === u;
           const ends = f.rep_until.value;
+          const byday = u === "WEEKLY" ? days || null : same ? rule.parts.BYDAY ?? null : null;
+          // A count only means the same end while the times it counts stay the same.
+          const keepEnd = rule && ends === endsInit && same && rule.interval === n && (rule.parts.BYDAY ?? null) === byday;
           nd.repeat = formatRule(same ? rule : { parts: {} }, {
-            FREQ: u, INTERVAL: n > 1 ? n : null,
-            BYDAY: u === "WEEKLY" ? days || null : same ? rule.parts.BYDAY ?? null : null,
-            ...(ends === endsInit && rule ? { COUNT: rule.parts.COUNT ?? null, UNTIL: rule.parts.UNTIL ?? null }
+            FREQ: u, INTERVAL: n > 1 ? n : null, BYDAY: byday,
+            ...(keepEnd ? { COUNT: rule.parts.COUNT ?? null, UNTIL: rule.parts.UNTIL ?? null }
               : { COUNT: null, UNTIL: ends ? ends.replace(/-/g, "") : null }),
           });
         }

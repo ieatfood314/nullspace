@@ -261,6 +261,7 @@ def parse_rrule(s):
 def parse_until(v):
     if not v:
         return None
+    v = v.replace("-", "").replace(":", "")
     try:
         if re.fullmatch(r"\d{8}", v):
             d = datetime.strptime(v, "%Y%m%d")
@@ -296,7 +297,7 @@ def clean_rrule(s):
     if rule["count"]:
         keep["COUNT"] = rule["count"]
     if rule["until"]:
-        keep["UNTIL"] = rule["parts"]["UNTIL"]
+        keep["UNTIL"] = rule["parts"]["UNTIL"].replace("-", "").replace(":", "")
     return ";".join(f"{k}={v}" for k, v in keep.items())
 
 
@@ -447,7 +448,11 @@ class Model:
                 d = it["data"]
                 if it["kind"] != "item" or it["deleted"] or not d.get("repeat") or not d.get("done_at"):
                     continue
-                nd = roll(d)
+                try:
+                    nd = roll(d)
+                except Exception as e:  # a due date that doesn't parse, say
+                    log(f"repeat {it['uid']}: can't move on: {e}")
+                    continue
                 if nd:
                     self.s.put("item", it["uid"], nd)
                     n += 1
@@ -713,7 +718,8 @@ def pull_repeat(t):
             t = t[:m.start()] + ("tonight" if m.group(1).lower() == "night" else m.group(1)) + t[m.end():]
             m = None  # keep the time-of-day word for pull_time
     if not m and rule is None:
-        m = re.search(r"\b(" + "|".join(ADVERBS) + r")\b", t, re.I)
+        # "pay rent monthly", "take pills daily at 8", but not "read the weekly report"
+        m = re.search(r"\b(" + "|".join(ADVERBS) + r")\b(?=\s*(?:$|[,.!]|at\b|for\b|until\b|on\b|in the\b))", t, re.I)
         if m:
             rule = ADVERBS[m.group(1).lower()]
     if rule is None:
