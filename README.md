@@ -2,14 +2,12 @@
 
 One place for the things you mean to do. Press a key on your phone and Uplink
 keeps what's on screen; hold it and talk, and it files what you said. It all
-lands in one list, shared with the to-do apps you already use and every
-device on your network.
+lands in one list, shared with every device on your network.
 
 - **Phone app** (Android). It replaces Squelch for Android: the same Parakeet
   dictation, plus captures, reminders and the list.
 - **Hub** (`server/uplink.py`). A small Python server for your home machine.
-  It holds the data, files captures, and keeps CalDAV task lists (Radicale)
-  and Ignition in step.
+  It holds the data and files captures.
 - **Web page** (`web/`). The hub serves it, and the phone app bundles the
   same page.
 
@@ -84,13 +82,11 @@ The meter is under Settings, Mobile data.
 - **Repeats:** any number of minutes, hours, days, weeks, months or years,
   on set weekdays if you like, with an optional end. A repeating task
   reminds at each of its times whether or not you ticked the last one off.
-  Ticking it off moves it to its next time after now. tasks.org sees the
-  same repeat.
+  Ticking it off moves it to its next time after now.
 
 ## Hub
 
 ```sh
-pip install vobject
 python3 server/uplink.py --port 4645
 ```
 
@@ -100,9 +96,6 @@ Configured by environment variables:
 |---|---|
 | `UPLINK_DATA` | data folder (default `~/.local/share/uplink`) |
 | `UPLINK_PORT`, `UPLINK_HOST` | where to listen (default `127.0.0.1:4645`) |
-| `UPLINK_RADICALE_DIR` | a Radicale user's collection folder, e.g. `~/.var/lib/radicale/collections/collection-root/<user>` |
-| `UPLINK_RADICALE_LOCK` | Radicale's lock file, if it isn't `collections/.Radicale.lock` above that |
-| `UPLINK_IGNITION_URL` | an Ignition server, e.g. `http://127.0.0.1:4580` |
 | `UPLINK_LLM_KEY` or `UPLINK_LLM_KEY_FILE` | API key for the LLM |
 | `UPLINK_LLM_URL` | chat completions URL (default OpenRouter) |
 | `UPLINK_LLM_MODELS` | comma-separated models to try in order (default: a few free OpenRouter models) |
@@ -117,20 +110,6 @@ Configured by environment variables:
 
 The hub has no login. Run it on a private network, such as a tailnet, and
 don't expose it to the internet.
-
-### Radicale
-
-Each Radicale task list (VTODO calendar) is a list in Uplink, both ways.
-Lists made in Uplink become new task lists, so tasks.org and other CalDAV
-clients pick them up on their next sync. The hub reads and writes
-Radicale's files directly while holding Radicale's own lock, so Radicale
-can keep running.
-
-### Ignition
-
-Ignition's need and want lists show up as the "Need to do" and "Want to do"
-lists, both ways. The first sync only reads from Ignition and matches tasks
-by title, so nothing is duplicated.
 
 ## Phone app
 
@@ -162,7 +141,7 @@ after `since`. Request and response bodies may be gzipped.
 
 | Kind | Fields |
 |---|---|
-| `list` | `name`, `sort`, `color`, `inbox`, `radicale`, `ignition` |
+| `list` | `name`, `sort`, `color`, `inbox` |
 | `item` | `type` (task or note), `title`, `notes`, `list`, `due`, `remind_at`, `place`, `place_on` (arrive or leave), `repeat` (an iCalendar RRULE such as `FREQ=WEEKLY;BYDAY=TU,TH`; FREQ, INTERVAL, BYDAY, COUNT and UNTIL are used), `done_at`, `fired_at`, `place_fired_at`, `capture`, `category` (work, chores, projects, fun or other), `category_auto` (set when the hub picked the category: a signature of the title, notes and list it judged; absent when you picked it, and the hub then leaves it alone) |
 | `place` | `name`, `lat`, `lon`, `radius` (metres), `address` |
 | `capture` | `type` (voice, screenshot, text, share), `text`, `voice` (a screenshot with a voice note), `screen_text`, `app`, `image`, `list` (typed while that list was open; tasks go there unless the filer picks one), `status` (new or done), `summary`, `items`, `changed` (tasks it changed: `uid`, `title`, `before`, the task as it was, and `sig`, so Redo only puts it back if nothing changed it since) |

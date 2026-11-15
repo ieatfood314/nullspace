@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Uplink hub: one to-do list, notes and captures for every device on your network.
 
-Stdlib only, plus `vobject` for the Radicale bridge (Radicale itself depends on it).
+Stdlib only.
 
 Data model: every record is (kind, uid, data, updated_at, deleted, rev).
   kind      list | item | place | capture
@@ -14,13 +14,10 @@ Clients (the web page and the phone app) sync through POST /api/sync. The hub do
   * captures (voice notes, screenshots, typed lines, shares) are turned into tasks and notes
     by a text-only LLM call, with a plain parser as fallback;
   * open tasks get a category (work, chores, projects, fun, other) from TypeSafe's Jev, or
-    from the same LLM when there is no TypeSafe key;
-  * tasks are mirrored both ways into Radicale's task lists (so tasks.org and any CalDAV
-    client see them) and into Ignition's need/want lists.
+    from the same LLM when there is no TypeSafe key.
 """
 
 import argparse
-import fcntl
 import gzip
 import hashlib
 import json
@@ -97,10 +94,6 @@ class Store:
                 updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0,
                 rev INTEGER NOT NULL, PRIMARY KEY (kind, uid));
             CREATE INDEX IF NOT EXISTS records_rev ON records(rev);
-            CREATE TABLE IF NOT EXISTS ext (
-                system TEXT NOT NULL, ext_id TEXT NOT NULL, uid TEXT NOT NULL,
-                state TEXT NOT NULL DEFAULT '{}', PRIMARY KEY (system, ext_id));
-            CREATE INDEX IF NOT EXISTS ext_uid ON ext(system, uid);
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
             """
         )
@@ -161,32 +154,6 @@ class Store:
             self.merge({"kind": kind, "uid": uid, "data": data, "updated_at": at, "deleted": deleted})
             return at
 
-    # ext links (radicale files, ignition ids)
-    def ext(self, system, ext_id):
-        r = self.db.execute("SELECT * FROM ext WHERE system=? AND ext_id=?", (system, ext_id)).fetchone()
-        return {"uid": r["uid"], "state": json.loads(r["state"])} if r else None
-
-    def ext_by_uid(self, system, uid):
-        return [
-            {"ext_id": r["ext_id"], "state": json.loads(r["state"])}
-            for r in self.db.execute("SELECT * FROM ext WHERE system=? AND uid=?", (system, uid))
-        ]
-
-    def ext_all(self, system):
-        return {
-            r["ext_id"]: {"uid": r["uid"], "state": json.loads(r["state"])}
-            for r in self.db.execute("SELECT * FROM ext WHERE system=?", (system,))
-        }
-
-    def ext_set(self, system, ext_id, uid, state):
-        self.db.execute(
-            "INSERT OR REPLACE INTO ext (system, ext_id, uid, state) VALUES (?,?,?,?)",
-            (system, ext_id, uid, json.dumps(state)),
-        )
-
-    def ext_drop(self, system, ext_id):
-        self.db.execute("DELETE FROM ext WHERE system=? AND ext_id=?", (system, ext_id))
-
 
 def out(r):
     return {
@@ -229,9 +196,8 @@ def clean_due(s):
 # ---------------------------------------------------------------- repeats
 #
 # A repeating task keeps an iCalendar RRULE in `repeat` ("FREQ=WEEKLY;INTERVAL=2"), the same
-# string tasks.org writes. Its current time is remind_at, or due when there's no reminder.
-# Marking it done moves it to the next time after now and opens it again (tasks.org does the
-# same). We act on FREQ, INTERVAL, BYDAY, COUNT and UNTIL; other parts are kept but ignored.
+# kind of string CalDAV apps write. Its current time is remind_at, or due when there's no
+# reminder. Marking it done moves it to the next time after now and opens it again. We act on FREQ, INTERVAL, BYDAY, COUNT and UNTIL; other parts are kept but ignored.
 # web/app.js and the phone's Reminders.kt walk the same rule; keep the three in step.
 
 FREQS = ("MINUTELY", "HOURLY", "DAILY", "WEEKLY", "MONTHLY", "YEARLY")
@@ -402,7 +368,7 @@ def roll(d, now=None):
 
 
 class Model:
-    """Helpers over the store that the bridges and the processor share."""
+    """Helpers over the store that the HTTP side and the processor share."""
 
     def __init__(self, store):
         self.s = store
@@ -1730,437 +1696,6 @@ class Categorizer:
         self.worked()
 
 
-# ---------------------------------------------------------------- Radicale bridge
-
-
-class Radicale:
-    """Mirrors tasks into Radicale's storage folder, both ways.
-
-    Radicale's multifilesystem storage is a folder per collection with an .ics per item; other
-    programs may edit it as long as they hold the flock on .Radicale.lock, which is what we do.
-    Every task list becomes a VTODO collection. Notes stay in Uplink."""
-
-    SYSTEM = "radicale"
-
-    def __init__(self, store, model, user_dir, lock_file):
-        self.s, self.m = store, model
-        self.dir = Path(user_dir)
-        self.lock_file = Path(lock_file)
-        self.last_run = 0
-        self.last_error = ""
-
-    def collections(self):
-        out = {}
-        for d in sorted(self.dir.iterdir()):
-            props = d / ".Radicale.props"
-            if not d.is_dir() or not props.exists():
-                continue
-            try:
-                p = json.loads(props.read_text())
-            except ValueError:
-                continue
-            if p.get("tag") != "VCALENDAR" or "VTODO" not in p.get("C:supported-calendar-component-set", "VTODO"):
-                continue
-            out[d.name] = p
-        return out
-
-    def run_once(self):
-        import vobject  # noqa: F401  (fail early and loudly if missing)
-
-        with open(self.lock_file, "a+") as lf:
-            fcntl.flock(lf, fcntl.LOCK_EX)
-            try:
-                with self.s.lock:
-                    self.sync_lists()
-                    self.pull()
-                    self.push()
-            finally:
-                fcntl.flock(lf, fcntl.LOCK_UN)
-        self.last_run = time.time()
-
-    # lists <-> collections
-    def sync_lists(self):
-        cols = self.collections()
-        by_col = {l["data"].get("radicale"): l for l in self.s.all("list", live=False) if l["data"].get("radicale")}
-        for col, p in cols.items():
-            name = p.get("D:displayname") or col
-            mtime = int((self.dir / col / ".Radicale.props").stat().st_mtime * 1000)
-            l = by_col.get(col)
-            if l is None:
-                existing = self.m.list_by_name(name)
-                if existing and not existing["data"].get("radicale"):
-                    d = dict(existing["data"], radicale=col)
-                    self.s.put("list", existing["uid"], d)
-                    continue
-                d = {"name": name, "radicale": col, "color": p.get("ICAL:calendar-color")}
-                key = norm(name)
-                if key in ("need to do", "need"):
-                    d["ignition"] = "need"
-                if key in ("want to do", "want"):
-                    d["ignition"] = "want"
-                self.s.put("list", col, d, at=mtime)
-            elif l["deleted"]:
-                continue  # deleted here: removed from Radicale in push()
-            elif l["data"].get("name") != name and mtime > l["updated_at"]:
-                self.s.put("list", l["uid"], dict(l["data"], name=name), at=mtime)
-        for l in self.s.all("list", live=False):
-            col = l["data"].get("radicale")
-            if l["deleted"]:
-                if col and (self.dir / col).exists() and not any((self.dir / col).glob("*.ics")):
-                    self._remove_collection(col)
-                continue
-            if not col:
-                col = l["uid"]
-                self._write_props(col, l["data"].get("name", "List"))
-                self.s.put("list", l["uid"], dict(l["data"], radicale=col))
-            elif col not in cols:
-                if not (self.dir / col).exists():
-                    # Removed in a CalDAV client: drop the list (its tasks get tombstoned in pull()).
-                    self.s.put("list", l["uid"], l["data"], deleted=True)
-            else:
-                name = cols[col].get("D:displayname")
-                if name != l["data"].get("name"):
-                    self._write_props(col, l["data"].get("name", "List"), cols[col])
-
-    def _write_props(self, col, name, old=None):
-        d = self.dir / col
-        d.mkdir(exist_ok=True)
-        p = dict(old or {"C:supported-calendar-component-set": "VTODO", "tag": "VCALENDAR"})
-        p["D:displayname"] = name
-        tmp = d / ".Radicale.props.uplink"
-        tmp.write_text(json.dumps(p))
-        tmp.replace(d / ".Radicale.props")
-
-    def _remove_collection(self, col):
-        d = self.dir / col
-        for f in d.iterdir():
-            if f.is_file():
-                f.unlink()
-        cache = d / ".Radicale.cache"
-        if cache.exists():
-            import shutil
-            shutil.rmtree(cache)
-        try:
-            d.rmdir()
-        except OSError:
-            pass
-
-    def col_to_list(self):
-        return {l["data"].get("radicale"): l["uid"] for l in self.s.all("list") if l["data"].get("radicale")}
-
-    # radicale -> hub
-    def pull(self):
-        cols = self.col_to_list()
-        links = self.s.ext_all(self.SYSTEM)
-        seen = set()
-        for col, list_uid in cols.items():
-            d = self.dir / col
-            if not d.is_dir():
-                continue
-            for f in d.glob("*.ics"):
-                ext_id = f"{col}/{f.name}"
-                seen.add(ext_id)
-                raw = f.read_bytes()
-                h = hashlib.sha1(raw).hexdigest()
-                link = links.get(ext_id)
-                if link and link["state"].get("hash") == h:
-                    continue
-                todo = parse_vtodo(raw)
-                if todo is None:
-                    continue
-                uid = safe_uid(todo["uid"])
-                mtime = int(f.stat().st_mtime * 1000)
-                fields = todo["fields"]
-                fields["list"] = list_uid
-                cur = self.s.one("item", uid)
-                if cur is None:
-                    data = {"type": "task", "source": "radicale", **fields}
-                    data.setdefault("created_at", int(f.stat().st_mtime))
-                    self.s.put("item", uid, data, at=mtime)
-                elif mtime > cur["updated_at"] or cur["deleted"]:
-                    if cur["deleted"] and mtime <= cur["updated_at"]:
-                        pass  # deleted here after that edit; push() removes the file
-                    else:
-                        self.s.put("item", uid, follow_due({**cur["data"], **fields}, cur["data"]), at=mtime)
-                # Moving between lists in tasks.org writes the new file before deleting the old one.
-                for other in self.s.ext_by_uid(self.SYSTEM, uid):
-                    if other["ext_id"] != ext_id and not (self.dir / other["ext_id"]).exists():
-                        self.s.ext_drop(self.SYSTEM, other["ext_id"])
-                item = self.s.one("item", uid)
-                self.s.ext_set(self.SYSTEM, ext_id, uid, {"hash": h, "sig": sig(item["data"]) if item else ""})
-        for ext_id, link in links.items():
-            if ext_id in seen or (self.dir / ext_id).exists():
-                continue
-            self.s.ext_drop(self.SYSTEM, ext_id)
-            if self.s.ext_by_uid(self.SYSTEM, link["uid"]):
-                continue  # it moved
-            cur = self.s.one("item", link["uid"])
-            if cur and not cur["deleted"] and cur["data"].get("type") == "task":
-                # Deleted in tasks.org (or its list was removed).
-                self.s.put("item", link["uid"], cur["data"], deleted=True)
-
-    # hub -> radicale
-    def push(self):
-        cols = {v: k for k, v in self.col_to_list().items()}  # list uid -> collection
-        for item in self.s.all("item", live=False):
-            d = item["data"]
-            links = self.s.ext_by_uid(self.SYSTEM, item["uid"])
-            want_col = cols.get(d.get("list")) if (d.get("type") == "task" and not item["deleted"]) else None
-            for link in links:
-                col = link["ext_id"].split("/")[0]
-                if col != want_col:
-                    p = self.dir / link["ext_id"]
-                    if p.exists():
-                        p.unlink()
-                    self.s.ext_drop(self.SYSTEM, link["ext_id"])
-            if not want_col:
-                continue
-            fname = f"{item['uid']}.ics"
-            cur = [l for l in links if l["ext_id"].split("/")[0] == want_col]
-            if cur:
-                fname = cur[0]["ext_id"].split("/", 1)[1]
-                if cur[0]["state"].get("sig") == sig(d):
-                    continue
-            path = self.dir / want_col / fname
-            old = path.read_bytes() if path.exists() else None
-            raw = build_vtodo(item["uid"], d, old)
-            tmp = path.with_suffix(".uplink-tmp")
-            tmp.write_bytes(raw)
-            tmp.replace(path)
-            self.s.ext_set(self.SYSTEM, f"{want_col}/{fname}", item["uid"],
-                           {"hash": hashlib.sha1(raw).hexdigest(), "sig": sig(d)})
-
-
-def follow_due(new, old):
-    """tasks.org moves a repeating task on by changing its due date; move our reminder with it."""
-    if not new.get("repeat") or not new.get("remind_at") or new.get("done_at"):
-        return new
-    a, b = parse_local(old.get("due")), parse_local(new.get("due"))
-    if a and b and a != b and new.get("remind_at") == old.get("remind_at"):
-        shift = b.replace(tzinfo=None) - a.replace(tzinfo=None)
-        t = datetime.fromtimestamp(new["remind_at"], TZ).replace(tzinfo=None) + shift
-        new = dict(new, remind_at=int(t.replace(tzinfo=TZ).timestamp()))
-        new.pop("place_fired_at", None)
-    return new
-
-
-def safe_uid(u):
-    u = re.sub(r"[^A-Za-z0-9._@:-]", "-", u or "")[:64]
-    return u or new_uid()
-
-
-def sig(d):
-    keys = ("title", "notes", "done_at", "due", "priority", "list", "type", "repeat")
-    return hashlib.sha1(json.dumps([d.get(k) for k in keys]).encode()).hexdigest()
-
-
-ICAL_PRI = {3: 1, 2: 5, 1: 9, 0: 0}
-
-
-def parse_vtodo(raw):
-    import vobject
-
-    try:
-        cal = vobject.readOne(raw.decode("utf-8", "replace"))
-        todo = cal.vtodo
-    except Exception:
-        return None
-    f = {}
-
-    def val(name):
-        c = todo.contents.get(name)
-        return c[0].value if c else None
-
-    f["title"] = str(val("summary") or "").strip() or "Untitled"
-    f["notes"] = str(val("description") or "")
-    status = str(val("status") or "").upper()
-    comp = val("completed")
-    if status == "COMPLETED" or comp:
-        f["done_at"] = int(to_dt(comp).timestamp()) if comp else int(time.time())
-    else:
-        f["done_at"] = None
-    due = val("due")
-    if isinstance(due, datetime):
-        f["due"] = to_dt(due).astimezone(TZ).strftime("%Y-%m-%dT%H:%M")
-    elif isinstance(due, date):
-        f["due"] = due.isoformat()
-    else:
-        f["due"] = None
-    try:
-        p = int(val("priority") or 0)
-    except ValueError:
-        p = 0
-    f["priority"] = 0 if p == 0 else 3 if p <= 4 else 2 if p == 5 else 1
-    rrule = str(val("rrule") or "").strip()
-    f["repeat"] = rrule or None
-    created = val("created")
-    if isinstance(created, datetime):
-        f["created_at"] = int(to_dt(created).timestamp())
-    return {"uid": str(val("uid") or ""), "fields": f}
-
-
-def to_dt(v):
-    if isinstance(v, datetime):
-        return v if v.tzinfo else v.replace(tzinfo=TZ)
-    return datetime(v.year, v.month, v.day, tzinfo=TZ)
-
-
-def build_vtodo(uid, d, old=None):
-    import vobject
-
-    cal = None
-    if old:
-        try:
-            cal = vobject.readOne(old.decode("utf-8", "replace"))
-            todo = cal.vtodo
-        except Exception:
-            cal = None
-    if cal is None:
-        cal = vobject.iCalendar()
-        cal.add("prodid").value = "-//Uplink//EN"
-        todo = cal.add("vtodo")
-        todo.add("uid").value = uid
-
-    def set_(name, value):
-        for c in list(todo.contents.get(name, [])):
-            todo.remove(c)
-        if value is not None and value != "":
-            todo.add(name).value = value
-
-    utc = vobject.icalendar.utc  # vobject only serializes its own UTC object
-    stamp = datetime.now(utc).replace(microsecond=0)
-    set_("summary", d.get("title") or "Untitled")
-    set_("description", d.get("notes") or None)
-    set_("dtstamp", stamp)
-    set_("last-modified", stamp)
-    if "created" not in todo.contents and d.get("created_at"):
-        todo.add("created").value = datetime.fromtimestamp(d["created_at"], utc).replace(microsecond=0)
-    if d.get("done_at"):
-        set_("status", "COMPLETED")
-        set_("completed", datetime.fromtimestamp(d["done_at"], utc).replace(microsecond=0))
-        set_("percent-complete", "100")
-    else:
-        set_("status", "NEEDS-ACTION")
-        set_("completed", None)
-        set_("percent-complete", None)
-    due = d.get("due")
-    set_("due", None)
-    if due and len(due) == 10:
-        todo.add("due").value = date.fromisoformat(due)
-    elif due:
-        dt = parse_local(due)
-        if dt:
-            todo.add("due").value = dt.astimezone(utc)
-    pri = ICAL_PRI.get(int(d.get("priority") or 0), 0)
-    set_("priority", str(pri) if pri else None)
-    set_("rrule", d.get("repeat") or None)
-    return cal.serialize().encode()
-
-
-# ---------------------------------------------------------------- Ignition bridge
-
-
-class Ignition:
-    """Keeps Ignition's need/want lists in step with the lists marked need/want here,
-    through Ignition's own POST /api/sync (the one its phone app uses)."""
-
-    SYSTEM = "ignition"
-
-    def __init__(self, store, model, url):
-        self.s, self.m, self.url = store, model, url.rstrip("/")
-        self.last_run = 0
-        self.last_error = ""
-
-    def call(self, body):
-        req = urllib.request.Request(self.url + "/api/sync", json.dumps(body).encode(),
-                                     {"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=15) as r:
-            return json.load(r)
-
-    def run_once(self):
-        with self.s.lock:
-            ign_lists = {l["uid"]: l["data"]["ignition"] for l in self.s.all("list") if l["data"].get("ignition")}
-            by_bucket = {v: k for k, v in ign_lists.items()}
-            pushed = self.s.get("ignition_pushed", 0)
-            outgoing = []
-            top = self.s.rev()
-            for rec in ([] if self.s.get("ignition_since", 0) == 0 else self.s.since(pushed)):
-                if rec["kind"] != "item":
-                    continue
-                d = rec["data"]
-                links = self.s.ext_by_uid(self.SYSTEM, rec["uid"])
-                ign_id = links[0]["ext_id"] if links else (rec["uid"] if len(rec["uid"]) <= 40 else None)
-                bucket = ign_lists.get(d.get("list")) if d.get("type") == "task" else None
-                if rec["deleted"] or not bucket:
-                    if links:
-                        outgoing.append({"id": ign_id, "deleted": True, "updated_at": rec["updated_at"]})
-                        self.s.ext_drop(self.SYSTEM, ign_id)
-                    continue
-                if not ign_id:
-                    continue
-                if not links and d.get("done_at"):
-                    continue  # already done before Ignition saw it: keep it out of Ignition's history
-                outgoing.append({
-                    "id": ign_id, "list": bucket, "title": d.get("title") or "Untitled",
-                    "notes": d.get("notes") or "", "due": (d.get("due") or "")[:10] or None,
-                    "priority": int(d.get("priority") or 0), "estimate_min": d.get("estimate_min"),
-                    "created_at": d.get("created_at") or int(time.time()), "done_at": d.get("done_at"),
-                    "updated_at": rec["updated_at"], "deleted": False,
-                })
-                self.s.ext_set(self.SYSTEM, ign_id, rec["uid"], {})
-            since = self.s.get("ignition_since", 0)
-            if since == 0:
-                outgoing = []  # pull and match first, push on the next pass
-        res = self.call({"since": since, "items": outgoing})
-        with self.s.lock:
-            first = since == 0
-            open_by_title = {}
-            if first:
-                for it in self.s.all("item"):
-                    if it["data"].get("type") == "task" and not it["data"].get("done_at") and it["data"].get("list") in ign_lists:
-                        open_by_title.setdefault(norm(it["data"].get("title")), it["uid"])
-            for it in res.get("items") or []:
-                ign_id = it["id"]
-                link = self.s.ext(self.SYSTEM, ign_id)
-                uid = link["uid"] if link else None
-                if uid is None and not it.get("deleted"):
-                    if self.s.one("item", ign_id):
-                        uid = ign_id
-                    elif first and not it.get("done_at"):
-                        # First contact: the same task may already be in the Radicale list.
-                        uid = open_by_title.pop(norm(it.get("title")), None)
-                    uid = uid or ign_id
-                if uid is None:
-                    continue
-                cur = self.s.one("item", uid)
-                at = int(it.get("updated_at") or 0)
-                if cur and cur["updated_at"] >= at:
-                    self.s.ext_set(self.SYSTEM, ign_id, uid, {})
-                    continue
-                if it.get("deleted"):
-                    if cur and not cur["deleted"] and cur["data"].get("list") in ign_lists:
-                        self.s.put("item", uid, cur["data"], deleted=True, at=at)
-                    self.s.ext_drop(self.SYSTEM, ign_id)
-                    continue
-                base = dict(cur["data"]) if cur and not cur["deleted"] else {"type": "task", "source": "ignition"}
-                base.update(
-                    title=it.get("title") or "Untitled", notes=it.get("notes") or "",
-                    priority=int(it.get("priority") or 0), estimate_min=it.get("estimate_min"),
-                    done_at=it.get("done_at"), created_at=it.get("created_at") or base.get("created_at"),
-                    list=by_bucket.get(it.get("list")) or base.get("list"),
-                )
-                due = it.get("due")
-                old_due = base.get("due") or ""
-                # Ignition only keeps the date: keep our time of day if the date didn't change.
-                base["due"] = old_due if (due and old_due[:10] == due) else (due or None)
-                self.s.put("item", uid, base, at=at)
-                self.s.ext_set(self.SYSTEM, ign_id, uid, {})
-            self.s.set("ignition_since", int(res.get("rev") or since))
-            # Our own writes above bumped rev; they came from Ignition, so don't echo them.
-            self.s.set("ignition_pushed", 0 if first else top)
-        self.last_run = time.time()
-
-
 # ---------------------------------------------------------------- HTTP
 
 
@@ -2285,14 +1820,6 @@ class App:
         self.shots = Path(args.data) / "shots"
         self.shots.mkdir(parents=True, exist_ok=True)
         self.fonts = Path(os.environ.get("UPLINK_FONTS", "")) if os.environ.get("UPLINK_FONTS") else None
-        rad = os.environ.get("UPLINK_RADICALE_DIR")
-        self.radicale = None
-        if rad and Path(rad).is_dir():
-            lock = os.environ.get("UPLINK_RADICALE_LOCK") or str(Path(rad).parent.parent / ".Radicale.lock")
-            self.radicale = Radicale(self.s, self.m, rad, lock)
-        ign = os.environ.get("UPLINK_IGNITION_URL")
-        self.ignition = Ignition(self.s, self.m, ign) if ign else None
-        self.kick = threading.Event()
         self.geo_cache, self.geo_lock, self.geo_last = {}, threading.Lock(), 0.0
         self.devices = self.s.get("devices", {})
 
@@ -2303,12 +1830,10 @@ class App:
         except (TypeError, ValueError):
             raise ApiError(400, "bad since")
         new_caps = []
-        took = 0
         items = []
         for rec in body.get("records") or []:
             fresh = rec.get("kind") == "capture" and self.s.one("capture", str(rec.get("uid"))) is None
             if self.s.merge(rec):
-                took += 1
                 if rec.get("kind") == "item":
                     items.append(rec["uid"])
                 if fresh and not rec.get("deleted"):
@@ -2321,8 +1846,6 @@ class App:
             self.m.roll_done([r for r in (self.s.one("item", u) for u in items) if r])
         if new_caps:
             self.proc.wake.set()
-        if took:
-            self.kick.set()
         if new_caps and body.get("wait"):
             self.proc.wait_for(new_caps, min(float(body.get("wait") or 0), 30))
         return {"rev": self.s.rev(), "now": now_ms(), "records": self.s.since(since)}
@@ -2336,8 +1859,6 @@ class App:
             "rev": self.s.rev(), "counts": counts, "devices": self.devices,
             "llm": {"key": bool(b.key()), "out_until": int(b.out_until), "last_error": b.last_error,
                     "last_model": b.last_model},
-            "radicale": self.radicale and {"last_run": int(self.radicale.last_run), "error": self.radicale.last_error},
-            "ignition": self.ignition and {"last_run": int(self.ignition.last_run), "error": self.ignition.last_error},
             "pending": len(self.proc.pending()),
             "categories": {"engine": self.cats.engine(), "waiting": len(self.cats.pending()),
                            "last_error": self.cats.last_error},
@@ -2348,7 +1869,6 @@ class App:
         if not cap:
             raise ApiError(404, "no such capture")
         self.proc.process(cap, force=True)
-        self.kick.set()
         return {"ok": True, "capture": self.s.one("capture", uid)}
 
     def shot_path(self, uid):
@@ -2488,35 +2008,13 @@ class App:
             out.sort(key=lambda r: r["km"])
         return out[:6]
 
-    # background
-    def bridges(self):
-        while True:
-            self.kick.wait(30)
-            self.kick.clear()
-            time.sleep(0.5)  # let a burst of writes land
-            for b in (self.radicale, self.ignition):
-                if not b:
-                    continue
-                try:
-                    b.run_once()
-                    b.last_error = ""
-                except Exception as e:
-                    b.last_error = f"{type(e).__name__}: {e}"
-                    log(type(b).__name__, "failed:", b.last_error)
-            try:
-                if self.m.roll_done():  # done in a CalDAV client or Ignition
-                    self.kick.set()
-            except Exception:
-                traceback.print_exc()
-
     def start(self):
         self.m.inbox()
         threading.Thread(target=self.proc.run, daemon=True, name="processor").start()
-        threading.Thread(target=self.bridges, daemon=True, name="bridges").start()
         if self.cats.engine():
             threading.Thread(target=self.cats.run, daemon=True, name="categories").start()
         self.proc.wake.set()
-        self.kick.set()
+        self.m.roll_done()  # anything ticked off while the hub was down
 
 
 def main():
