@@ -132,6 +132,8 @@ dialog[open] { animation: up .22s ease-out; }
 .pair.rep { display: grid; grid-template-columns: 2fr 3fr; gap: 8px; }
 .pair.rep:has(> input[hidden]) { grid-template-columns: 1fr; }
 .stack { display: grid; gap: 8px; }
+.times { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.times > input { width: 100%; min-width: 0; }
 .where { color: var(--fg); line-height: 1.35; padding: 12px 0; }
 .where.unset { color: var(--accent); }
 .sheet select, .sheet input[type=date], .sheet input[type=time], .sheet input[type=datetime-local] { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; height: 44px; }

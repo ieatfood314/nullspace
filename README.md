@@ -80,7 +80,8 @@ The meter is under Settings, Mobile data.
 - A reminder fires once. It has a Done button, and changing the time or
   place arms it again.
 - **Repeats:** any number of minutes, hours, days, weeks, months or years,
-  on set weekdays if you like, with an optional end. A repeating task
+  on set weekdays if you like, at one or more times of day, with an
+  optional end. A repeating task
   reminds at each of its times whether or not you ticked the last one off.
   Ticking it off moves it to its next time after now.
 
@@ -142,7 +143,7 @@ after `since`. Request and response bodies may be gzipped.
 | Kind | Fields |
 |---|---|
 | `list` | `name`, `sort`, `color`, `inbox` |
-| `item` | `type` (task or note), `title`, `notes`, `list`, `due`, `remind_at`, `place`, `place_on` (arrive or leave), `repeat` (an iCalendar RRULE such as `FREQ=WEEKLY;BYDAY=TU,TH`; FREQ, INTERVAL, BYDAY, COUNT and UNTIL are used), `done_at`, `fired_at`, `place_fired_at`, `capture`, `category` (work, chores, projects, fun or other), `category_auto` (set when the hub picked the category: a signature of the title, notes and list it judged; absent when you picked it, and the hub then leaves it alone) |
+| `item` | `type` (task or note), `title`, `notes`, `list`, `due`, `remind_at`, `place`, `place_on` (arrive or leave), `repeat` (an iCalendar RRULE such as `FREQ=WEEKLY;BYDAY=TU,TH`; FREQ, INTERVAL, BYDAY, COUNT and UNTIL are used), `times` (a repeating task's times of day when it comes up more than once a day, such as `["07:30", "18:00"]`; COUNT counts each), `done_at`, `fired_at`, `place_fired_at`, `capture`, `category` (work, chores, projects, fun or other), `category_auto` (set when the hub picked the category: a signature of the title, notes and list it judged; absent when you picked it, and the hub then leaves it alone) |
 | `place` | `name`, `lat`, `lon`, `radius` (metres), `address` |
 | `capture` | `type` (voice, screenshot, text, share), `text`, `voice` (a screenshot with a voice note), `screen_text`, `app`, `image`, `list` (typed while that list was open; tasks go there unless the filer picks one), `status` (new or done), `summary`, `items`, `changed` (tasks it changed: `uid`, `title`, `before`, the task as it was, and `sig`, so Redo only puts it back if nothing changed it since) |
 

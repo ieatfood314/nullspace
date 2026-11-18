@@ -198,6 +198,9 @@ def clean_due(s):
 # A repeating task keeps an iCalendar RRULE in `repeat` ("FREQ=WEEKLY;INTERVAL=2"), the same
 # kind of string CalDAV apps write. Its current time is remind_at, or due when there's no
 # reminder. Marking it done moves it to the next time after now and opens it again. We act on FREQ, INTERVAL, BYDAY, COUNT and UNTIL; other parts are kept but ignored.
+# A task that comes up more than once on each of its days ("feed the dog at 7:30 and at 6")
+# also keeps `times`, its times of day (["07:30", "18:00"]): every day the rule gives, it comes
+# up at each of them, and COUNT counts each one. Minute and hour repeats ignore it.
 # web/app.js and the phone's Reminders.kt walk the same rule; keep the three in step.
 
 FREQS = ("MINUTELY", "HOURLY", "DAILY", "WEEKLY", "MONTHLY", "YEARLY")
@@ -274,9 +277,47 @@ def add_months(t, n):
     return t.replace(year=y, month=m, day=min(t.day, last))
 
 
-def occurrences(anchor, rule, after=None):
+MAX_TIMES = 12
+
+
+def clean_times(v):
+    """A task's times of day, checked and sorted ("7:30" -> "07:30"), or None for fewer than two."""
+    if not isinstance(v, (list, tuple)):
+        return None
+    out = set()
+    for x in v[:50]:
+        m = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", str(x).strip())
+        if m:
+            out.add(f"{int(m.group(1)):02d}:{m.group(2)}")
+    out = sorted(out)[:MAX_TIMES]
+    return out if len(out) > 1 else None
+
+
+def occurrences(anchor, rule, after=None, times=None):
     """(index, time) for the anchor (index 0) and each later time the rule gives, in local time.
-    `after` lets fixed-length rules skip ahead instead of walking there."""
+    `after` lets fixed-length rules skip ahead instead of walking there. `times` are the task's
+    times of day (see the top of this section)."""
+    times = clean_times(times) if rule["freq"] not in ("MINUTELY", "HOURLY") else None
+    if not times:
+        yield from walk_rule(anchor, rule, after)
+        return
+    base = anchor.astimezone(TZ)
+    clocks = [tuple(int(x) for x in t.split(":")) for t in times]
+    i = 0
+    yield 0, base
+    # The rule's days, from the anchor's own day on, each at every time of day.
+    for _, day in walk_rule(base, dict(rule, count=None, until=None)):
+        for h, m in clocks:
+            t = datetime(day.year, day.month, day.day, h, m, tzinfo=TZ)
+            if t <= base:
+                continue
+            i += 1
+            if (rule["count"] is not None and i >= rule["count"]) or (rule["until"] is not None and t > rule["until"]):
+                return
+            yield i, t
+
+
+def walk_rule(anchor, rule, after=None):
     f, n, days = rule["freq"], rule["interval"], rule["byday"]
     base = anchor.astimezone(TZ)
     wall = base.replace(tzinfo=None)
@@ -321,8 +362,8 @@ def occurrences(anchor, rule, after=None):
         yield i, t
 
 
-def next_after(anchor, rule, t):
-    for i, o in occurrences(anchor, rule, after=t):
+def next_after(anchor, rule, t, times=None):
+    for i, o in occurrences(anchor, rule, after=t, times=times):
         if i > 0 and o > t:
             return i, o
     return None
@@ -346,7 +387,7 @@ def roll(d, now=None):
     anchor = anchor_of(d)
     if anchor is None:
         return nd  # nothing to move: it just opens again
-    nxt = next_after(anchor, rule, max(now, anchor))
+    nxt = next_after(anchor, rule, max(now, anchor), d.get("times"))
     if nxt is None:
         return None
     i, when = nxt
@@ -422,6 +463,8 @@ class Model:
             bits.append(f"{d.get('place_on') or 'arrive'} {p['data'].get('name', '') if p else 'a place'}")
         if d.get("repeat"):
             bits.append(f"repeat {d['repeat']}")
+            if ts := clean_times(d.get("times")):
+                bits.append("times " + ", ".join(ts))
         title = re.sub(r"\s+", " ", d.get("title") or "")[:120]
         return title + (f" ({', '.join(bits)})" if bits else "")
 
@@ -478,6 +521,7 @@ Reply with one JSON object only, no prose:
  "items": [{"type": "task" or "note", "title": "...", "notes": "...", "list": "<list name or null>",
             "due": "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" or null,
             "remind_at": "YYYY-MM-DDTHH:MM" or null, "repeat": "<RRULE>" or null,
+            "times": ["HH:MM", ...] or null,
             "place": "<place name or null>", "place_on": "arrive" or "leave" or null}],
  "changes": [{"task": "<id of an open task, like t3>", "done": true, ...any item field to change}]}
 
@@ -502,6 +546,9 @@ Rules:
   FREQ=HOURLY;INTERVAL=36. Set remind_at (or due, for a deadline) to the first time; if no time of day
   is said, use 09:00, and the first time is the soonest one still ahead. A repeat in minutes or hours
   with no start said starts one gap from now.
+- A repeating to-do that comes up at several times on each of its days ("feed the dog at 7:30 and at 6",
+  "morning and evening") is still ONE task: times lists every time of day ["07:30", "18:00"], and
+  remind_at is the first of those times still ahead. Leave times out for a single time of day.
 - Titles are short imperative phrases in the person's words, no trailing period. Put any detail in notes.
 - Several separate to-dos in one capture become several tasks.
 - Something to remember but not to do (an idea, a fact, a quote) is a note: title is a short label,
@@ -516,7 +563,7 @@ Rules:
 - Changing a task they already have goes in "changes", not "items": "mark X as done", "I did X", "move X
   to Friday", "rename X to Y", "cancel the reminder for X", "delete X". Find it in the open tasks below and
   use its id. List only the fields that change: "done": true, "title", "notes", "list", "due", "remind_at",
-  "repeat", "place" and "place_on" (null clears one), or "delete": true. Moving a task to another day
+  "repeat", "times", "place" and "place_on" (null clears one), or "delete": true. Moving a task to another day
   keeps its time of day unless a new one is said, and moves its reminder too. Use changes only when the
   capture plainly asks to change, finish or remove one of those tasks. "Remind me to X" and any other new
   to-do is a new item, even when an open task looks the same. Leave "changes" out when there are none.
@@ -1317,6 +1364,60 @@ def start_on_rule(it, rule, text, now):
     return it
 
 
+def fit_times(anchor, rule, times):
+    """A repeating task's reminder moved onto one of its times of day: the first of the task's
+    times at or after it, on a day the rule gives."""
+    if not times or rule["freq"] in ("MINUTELY", "HOURLY") or anchor.strftime("%H:%M") in times:
+        return anchor
+    h, m = times[0].split(":")
+    start = anchor.replace(hour=int(h), minute=int(m), second=0, microsecond=0)
+    for _, t in occurrences(start, rule, times=times):
+        if t >= anchor:
+            return t
+    return anchor
+
+
+def tidy_repeats(items, said_at):
+    """Items for one capture, after settle(). A repeating task the filer split by time of day
+    ("at 7:30 and at 6" as two tasks) becomes one task with times, and a repeating reminder
+    starts at its next time still ahead, not at one that had gone by when it was said."""
+    out, keys = [], {}
+    for it in items:
+        rule = parse_rrule(it.get("repeat")) if it.get("type") == "task" else None
+        rem = clean_due(it.get("remind_at"))
+        if not rule or rule["freq"] in ("MINUTELY", "HOURLY") or not rem or len(rem) <= 10:
+            out.append(it)
+            continue
+        # Halves of one task share a day ("every Monday at 7 and Thursday at 7" is two tasks),
+        # except a plain daily repeat, where the filer may have put one half on tomorrow.
+        daily = rule["freq"] == "DAILY" and rule["interval"] == 1 and not rule["byday"]
+        key = (norm(it.get("title")), clean_rrule(it["repeat"]), norm(str(it.get("place") or "")),
+               norm(str(it.get("list") or "")), clean_due(it.get("due")), "" if daily else rem[:10])
+        it["remind_at"] = rem
+        it["times"] = clean_times(it.get("times")) or [rem[11:]]  # its own list, else just its time
+        twin = keys.get(key)
+        if twin is None:
+            keys[key] = it
+            out.append(it)
+            continue
+        twin["times"] += it["times"]
+        twin["remind_at"] = min(twin["remind_at"], rem)
+        notes = [n for n in (str(twin.get("notes") or "").strip(), str(it.get("notes") or "").strip()) if n]
+        twin["notes"] = "\n".join(dict.fromkeys(notes))
+    for it in keys.values():
+        rule = parse_rrule(it["repeat"])
+        times = it["times"] = clean_times(it["times"])
+        anchor = fit_times(parse_local(it["remind_at"]), rule, times)
+        floor = said_at - timedelta(minutes=15)
+        if anchor < floor and not clean_due(it.get("due")):
+            # COUNT stays: "for 7 days" still means 7 from the first one ahead.
+            nxt = next_after(anchor, dict(rule, count=None), floor, times)
+            if nxt:
+                anchor = nxt[1]
+        it["remind_at"] = anchor.strftime("%Y-%m-%dT%H:%M")
+    return out
+
+
 class Processor:
     """Turns new captures into items, one at a time, on its own thread."""
 
@@ -1367,18 +1468,17 @@ class Processor:
         said_at = datetime.fromtimestamp(d["created_at"], TZ) if d.get("created_at") else now
         if not timedelta(0) <= now - said_at <= timedelta(days=2):
             said_at = now
-        made = []
         items = result.get("items") if isinstance(result.get("items"), list) else []
-        for it in items[:12]:
-            if isinstance(it, dict):
-                made.append(self.make_item(settle(dict(it), text, now, said_at=said_at), cap["uid"], d))
+        items = tidy_repeats([settle(dict(it), text, now, said_at=said_at) for it in items[:12] if isinstance(it, dict)], said_at)
+        made = [self.make_item(it, cap["uid"], d) for it in items]
         changed = []
         ids = dict(tasks)
         if not basic and re.match(LEADS, text, re.I) and not EDITS.search(text):
             # "Remind me to X" is a new task even when the LLM would rather fold it into an old one.
             if result.get("changes"):
-                result["changes"], made = [], made or [self.make_item(settle(dict(it), text, now), cap["uid"], d)
-                                                       for it in basic_parse(d, places)["items"]]
+                result["changes"], made = [], made or [
+                    self.make_item(it, cap["uid"], d)
+                    for it in tidy_repeats([settle(dict(it), text, now) for it in basic_parse(d, places)["items"]], said_at)]
         for ch in (result.get("changes") or [])[:12] if isinstance(result.get("changes"), list) else []:
             c = self.change_item(ids, ch, text, now) if isinstance(ch, dict) else None
             same = [x for x in changed if c and x["uid"] == c["uid"]]
@@ -1390,8 +1490,8 @@ class Processor:
             # A new to-do and the LLM made nothing (it thought a task already covers it): file it
             # plainly rather than drop it.
             basic = True
-            for it in basic_parse(d, places)["items"]:
-                made.append(self.make_item(settle(dict(it), text, now), cap["uid"], d))
+            for it in tidy_repeats([settle(dict(it), text, now) for it in basic_parse(d, places)["items"]], said_at):
+                made.append(self.make_item(it, cap["uid"], d))
         d.update(status="done", summary=str(result.get("summary") or "")[:200], items=made,
                  processed_at=int(time.time()), basic=basic, changed=changed)
         if force:
@@ -1443,6 +1543,8 @@ class Processor:
                 nd["list"] = lst["uid"]
             if "repeat" in ch:
                 nd["repeat"] = clean_rrule(ch.get("repeat"))
+            if "times" in ch:
+                nd["times"] = clean_times(ch.get("times"))
             t = settle({k: ch.get(k) for k in ("due", "remind_at") if k in ch} | {"repeat": nd.get("repeat")},
                        text, now, fresh=False)
             if "due" in ch and (ch["due"] is None or clean_due(t.get("due"))):  # a due it can't read is ignored
@@ -1461,6 +1563,19 @@ class Processor:
                     # "move it to Friday": a new day, the same time of day
                     r = datetime.combine(r.date(), datetime.fromtimestamp(before["remind_at"], TZ).time(), TZ)
                 nd["remind_at"] = int(r.timestamp()) if r else None
+            rule = parse_rrule(nd.get("repeat"))
+            times = clean_times(nd.get("times")) if rule else None
+            if times and "times" not in ch and before.get("remind_at") and nd.get("remind_at") \
+                    and nd["remind_at"] != before["remind_at"]:
+                # "move it to 8": the time that moved changes in the list too
+                old, new = (datetime.fromtimestamp(x, TZ).strftime("%H:%M") for x in (before["remind_at"], nd["remind_at"]))
+                times = clean_times([new if x == old else x for x in times])
+            if times and nd.get("remind_at"):
+                nd["remind_at"] = int(fit_times(datetime.fromtimestamp(nd["remind_at"], TZ), rule, times).timestamp())
+            if times:
+                nd["times"] = times
+            else:
+                nd.pop("times", None)
             if nd.get("remind_at") != before.get("remind_at"):
                 nd.pop("fired_at", None)
             if "place" in ch:
@@ -1503,6 +1618,9 @@ class Processor:
         rule = parse_rrule(it.get("repeat")) if kind == "task" else None
         if rule:
             data["repeat"] = clean_rrule(it.get("repeat"))
+            times = clean_times(it.get("times")) if rule["freq"] not in ("MINUTELY", "HOURLY") else None
+            if times:
+                data["times"] = times
             if not data.get("remind_at") and not due:
                 # A repeat needs a first time to count from.
                 data["remind_at"] = int(parse_local(first_time(None, rule)).timestamp())

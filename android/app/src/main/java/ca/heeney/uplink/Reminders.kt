@@ -43,7 +43,10 @@ object Reminders {
 
     private fun openTasks() = Store.all("item").filter { it.data.optString("type") != "note" && !isDone(it) }
 
-    private fun repeat(t: Store.Rec) = if (t.data.isNull("repeat")) null else Repeat.parse(t.data.optString("repeat"))
+    private fun repeat(t: Store.Rec) = if (t.data.isNull("repeat")) null else Repeat.parse(
+        t.data.optString("repeat"),
+        t.data.optJSONArray("times")?.let { a -> List(a.length()) { a.optString(it) } },
+    )
 
     // ---- time ----
 

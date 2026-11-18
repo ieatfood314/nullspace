@@ -142,7 +142,9 @@ function whenText(ts) {
 
 /* ---- repeats ----
  * `repeat` is an iCalendar RRULE. Marking a repeating task done moves it to its next time.
- * This is the same walk as roll() in server/uplink.py and Reminders.kt; keep them in step. */
+ * This is the same walk as roll() in server/uplink.py and Reminders.kt; keep them in step.
+ * `times` ("07:30", "18:00") are a task's times of day: each day the rule gives, it comes up at
+ * every one of them, and COUNT counts each. Minute and hour repeats ignore them. */
 
 const FREQS = ["MINUTELY", "HOURLY", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"];
 const BYDAY = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
@@ -177,7 +179,29 @@ function formatRule(r, change) {
   return keys.map((x) => `${x}=${parts[x]}`).join(";");
 }
 
-function* occurrences(a, r, after) {
+function cleanTimes(v) {
+  if (!Array.isArray(v)) return null;
+  const out = [...new Set(v.map((x) => /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(String(x).trim()))
+    .filter(Boolean).map((m) => `${pad(+m[1])}:${m[2]}`))].sort().slice(0, 12);
+  return out.length > 1 ? out : null;
+}
+function* occurrences(a, r, after, times) {
+  times = r.freq === "MINUTELY" || r.freq === "HOURLY" ? null : cleanTimes(times);
+  if (!times) { yield* walkRule(a, r, after); return; }
+  let i = 0;
+  yield [0, a];
+  // The rule's days, from the anchor's own day on, each at every time of day.
+  for (const [, day] of walkRule(a, { ...r, count: null, until: null })) {
+    for (const x of times) {
+      const t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), +x.slice(0, 2), +x.slice(3));
+      if (t <= a) continue;
+      i++;
+      if ((r.count != null && i >= r.count) || (r.until && t > r.until)) return;
+      yield [i, t];
+    }
+  }
+}
+function* walkRule(a, r, after) {
   const { freq: f, interval: n, byday: days } = r;
   const ok = (i, t) => (r.count == null || i < r.count) && (!r.until || t <= r.until);
   const Y = a.getFullYear(), M = a.getMonth(), D = a.getDate(), h = a.getHours(), mi = a.getMinutes(), s = a.getSeconds();
@@ -230,7 +254,7 @@ function roll(d) {
   if (!a) return nd;
   const floor = new Date(Math.max(Date.now(), a.getTime()));
   let next = null;
-  for (const [i, t] of occurrences(a, r, floor)) if (i > 0 && t > floor) { next = [i, t]; break; }
+  for (const [i, t] of occurrences(a, r, floor, d.times)) if (i > 0 && t > floor) { next = [i, t]; break; }
   if (!next) return null;
   const [i, when] = next;
   if (r.count != null) nd.repeat = formatRule(r, { COUNT: r.count - i });
@@ -244,7 +268,7 @@ function roll(d) {
   return nd;
 }
 
-function repeatText(s) {
+function repeatText(s, times) {
   const r = parseRule(s);
   if (!r) return "";
   const n = r.interval;
@@ -259,6 +283,8 @@ function repeatText(s) {
     const unit = { DAILY: "day", WEEKLY: "week", MONTHLY: "month", YEARLY: "year" }[r.freq];
     t = n > 1 ? `Every ${n} ${unit}s` : `Every ${unit}`;
   }
+  const ts = r.freq === "MINUTELY" || r.freq === "HOURLY" ? null : cleanTimes(times);
+  if (ts) t += " at " + ts.slice(0, -1).join(", ") + " and " + ts[ts.length - 1];
   if (r.until) t += `, until ${dayWord(r.until)}`;
   else if (r.count != null) t += `, ${r.count} left`;
   return t;
@@ -339,7 +365,7 @@ function taskRow(it, mode = "", showList = false) {
   const d = it.data, meta = [];
   if (d.due) { const x = timeText(parseLocal(d.due), d.due.length > 10, mode); if (x) meta.push(`<span class="${isLate(it) ? "late" : ""}">${esc(x)}</span>`); }
   if (d.remind_at && !d.done_at) meta.push(`<span>Remind ${esc(timeText(new Date(d.remind_at * 1000), true, mode))}</span>`);
-  if (d.repeat && !d.done_at) meta.push(`<span>${esc(repeatText(d.repeat) || "Repeats")}</span>`);
+  if (d.repeat && !d.done_at) meta.push(`<span>${esc(repeatText(d.repeat, d.times) || "Repeats")}</span>`);
   if (d.place) {
     const p = get("place", d.place);
     const name = p ? p.data.name : "a place";
@@ -522,10 +548,13 @@ function editItem(id) {
   const cat0 = catLabel(d.category) && !d.category_auto ? d.category : "";
   const autoLabel = catLabel(d.category) && d.category_auto ? `Auto: ${catLabel(d.category)}` : "Auto";
   const rule = parseRule(d.repeat);
+  const remHm = d.remind_at ? hm(new Date(d.remind_at * 1000)) : "";
+  const alsoAt = (cleanTimes(d.times) || []).filter((x) => x !== remHm);
+  const timeBox = (v) => `<input type="time" value="${v}" aria-label="Also at">`;
   let endsInit = rule && rule.until ? ymd(rule.until) : "";
   if (rule && !rule.until && rule.count != null && anchorOf(d)) {
     let last = null;
-    for (const [, t] of occurrences(anchorOf(d), rule)) last = t;
+    for (const [, t] of occurrences(anchorOf(d), rule, null, d.times)) last = t;
     endsInit = ymd(last);
   }
   openSheet(`
@@ -539,6 +568,7 @@ function editItem(id) {
       <div class="field"><span>Due</span><div class="pair two"><input type="date" name="due" value="${dueDate}"><input type="time" name="duetime" value="${dueTime}" aria-label="Due time"></div></div>
       ${seg("quick", QUICK.map(([label, f]) => [ymd(f()), label]), dueDate)}
       <div class="field"><span>Remind</span><input type="datetime-local" name="remind" value="${d.remind_at ? toLocalInput(d.remind_at) : ""}"></div>
+      <div class="field" data-times hidden><span>Also at</span><div class="times">${alsoAt.map((x) => timeBox(x)).join("")}${timeBox("")}</div></div>
       <div class="field"><span>Repeat</span><div class="stack">
         <div class="pair rep"><input type="number" name="rep_n" min="1" max="100000" inputmode="numeric" value="${rule ? rule.interval : 1}" aria-label="Every how many" ${rule ? "" : "hidden"}>
           <select name="rep_unit" aria-label="Repeat"><option value="">Never</option>${FREQS.map((x) => `<option value="${x}" ${rule && rule.freq === x ? "selected" : ""}></option>`).join("")}</select></div>
@@ -568,8 +598,16 @@ function editItem(id) {
       f.rep_n.hidden = !u;
       f.querySelector("[data-days]").hidden = u !== "WEEKLY";
       f.querySelector("[data-ends]").hidden = !u;
+      f.querySelector("[data-times]").hidden = !u || u === "MINUTELY" || u === "HOURLY" || !f.remind.value;
     };
     repUi();
+    f.remind.addEventListener("input", repUi);
+    const tbox = f.querySelector(".times");
+    tbox.addEventListener("input", () => {
+      // always one empty box at the end for another time
+      const boxes = [...tbox.children];
+      if (boxes[boxes.length - 1].value) tbox.insertAdjacentHTML("beforeend", timeBox(""));
+    });
     f.rep_unit.addEventListener("change", repUi);
     f.rep_n.addEventListener("input", repUi);
     f.querySelector('[data-act="delete"]').onclick = () => { put("item", id, d, true); sheet.close(); toast("Deleted"); };
@@ -594,6 +632,10 @@ function editItem(id) {
           delete nd.category_auto;
         }
         const u = f.rep_unit.value;
+        const times = u && u !== "MINUTELY" && u !== "HOURLY" && f.remind.value
+          ? cleanTimes([f.remind.value.slice(11, 16), ...[...tbox.children].map((x) => x.value)]) : null;
+        const sameTimes = String(times) === String(cleanTimes(d.times));
+        if (times) nd.times = times; else delete nd.times;
         if (!u) delete nd.repeat;
         else {
           const n = Math.min(100000, Math.max(1, Math.round(Number(f.rep_n.value) || 1)));
@@ -602,7 +644,7 @@ function editItem(id) {
           const ends = f.rep_until.value;
           const byday = u === "WEEKLY" ? days || null : same ? rule.parts.BYDAY ?? null : null;
           // A count only means the same end while the times it counts stay the same.
-          const keepEnd = rule && ends === endsInit && same && rule.interval === n && (rule.parts.BYDAY ?? null) === byday;
+          const keepEnd = rule && ends === endsInit && same && rule.interval === n && (rule.parts.BYDAY ?? null) === byday && sameTimes;
           nd.repeat = formatRule(same ? rule : { parts: {} }, {
             FREQ: u, INTERVAL: n > 1 ? n : null, BYDAY: byday,
             ...(keepEnd ? { COUNT: rule.parts.COUNT ?? null, UNTIL: rule.parts.UNTIL ?? null }
