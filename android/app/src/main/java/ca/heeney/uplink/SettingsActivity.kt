@@ -136,6 +136,11 @@ class SettingsActivity : ComponentActivity() {
             SettingRow("Mobile data", Budget.text(), null) {}
             SyncRow(open == "sync") { toggle("sync") }
             WordsRow(open == "words") { toggle("words") }
+            var keep by remember { mutableStateOf(Prefs.keepRecordings) }
+            SettingRow("Training data", if (keep) "On" else "Off", null, action = if (keep) "Turn off" else "Turn on") {
+                keep = !keep
+                Prefs.keepRecordings = keep
+            }
 
             Spacer(Modifier.height(32.dp))
             var text by remember { mutableStateOf("") }

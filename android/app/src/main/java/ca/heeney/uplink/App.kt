@@ -51,6 +51,11 @@ object Prefs {
         get() = sp.getString("hub_url", BuildConfig.HUB_URL)!!
         set(v) = sp.edit().putString("hub_url", v).apply()
 
+    /** keep each dictation's audio, and how you edited it after, for training speech models */
+    var keepRecordings: Boolean
+        get() = sp.getBoolean("keep_recordings", true)
+        set(v) = sp.edit().putBoolean("keep_recordings", v).apply()
+
     fun sp(): android.content.SharedPreferences = sp
 
     fun isTrigger(ev: KeyEvent): Boolean {

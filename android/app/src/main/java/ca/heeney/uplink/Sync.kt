@@ -164,5 +164,6 @@ object Sync {
         tmp.writeText(st.toString())
         tmp.renameTo(stateFile(ctx))
         Log.i(TAG, "synced: sent ${events.length()} dictations, ${mine.size} words")
+        try { Archive.upload(ctx, url) } catch (t: Throwable) { Log.w(TAG, "archive upload: $t") }
     }
 }

@@ -122,6 +122,7 @@ dependencies {
     // Geofences for place reminders (Google Play services, which the phone has).
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
+    testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core-ktx:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

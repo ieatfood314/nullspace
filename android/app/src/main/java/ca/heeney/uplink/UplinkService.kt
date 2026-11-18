@@ -51,7 +51,21 @@ class UplinkService : AccessibilityService() {
             level >= TRIM_MEMORY_MODERATE) Engine.unload()
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        val w = watch ?: return
+        event ?: return
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED ->
+                if (event.packageName?.toString() == w.pkg && !snapPending) {
+                    snapPending = true
+                    main.postDelayed(::snapshot, 100)
+                }
+            AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
+                val src = event.source ?: return
+                if (src != watchNode && src.isEditable || event.packageName?.toString() != w.pkg) endWatch("focus")
+            }
+        }
+    }
     override fun onInterrupt() {}
 
     public override fun onKeyEvent(ev: KeyEvent): Boolean {
@@ -98,10 +112,11 @@ class UplinkService : AccessibilityService() {
         card?.takeIf { it.open }?.let { toCard = true; it.keyDown(); return }
         card = null
         if (Dictation.listening) Dictation.cancel()
+        endWatch("next")
         presses = if (presses == 1) 2 else 1
         // Without a model only the presses work; a hold says so in up().
         if (!Engine.installed(this)) return
-        if (presses == 1) Dictation.start(this, ::insert)
+        if (presses == 1) Dictation.start(this, ::insert, onSaid = ::insertSaid)
         else Dictation.start(this, { text -> Capture.voiceNote(this, text) })
     }
 
@@ -218,7 +233,33 @@ class UplinkService : AccessibilityService() {
         return null
     }
 
-    fun insert(text: String) {
+    /** A finished dictation: guess its start first if it was cut off, then put it in. */
+    fun insertSaid(said: Said) {
+        val hub = HubSync.url()
+        val metered = Net.metered(this)
+        if (!said.cut || hub == null || !Net.online(this) || (metered && Budget.used() >= Budget.SOFT)) {
+            insert(said.text, said); return
+        }
+        val before = focusedField()?.let { n ->
+            val t = if (n.isShowingHintText || n.isPassword) "" else n.text?.toString().orEmpty()
+            val s = n.textSelectionStart
+            if (s in 0..t.length) t.substring(maxOf(0, s - 300), s) else t.takeLast(300)
+        }.orEmpty()
+        val app = applicationContext
+        Thread({
+            val guessed = try {
+                val body = org.json.JSONObject().put("text", said.text).put("before", before)
+                val res = org.json.JSONObject(String(HubSync.post(app, "$hub/api/guess-start", body.toString().toByteArray(), metered, 5_000)))
+                res.optString("text").takeIf { !res.isNull("text") && it.isNotBlank() }
+            } catch (t: Throwable) { Log.w(TAG, "guess: $t"); null }
+            if (guessed != null) Log.i(TAG, "start was cut off, guessed it")
+            main.post { insert(guessed ?: said.text, if (guessed != null) Said(guessed, said.id, said.ts, true, said.text) else said) }
+        }, "guess-start").start()
+    }
+
+    fun insert(text: String) = insert(text, null)
+
+    fun insert(text: String, said: Said?) {
         val node = focusedField()
         if (node == null) {
             copy(text)
@@ -249,7 +290,9 @@ class UplinkService : AccessibilityService() {
             AccessibilityNodeInfo.ACTION_SET_TEXT,
             Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, wanted) },
         )
-        if (!setOk) { paste(node, piece, canPaste); return }
+        // Once it's in, watch what you do to it (not in password fields).
+        val watchIt = { if (said != null && !node.isPassword) main.postDelayed({ beginWatch(said, piece) }, 300) }
+        if (!setOk) { if (paste(node, piece, canPaste)) watchIt(); return }
         val pos = before.length + piece.length
         val deadline = android.os.SystemClock.uptimeMillis() + 600
         fun check() {
@@ -261,21 +304,72 @@ class UplinkService : AccessibilityService() {
                         putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, pos)
                         putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, pos)
                     })
+                    watchIt()
                 }
                 android.os.SystemClock.uptimeMillis() < deadline -> main.postDelayed(::check, 25)
                 else -> {
                     Log.i(TAG, "set text didn't stick in ${node.className}, pasting")
-                    paste(node, piece, canPaste)
+                    if (paste(node, piece, canPaste)) watchIt()
                 }
             }
         }
         check()
     }
 
-    private fun paste(node: AccessibilityNodeInfo, piece: String, canPaste: Boolean) {
+    /** True if it went into the field. */
+    private fun paste(node: AccessibilityNodeInfo, piece: String, canPaste: Boolean): Boolean {
         copy(piece)
-        if (canPaste && node.performAction(AccessibilityNodeInfo.ACTION_PASTE)) return
+        if (canPaste && node.performAction(AccessibilityNodeInfo.ACTION_PASTE)) return true
         Notice.show(this, "Copied")
+        return false
+    }
+
+    // ---- what you do to it after ----
+
+    private var watch: EditWatch? = null
+    private var watchNode: AccessibilityNodeInfo? = null
+    private var snapPending = false
+    private val tickWatch = object : Runnable {
+        override fun run() {
+            val w = watch ?: return
+            val now = System.currentTimeMillis()
+            if (now - w.changed > EDIT_IDLE_MS || now - w.started > EDIT_MAX_MS) { endWatch("idle"); return }
+            snapshot()
+            if (watch != null) main.postDelayed(this, 2000)
+        }
+    }
+
+    private fun fieldText(n: AccessibilityNodeInfo): String =
+        if (n.isShowingHintText) "" else n.text?.toString().orEmpty()
+
+    private fun beginWatch(said: Said, piece: String) {
+        endWatch("next")
+        if (!Prefs.keepRecordings) return
+        val node = focusedField() ?: return
+        val t = fieldText(node)
+        val span = EditWatch.locate(t, piece, node.textSelectionEnd) ?: EditWatch.locate(t, piece, -1) ?: return
+        watch = EditWatch(said, node.packageName?.toString().orEmpty(), t, span.first, span.second)
+        watchNode = node
+        main.postDelayed(tickWatch, 2000)
+    }
+
+    private fun snapshot() {
+        snapPending = false
+        val w = watch ?: return
+        val n = watchNode ?: return
+        if (!n.refresh()) { endWatch("gone"); return }
+        w.update(fieldText(n))?.let { endWatch(it) }
+    }
+
+    private fun endWatch(why: String) {
+        val w = watch ?: return
+        if (why != "gone" && why != "sent" && why != "deleted") {
+            watchNode?.let { if (it.refresh()) w.update(fieldText(it)) }  // the latest, before letting go
+        }
+        watch = null
+        watchNode = null
+        main.removeCallbacks(tickWatch)
+        Archive.edited(this, w.record(why))
     }
 
     private fun copy(text: String) {
@@ -297,5 +391,8 @@ class UplinkService : AccessibilityService() {
         const val HOLD_MS = 350L
         /** how long after a press a second one still makes it a double */
         const val GAP_MS = 380L
+        /** a dictation untouched this long is done with */
+        const val EDIT_IDLE_MS = 120_000L
+        const val EDIT_MAX_MS = 600_000L
     }
 }

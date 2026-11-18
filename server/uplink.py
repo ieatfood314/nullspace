@@ -583,12 +583,16 @@ class Brain:
         msg = [{"role": "system", "content": PROMPT}, {"role": "user", "content": "\n".join(parts)}]
         return self.chat(msg, lambda p: isinstance(p.get("items"), list) or isinstance(p.get("changes"), list))
 
-    def chat(self, msg, ok, max_tokens=1500):
-        """The JSON object from the first model whose answer passes ok(), or None."""
+    def chat(self, msg, ok, max_tokens=1500, timeout=40, models=None):
+        """The JSON object from the first model whose answer passes ok(), or None.
+        timeout covers every model tried."""
         key = self.key()
         if not key or time.time() < self.out_until:
             return None
-        for model in self.models:
+        deadline = time.time() + timeout
+        for model in models or self.models:
+            if deadline - time.time() < 0.5:
+                break
             body = {"model": model, "messages": msg, "temperature": 0.2, "max_tokens": max_tokens}
             try:
                 req = urllib.request.Request(
@@ -596,7 +600,7 @@ class Brain:
                     {"Authorization": f"Bearer {key}", "Content-Type": "application/json",
                      "X-Title": "Uplink"},
                 )
-                with urllib.request.urlopen(req, timeout=40) as r:
+                with urllib.request.urlopen(req, timeout=deadline - time.time()) as r:
                     res = json.load(r)
                 text = res["choices"][0]["message"]["content"] or ""
                 parsed = first_json(text)
@@ -616,6 +620,43 @@ class Brain:
                 self.last_error = f"{model}: {e}"
         log("llm failed:", self.last_error)
         return None
+
+
+GUESS_PROMPT = """A speech-to-text recording started late: the speaker was \
+already talking, so the first word or few words of what they said are \
+missing, and the first word heard may be just the end of a word.
+
+Text already in the box, before where this goes (may be empty):
+<<<{before}>>>
+
+What was heard:
+<<<{heard}>>>
+
+If it can stand on its own as the start of a sentence, return it \
+unchanged: only add words when the start is clearly missing. Then \
+put the most likely missing words in front (at most 5), fix the first \
+heard word if it is a fragment, and fix the capitalization. Change nothing \
+else. Reply with only JSON: {{"text": "..."}}"""
+
+
+def guess_start(brain, text, before=""):
+    """Dictated text whose start was cut off, with the missing words guessed
+    (Squelch's rule: at most 5 words in front, the rest word for word), or None."""
+    words = text.split(" ")
+    cut = next((i + 1 for i, w in enumerate(words[:20]) if w.endswith((".", "?", "!")) and i < len(words) - 1), 20)
+    head, rest = " ".join(words[:cut]), " ".join(words[cut:])
+    msg = [{"role": "user", "content": GUESS_PROMPT.format(before=before[-300:], heard=head)}]
+    fast = [m for m in brain.models if "fast" in m] or brain.models
+    got = brain.chat(msg, lambda p: isinstance(p.get("text"), str), max_tokens=400, timeout=4, models=fast)
+    new = ((got or {}).get("text") or "").strip()
+    bare = lambda w: re.sub(r"[^\w]", "", w.lower())
+    hw, nw = [bare(w) for w in head.split()], [bare(w) for w in new.split()]
+    keep = hw[1:]
+    if not nw or new == head or len(nw) < len(hw) or len(nw) - len(keep) > 6:
+        return None
+    if keep and nw[len(nw) - len(keep):] != keep:
+        return None
+    return (new + " " + rest).strip() if rest else new
 
 
 def next_utc_midnight():
@@ -1779,6 +1820,9 @@ def make_handler(app):
                     return self.send(200, app.sync(self.json_body()))
                 if p == "/api/status":
                     return self.send(200, app.status())
+                if p == "/api/guess-start" and m == "POST":
+                    b = self.json_body()
+                    return self.send(200, {"text": guess_start(app.brain, str(b.get("text") or ""), str(b.get("before") or ""))})
                 if p == "/api/reverse":
                     return self.send(200, app.reverse((q.get("lat") or [""])[0], (q.get("lon") or [""])[0]))
                 if p == "/api/geocode":

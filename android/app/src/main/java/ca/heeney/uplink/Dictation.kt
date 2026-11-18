@@ -8,6 +8,10 @@ import android.os.VibrationEffect
 import android.os.VibratorManager
 import android.util.Log
 
+/** One finished dictation. heard is the transcript; cut means you were already talking when
+ *  the mic opened, so its start may be missing. id names it in the training archive. */
+class Said(val text: String, val id: String, val ts: Double, val cut: Boolean, val heard: String = text)
+
 /** One dictation at a time: listen while the key is held, transcribe, hand the text to a sink.
  *
  *  Finished sentences are transcribed while you're still talking: at each pause the audio
@@ -23,6 +27,8 @@ object Dictation {
     private var recorder: Recorder? = null
     private var fromMic = true
     private var sink: ((String) -> Unit)? = null
+    private var onSaid: ((Said) -> Unit)? = null
+    private var count = 0
     private var startedAt = 0L
 
     // Everything below is guarded by `lock`: the mic thread writes it, the engine thread
@@ -44,9 +50,10 @@ object Dictation {
 
     val listening get() = phase.value == Phase.Listening
 
-    /** Start listening. sink gets the cleaned-up transcript (never empty).
-     *  mic = false is for debug-build wav runs, which feed() the audio themselves. */
-    fun start(ctx: Context, sink: (String) -> Unit, mic: Boolean = true) {
+    /** Start listening. sink gets the cleaned-up transcript (never empty), or onSaid gets it
+     *  with what's known about it when given. mic = false is for debug-build wav runs, which
+     *  feed() the audio themselves. */
+    fun start(ctx: Context, sink: (String) -> Unit, mic: Boolean = true, onSaid: ((Said) -> Unit)? = null) {
         if (phase.value != Phase.Idle) { Log.i(TAG, "busy (${phase.value}), not starting"); return }
         val app = ctx.applicationContext
         if (mic && !Engine.installed(app)) { Notice.show(app, "Open Uplink settings to download the speech model"); return }
@@ -54,6 +61,7 @@ object Dictation {
         // Pick up dictionary changes from your other devices while you talk.
         if (mic) Sync.soon(app, minGapMs = 60_000)
         this.sink = sink
+        this.onSaid = onSaid
         fromMic = mic
         synchronized(lock) {
             size = 0; frames = 0; floor = 1f; speechFrames = 0; heardSpeech = false; quietFrames = 0
@@ -125,6 +133,26 @@ object Dictation {
 
     private fun threshold() = maxOf(floor * 4f, 0.0015f)
 
+    /** Speech in the first frames the mic delivered: you were talking before it opened.
+     *  The floor here is the quietest frame of the whole clip, since the running one
+     *  starts out at speech level when speech comes first. Call holding `lock`. */
+    private fun startedMidSpeech(): Boolean {
+        var i = 0
+        while (i < frames && rms[i] == 0f) i++  // digital silence while the mic wakes
+        if (frames - i < 10) return false
+        var quiet = Float.MAX_VALUE
+        for (k in i until frames) if (rms[k] > 0f) quiet = minOf(quiet, rms[k])
+        val th = maxOf(quiet * 6f, 0.01f)
+        var loud = 0
+        for (k in i until minOf(i + 3, frames)) if (rms[k] > th) loud++
+        return loud >= 2
+    }
+
+    private fun archiveId(ctx: Context, now: Long): String {
+        val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US).format(java.util.Date(now))
+        return "$stamp-${Sync.deviceId(ctx)}-${++count}"
+    }
+
     /** Stop listening and transcribe. */
     fun finish(ctx: Context) {
         if (phase.value != Phase.Listening) return
@@ -147,6 +175,8 @@ object Dictation {
         }
         phase.value = Phase.Working
         val out = sink
+        val outSaid = onSaid
+        val cut = synchronized(lock) { startedMidSpeech() }
         val t0 = SystemClock.elapsedRealtime()
         var audioMs = 0L
         // Runs after any look-ahead still in flight (one engine thread), so it sees its commit.
@@ -161,16 +191,23 @@ object Dictation {
             Stats.lastAudioMs = audioMs
             Stats.lastWaitMs = SystemClock.elapsedRealtime() - t0
             Log.i(TAG, "released to text in ${Stats.lastWaitMs} ms ($audioMs ms left to decode)")
+            val now = System.currentTimeMillis()
+            val said = Said(text, archiveId(app, now), now / 1000.0, cut)
             if (fromMic) {
                 try {
                     Analytics.record(app, text, heldMs / 1000f, Stats.lastWaitMs / 1000f, Models.selected(app).key)
                 } catch (t: Throwable) { Log.e(TAG, "stats", t) }
+                if (text.isNotEmpty() && Prefs.keepRecordings) {
+                    val pcm = synchronized(lock) { buf.copyOf(size) }
+                    Archive.save(app, said, pcm, Models.selected(app).key)
+                }
                 Sync.soon(app)
             }
+            if (cut) Log.i(TAG, "already talking when the mic opened")
             main.post {
                 if (text.isNotEmpty()) {
                     Stats.last.value = text
-                    try { out?.invoke(text) } catch (t: Throwable) { Log.e(TAG, "insert failed", t) }
+                    try { if (outSaid != null) outSaid(said) else out?.invoke(text) } catch (t: Throwable) { Log.e(TAG, "insert failed", t) }
                 } else if (Engine.state.value == Engine.State.Failed) {
                     Notice.show(app, "Model failed to load")
                 }
