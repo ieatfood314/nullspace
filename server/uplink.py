@@ -577,7 +577,7 @@ class Brain:
         if capture.get("app"):
             parts.append(f"App on screen: {capture['app']}")
         if capture.get("text"):
-            parts.append("What they said or typed:\n" + capture["text"][:4000])
+            parts.append("What they said or typed:\n" + spoken_clock(capture["text"])[:4000])
         if capture.get("screen_text"):
             parts.append("Text on screen:\n" + capture["screen_text"][:6000])
         msg = [{"role": "system", "content": PROMPT}, {"role": "user", "content": "\n".join(parts)}]
@@ -931,9 +931,22 @@ def amount(k):
     return float(k) if k[0].isdigit() else WORDNUM.get(k, 1)
 
 
+SPOKEN_CLOCK = re.compile(rf"\b(at|by|around)\s+(\d{{1,2}})(?:\.|\s)?(\d\d)(?!\d)(?=\s*(?:$|[.,!?;)]|(?:am|pm|a\.m\.|p\.m\.|"
+                          rf"o'?clock|on|today|tomorrow|tonight|this|next|and|{'|'.join(DAYS)})(?!\w)))", re.I)
+
+
+def spoken_clock(text):
+    """Speech-to-text drops the colon: "at 140" is 1:40 and "at 2.45" is 2:45, not 14:00 or 2:00."""
+    def fix(m):
+        h, mi = int(m.group(2)), int(m.group(3))
+        return f"{m.group(1)} {h}:{mi:02d}" if h < 24 and mi < 60 else m.group(0)
+    return SPOKEN_CLOCK.sub(fix, text or "")
+
+
 def pull_time(t):
     """Pulls the time phrases out of t. Returns (when 'YYYY-MM-DDTHH:MM' or None, the rest,
     {"deadline": said as "due"/"by", "timed": a time of day was said})."""
+    t = spoken_clock(t)
     n = local_now()
     day = hour = None
     evening = None  # "tonight": 20:00 unless a time is said, and "at 7" then means 7 pm
@@ -1148,7 +1161,8 @@ CLOCK = re.compile(r"\b\d{1,2}(?::\d\d)?\s*(?:am|pm|a\.m\.|p\.m\.)(?!\w)|\bat \d
 def said_time(text):
     """The time of day the words give: "HH:MM" when there's exactly one clock time and nothing
     that shifts it, "" when no time of day is said at all, None when it isn't that simple."""
-    t = (text or "").lower()
+    text = spoken_clock(text)
+    t = text.lower()
     if re.search(r"\b(?:before|after|earlier|later|ago|in (?:\d+|an?|half)[^.,]{0,12}(?:minutes?|mins?|hours?))\b", t):
         return None
     clocks = CLOCK.findall(t)
