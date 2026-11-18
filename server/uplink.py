@@ -671,7 +671,7 @@ class Brain:
 
 GUESS_PROMPT = """A speech-to-text recording started late: the speaker was \
 already talking, so the first word or few words of what they said are \
-missing, and the first word heard may be just the end of a word.
+missing. {first_note}
 
 Text already in the box, before where this goes (may be empty):
 <<<{before}>>>
@@ -680,19 +680,28 @@ What was heard:
 <<<{heard}>>>
 
 If it can stand on its own as the start of a sentence, return it \
-unchanged: only add words when the start is clearly missing. Then \
-put the most likely missing words in front (at most 5), fix the first \
-heard word if it is a fragment, and fix the capitalization. Change nothing \
-else. Reply with only JSON: {{"text": "..."}}"""
+unchanged: only add words when the start is clearly missing. Otherwise \
+put the most likely missing words in front (at most 5), replace or drop \
+the first heard word if it was a bent fragment, and fix the \
+capitalization. Change nothing else. Reply with only JSON: {{"text": "..."}}"""
+# The recognizer reads a clipped word as whichever whole word fits the
+# sentence best, so the first word of a cut clip is suspect (same as Squelch).
+FIRST_NOTE = "The first word heard may be the end of a longer word that the recognizer turned into a word that fits."
+FIRST_NOTE_UNSURE = ('The recognizer was unsure of the first word heard, "{w}": it is probably the end of a '
+                     'cut-off word that it turned into a word that fits.')
 
 
-def guess_start(brain, text, before=""):
+def guess_start(brain, text, before="", first_p=None):
     """Dictated text whose start was cut off, with the missing words guessed
-    (Squelch's rule: at most 5 words in front, the rest word for word), or None."""
+    (Squelch's rule: at most 5 words in front, the rest word for word), or None.
+    first_p: how sure the recognizer was of the first word, if it says."""
     words = text.split(" ")
     cut = next((i + 1 for i, w in enumerate(words[:20]) if w.endswith((".", "?", "!")) and i < len(words) - 1), 20)
     head, rest = " ".join(words[:cut]), " ".join(words[cut:])
-    msg = [{"role": "user", "content": GUESS_PROMPT.format(before=before[-300:], heard=head)}]
+    note = FIRST_NOTE
+    if isinstance(first_p, (int, float)) and first_p < 0.6 and head.split():
+        note = FIRST_NOTE_UNSURE.format(w=head.split()[0])
+    msg = [{"role": "user", "content": GUESS_PROMPT.format(before=before[-300:], heard=head, first_note=note)}]
     fast = [m for m in brain.models if "fast" in m] or brain.models
     got = brain.chat(msg, lambda p: isinstance(p.get("text"), str), max_tokens=400, timeout=4, models=fast)
     new = ((got or {}).get("text") or "").strip()
@@ -1940,7 +1949,8 @@ def make_handler(app):
                     return self.send(200, app.status())
                 if p == "/api/guess-start" and m == "POST":
                     b = self.json_body()
-                    return self.send(200, {"text": guess_start(app.brain, str(b.get("text") or ""), str(b.get("before") or ""))})
+                    return self.send(200, {"text": guess_start(app.brain, str(b.get("text") or ""), str(b.get("before") or ""),
+                                                             b.get("first_p"))})
                 if p == "/api/reverse":
                     return self.send(200, app.reverse((q.get("lat") or [""])[0], (q.get("lon") or [""])[0]))
                 if p == "/api/geocode":
