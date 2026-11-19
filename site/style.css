@@ -132,3 +132,5 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 400 1.0625rem/1
   html { scroll-behavior: auto; }
   .button { transition: none; }
 }
+
+.body code { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: .9em; color: #fff; white-space: nowrap; }
