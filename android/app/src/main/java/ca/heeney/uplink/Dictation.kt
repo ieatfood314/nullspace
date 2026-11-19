@@ -1,6 +1,8 @@
 package ca.heeney.uplink
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -82,6 +84,9 @@ object Dictation {
     fun start(ctx: Context, sink: (String) -> Unit, mic: Boolean = true, onSaid: ((Said) -> Unit)? = null) {
         if (phase.value != Phase.Idle) { Log.i(TAG, "busy (${phase.value}), not starting"); return }
         val app = ctx.applicationContext
+        if (mic && app.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Notice.show(app, "Allow the microphone in Nullspace settings"); return
+        }
         stayAwake(app)
         if (mic && !Engine.installed(app)) { Notice.show(app, "Open Nullspace settings to download the speech model"); return }
         Engine.warm(app)
