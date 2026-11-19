@@ -170,7 +170,8 @@ function row(label, status, fix, opts = {}) {
   const r = h("div", { class: "row" + (tap ? " tap" : ""), role: tap ? "button" : null, tabindex: tap ? "0" : null },
     h("span", { class: "label" }, label),
     help ? h("button", { class: "info" + (showHelp ? " on" : ""), "aria-label": (showHelp ? "Hide what " : "What ") + label + " does",
-      onclick: (e) => { e.stopPropagation(); helpFor = showHelp ? "" : label; draw(); } }) : h("span", { class: "gap" }),
+      onclick: (e) => { e.stopPropagation(); helpFor = showHelp ? "" : label; draw(); },
+      onkeydown: (e) => e.stopPropagation() }) : h("span", { class: "gap" }),
     h("span", { class: "status" }, status ?? ""),
     tap ? h("span", { class: "act" }, tap) : null);
   if (help) r.querySelector(".info").innerHTML = INFO;
@@ -193,7 +194,8 @@ function line(id, value, hint, action, enabled, onAction, opts = {}) {
   input.value = v;
   const update = () => { if (btn) btn.disabled = !enabled(input.value); };
   input.addEventListener("input", () => { drafts[id] = input.value; update(); });
-  const run = () => { if (btn && !btn.disabled) { onAction(input.value); delete drafts[id]; } };
+  // onAction returns false to keep what's typed (it found something missing)
+  const run = () => { if (btn && !btn.disabled && onAction(input.value) !== false) delete drafts[id]; };
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
   if (btn) btn.addEventListener("click", run);
   update();
@@ -399,8 +401,10 @@ function wordsRow(d) {
   inner.append(line("w-term", "", "Word, spelled right", null, () => false, null));
   inner.append(line("w-heard", "", "Heard as, comma separated", "Add", () => true, (v) => {
     const term = (drafts["w-term"] || "").trim();
-    if (!term) { $("#w-term").focus(); return; }
+    if (!term) { $("#w-term").focus(); return false; }
     delete drafts["w-term"];
+    $("#w-term").value = "";
+    $("#w-heard").value = "";
     call("add_word", { term, heard: v.split(",") });
   }));
   for (const w of [...d.words].reverse()) {

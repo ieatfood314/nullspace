@@ -545,13 +545,15 @@ class Window(QWidget):
         if url != self.url or not self.view.url().isValid():
             self.url = url
             self.view.load(QUrl(url + "/"))
+        self.show()
         if settings:
             v = self.settings_view()
             self.stack.setCurrentWidget(v)
             self.bridge.refresh()
             v.page().runJavaScript("window.nsShown && nsShown()")
             v.setFocus()
-        self.show()
+        elif self.stack.currentWidget() is not self.view:   # opening Nullspace means the list
+            self.show_tasks()
         self.raise_()
         self.activateWindow()
 
@@ -787,6 +789,9 @@ class Bridge(QObject):
     # --- reading ---
     @pyqtSlot()
     def refresh(self):
+        w = self.app.window  # the page polls even when hidden: only work while it shows
+        if w is None or not w.isVisible() or w.sview is None or w.stack.currentWidget() is not w.sview:
+            return
         sq = squelch()       # loaded here, on the Qt thread, before any worker uses it
         with self.lock:
             if self.running:
@@ -796,16 +801,20 @@ class Bridge(QObject):
 
         def work():
             try:
-                s = self.collect(sq)
-            except Exception as e:       # a broken file mustn't leave the page empty
+                try:
+                    s = self.collect(sq)
+                except Exception as e:   # a broken file mustn't leave the page empty
+                    log("settings:", e)
+                    s = self.collect(None)
+                self.state.emit(json.dumps(s))
+            except Exception as e:
                 log("settings:", e)
-                s = self.collect(None)
-            self.state.emit(json.dumps(s))
-            with self.lock:
-                self.running = False
-                queued, self.queued = self.queued, False
-            if queued:
-                self.again.emit()
+            finally:
+                with self.lock:
+                    self.running = False
+                    queued, self.queued = self.queued, False
+                if queued:
+                    self.again.emit()
         threading.Thread(target=work, daemon=True).start()
 
     def collect(self, sq):
