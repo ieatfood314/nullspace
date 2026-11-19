@@ -282,6 +282,7 @@ work):
 | `NULLSPACE_LLM_KEY` or `NULLSPACE_LLM_KEY_FILE` | API key for the LLM |
 | `NULLSPACE_LLM_URL` | chat completions URL (default OpenRouter; for Groq, `https://api.groq.com/openai/v1/chat/completions`) |
 | `NULLSPACE_LLM_MODELS` | comma-separated models to try in order; ones with `fast` in the name are used for tidying and guessing |
+| `NULLSPACE_FAST_LLM_URL`, `NULLSPACE_FAST_LLM_MODEL`, `NULLSPACE_FAST_LLM_KEY` or `NULLSPACE_FAST_LLM_KEY_FILE` | optional endpoint for tidying dictation and guessing a cut-off start, which a dictation waits on (at most 1 s, then it goes in as heard); for example Groq with `qwen/qwen3.8-27b`. Without it, those use the `fast` models above |
 | `NULLSPACE_TYPESAFE_KEY` or `NULLSPACE_TYPESAFE_KEY_FILE` | TypeSafe API key; with it, open tasks get their category from TypeSafe's Jev instead of the LLM |
 | `NULLSPACE_TYPESAFE_MODEL` | model for categories (default `jev-latest`) |
 | `NULLSPACE_TYPESAFE_URL` | TypeSafe endpoint (default `https://api.typesafe.ai/v1/systemone`) |

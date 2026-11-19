@@ -369,7 +369,8 @@ class UplinkService : AccessibilityService() {
     }
 
     /** A finished dictation: guess its start if it was cut off, tidy it if it rambles, then put
-     *  it in. Both go to your own LLM if you set one up, else your hub's, else are skipped. */
+     *  it in. Both go to your own LLM if you set one up, else your hub's, else are skipped.
+     *  They get POLISH_MS between them; past that the text goes in as heard. */
     fun insertSaid(said: Said) {
         val hub = HubSync.url()
         val own = Brain.on()
@@ -383,9 +384,16 @@ class UplinkService : AccessibilityService() {
             if (s in 0..t.length) t.substring(maxOf(0, s - 300), s) else t.takeLast(300)
         }.orEmpty()
         val app = applicationContext
+        val settled = java.util.concurrent.atomic.AtomicBoolean(false)
+        main.postDelayed({
+            if (settled.compareAndSet(false, true)) {
+                Log.i(TAG, "no tidy/guess within $POLISH_MS ms, putting it in as heard")
+                insert(said.text, said)
+            }
+        }, POLISH_MS)
         Thread({
             fun ask(path: String, body: org.json.JSONObject): String? = try {
-                val res = org.json.JSONObject(String(HubSync.post(app, "$hub/$path", body.toString().toByteArray(), Net.metered(app), 5_000)))
+                val res = org.json.JSONObject(String(HubSync.post(app, "$hub/$path", body.toString().toByteArray(), Net.metered(app), POLISH_MS.toInt())))
                 res.optString("text").takeIf { !res.isNull("text") && it.isNotBlank() }
             } catch (t: Throwable) { Log.w(TAG, "$path: $t"); null }
 
@@ -400,7 +408,7 @@ class UplinkService : AccessibilityService() {
             if (tidied != null) { Log.i(TAG, "tidied ${text.length} -> ${tidied.length} chars"); text = tidied }
             val out = if (guessed == null && tidied == null) said
                 else Said(text, said.id, said.ts, said.cut, said.heard, guess = guessed, tidied = tidied != null)
-            main.post { insert(out.text, out) }
+            main.post { if (settled.compareAndSet(false, true)) insert(out.text, out) }
         }, "polish").start()
     }
 
@@ -572,6 +580,8 @@ class UplinkService : AccessibilityService() {
         /** a dictation untouched this long is done with */
         const val EDIT_IDLE_MS = 120_000L
         const val EDIT_MAX_MS = 600_000L
+        /** the most a dictation waits on tidying and guessing its start, network included */
+        const val POLISH_MS = 1_000L
     }
 }
 

@@ -32,6 +32,12 @@ object Brain {
 
     fun model(): String = Prefs.llmModel.trim().ifEmpty { preset().model }
 
+    /** Groq's model for tidying and guessing, which hold up the dictation they're for: it answers
+     *  in about 0.2 s without thinking first. Other endpoints use their one model. */
+    private const val GROQ_QUICK = "qwen/qwen3.8-27b"
+
+    private fun quickModel(): String = if (preset() == GROQ) GROQ_QUICK else model()
+
     /** set up: an endpoint and a model, and a key unless it's your own server */
     fun on(): Boolean {
         val u = url()
@@ -52,9 +58,9 @@ object Brain {
 
     /** The JSON object of the first answer that passes ok(), or null. */
     fun chat(ctx: Context, messages: JSONArray, ok: (JSONObject) -> Boolean, maxTokens: Int = 1500,
-             timeoutMs: Int = 40_000, temperature: Double = 0.2): JSONObject? {
+             timeoutMs: Int = 40_000, temperature: Double = 0.2, model: String = model()): JSONObject? {
         if (!on()) return null
-        val body = JSONObject().put("model", model()).put("messages", messages)
+        val body = JSONObject().put("model", model).put("messages", messages)
             .put("temperature", temperature).put("max_tokens", maxTokens)
         val headers = buildMap {
             if (Prefs.llmKey.isNotBlank()) put("Authorization", "Bearer ${Prefs.llmKey.trim()}")
@@ -206,7 +212,7 @@ If it can stand on its own as the start of a sentence, return it unchanged: only
         val rest = words.drop(cut).joinToString(" ")
         val prompt = GUESS_PROMPT.replace("{before}", before.takeLast(300)).replace("{heard}", head)
         val got = chat(ctx, JSONArray().put(JSONObject().put("role", "user").put("content", prompt)),
-            { it.opt("text") is String }, maxTokens = 400, timeoutMs = 4_000) ?: return null
+            { it.opt("text") is String }, maxTokens = 400, timeoutMs = UplinkService.POLISH_MS.toInt(), model = quickModel()) ?: return null
         val new = got.optString("text").trim()
         fun bare(w: String) = w.lowercase().replace(Regex("[^\\w]"), "")
         val hw = head.split(Regex("\\s+")).filter { it.isNotEmpty() }.map(::bare)
@@ -238,7 +244,8 @@ Reply with only JSON: {"text": "..."}"""
     fun tidy(ctx: Context, text: String): String? {
         val words = text.split(Regex("\\s+")).count { it.isNotEmpty() }
         val got = chat(ctx, JSONArray().put(JSONObject().put("role", "user").put("content", TIDY_PROMPT.replace("{text}", text))),
-            { it.opt("text") is String }, maxTokens = words * 3 + 800, timeoutMs = 4_000, temperature = 0.0) ?: return null
+            { it.opt("text") is String }, maxTokens = words * 3 + 800, timeoutMs = UplinkService.POLISH_MS.toInt(),
+            temperature = 0.0, model = quickModel()) ?: return null
         return tidyCheck(text, got.optString("text"))
     }
 

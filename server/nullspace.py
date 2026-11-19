@@ -585,6 +585,11 @@ Rules:
 - Never invent facts that aren't in the capture."""
 
 
+# How long a dictation waits on tidying or a guessed start before it goes in as heard. The phone
+# gives up after 1 s in all, network included, so the hub has to answer well inside that.
+QUICK_S = 0.8
+
+
 class Brain:
     def __init__(self, model):
         self.m = model
@@ -599,18 +604,32 @@ class Brain:
             if m.strip()
         ]
         self.key_file = env("LLM_KEY_FILE", "")
+        # Tidying and guessing a cut-off start hold up the dictation they're for, so they can
+        # have an endpoint of their own that answers fast (Groq direct, say) instead of a pool.
+        self.fast_url = env("FAST_LLM_URL", "")
+        self.fast_model = env("FAST_LLM_MODEL", "")
+        self.fast_key_file = env("FAST_LLM_KEY_FILE", "")
         self.out_until = 0  # daily free quota used up until this time
         self.last_error = ""
         self.last_model = ""
 
-    def key(self):
-        k = env("LLM_KEY", "")
-        if not k and self.key_file:
+    def key(self, fast=False):
+        k = env("FAST_LLM_KEY" if fast else "LLM_KEY", "")
+        f = self.fast_key_file if fast else self.key_file
+        if not k and f:
             try:
-                k = Path(self.key_file).expanduser().read_text().strip()
+                k = Path(f).expanduser().read_text().strip()
             except OSError:
                 k = ""
         return k
+
+    def quick(self, msg, ok, max_tokens, timeout=QUICK_S, temperature=0.2):
+        """chat() for calls someone is waiting on: the fast endpoint when there is one, else
+        the models with "fast" in their name, and never past timeout."""
+        if self.fast_url and self.fast_model:
+            return self.chat(msg, ok, max_tokens, timeout, [self.fast_model], temperature, fast=True)
+        fast = [m for m in self.models if "fast" in m] or self.models
+        return self.chat(msg, ok, max_tokens, timeout, fast, temperature)
 
     def ask(self, capture, tasks=()):
         """tasks: (id, item record) pairs the capture may change, named by id in the prompt."""
@@ -645,22 +664,22 @@ class Brain:
         msg = [{"role": "system", "content": PROMPT}, {"role": "user", "content": "\n".join(parts)}]
         return self.chat(msg, lambda p: isinstance(p.get("items"), list) or isinstance(p.get("changes"), list))
 
-    def chat(self, msg, ok, max_tokens=1500, timeout=40, models=None, temperature=0.2):
+    def chat(self, msg, ok, max_tokens=1500, timeout=40, models=None, temperature=0.2, fast=False):
         """The JSON object from the first model whose answer passes ok(), or None.
-        timeout covers every model tried."""
-        key = self.key()
-        if not key or time.time() < self.out_until:
+        timeout covers every model tried. fast: use the fast endpoint (see quick)."""
+        key = self.key(fast)
+        if not key or (not fast and time.time() < self.out_until):
             return None
         deadline = time.time() + timeout
         for model in models or self.models:
-            if deadline - time.time() < 0.5:
+            if deadline - time.time() < min(0.5, timeout / 2):
                 break
             body = {"model": model, "messages": msg, "temperature": temperature, "max_tokens": max_tokens}
             try:
                 req = urllib.request.Request(
-                    self.url, json.dumps(body).encode(),
+                    self.fast_url if fast else self.url, json.dumps(body).encode(),
                     {"Authorization": f"Bearer {key}", "Content-Type": "application/json",
-                     "X-Title": "Nullspace"},
+                     "X-Title": "Nullspace", "User-Agent": "Nullspace"},  # Groq refuses Python-urllib
                 )
                 with urllib.request.urlopen(req, timeout=deadline - time.time()) as r:
                     res = json.load(r)
@@ -673,7 +692,7 @@ class Brain:
             except urllib.error.HTTPError as e:
                 detail = e.read()[:400].decode("utf-8", "replace")
                 self.last_error = f"{model}: HTTP {e.code} {detail[:160]}"
-                if e.code == 429 and "free-models-per-day" in detail.replace("_", "-").lower():
+                if not fast and e.code == 429 and "free-models-per-day" in detail.replace("_", "-").lower():
                     self.out_until = next_utc_midnight()
                     return None
                 if e.code in (401, 402):
@@ -717,8 +736,7 @@ def guess_start(brain, text, before="", first_p=None):
     if isinstance(first_p, (int, float)) and first_p < 0.6 and head.split():
         note = FIRST_NOTE_UNSURE.format(w=head.split()[0])
     msg = [{"role": "user", "content": GUESS_PROMPT.format(before=before[-300:], heard=head, first_note=note)}]
-    fast = [m for m in brain.models if "fast" in m] or brain.models
-    got = brain.chat(msg, lambda p: isinstance(p.get("text"), str), max_tokens=400, timeout=4, models=fast)
+    got = brain.quick(msg, lambda p: isinstance(p.get("text"), str), max_tokens=400)
     new = ((got or {}).get("text") or "").strip()
     bare = lambda w: re.sub(r"[^\w]", "", w.lower())
     hw, nw = [bare(w) for w in head.split()], [bare(w) for w in new.split()]
@@ -767,9 +785,8 @@ def tidy_dictation(brain, text):
     n = len(text.split())
     if n < TIDY_MIN_WORDS:
         return None
-    fast = [m for m in brain.models if "fast" in m] or brain.models
-    got = brain.chat([{"role": "user", "content": TIDY_PROMPT.format(text=text)}], lambda p: isinstance(p.get("text"), str),
-                     max_tokens=n * 3 + 800, timeout=4, models=fast, temperature=0)
+    got = brain.quick([{"role": "user", "content": TIDY_PROMPT.format(text=text)}], lambda p: isinstance(p.get("text"), str),
+                      max_tokens=n * 3 + 800, temperature=0)
     return tidy_check(text, (got or {}).get("text"))
 
 
