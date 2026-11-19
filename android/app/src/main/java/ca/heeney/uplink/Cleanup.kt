@@ -54,9 +54,19 @@ object Cleanup {
         return subs
     }
 
+    // Parakeet's tokenizer glues a leading apostrophe onto what comes before
+    // it: right for "don't", wrong for "want,'cause". After , ; : ! ? an
+    // apostrophe then a letter or digit starts a clipped word ('cause, 'em,
+    // 'til, '90s), so it gets its space back. After a period only when a
+    // capital follows, so "U.S.'s" stays as it is.
+    private val APOS_GLUE = Regex("""(?:(?<=[,;:!?])|(?<=\.)(?=['\u2019][A-Z]))(?=['\u2019][\p{L}\p{N}])""")
+
+    fun spaceClippedWords(text: String): String = APOS_GLUE.replace(text, " ")
+
     fun tidy(ctx: Context, raw: String): String {
         var t = raw.trim()
         if (t.isEmpty()) return ""
+        t = spaceClippedWords(t)
         t = defiller(t)
         for ((rx, term) in dictionary(ctx)) t = rx.replace(t, Regex.escapeReplacement(term))
         return t
