@@ -3,6 +3,7 @@ package ca.heeney.uplink
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.VibratorManager
@@ -50,12 +51,35 @@ object Dictation {
 
     val listening get() = phase.value == Phase.Listening
 
+    // Keeps the screen on from the key going down until the text is in: the key is
+    // handled by the accessibility service, so holding it doesn't count as using the phone.
+    @Suppress("DEPRECATION")
+    private var awake: PowerManager.WakeLock? = null
+
+    @Suppress("DEPRECATION")
+    private fun stayAwake(app: Context) {
+        if (awake != null) return
+        val pm = app.getSystemService(PowerManager::class.java) ?: return
+        // ON_AFTER_RELEASE restarts the screen timeout when it's let go, so the screen
+        // doesn't go dark the moment the text lands.
+        awake = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE, "uplink:dictation")
+            .apply { setReferenceCounted(false) }
+        phase.listen { p ->
+            val w = awake ?: return@listen
+            try {
+                // The timeout only matters if a dictation somehow never ends.
+                if (p == Phase.Idle) { if (w.isHeld) w.release() } else w.acquire(10 * 60_000L)
+            } catch (t: Throwable) { Log.e(TAG, "wake lock", t) }
+        }
+    }
+
     /** Start listening. sink gets the cleaned-up transcript (never empty), or onSaid gets it
      *  with what's known about it when given. mic = false is for debug-build wav runs, which
      *  feed() the audio themselves. */
     fun start(ctx: Context, sink: (String) -> Unit, mic: Boolean = true, onSaid: ((Said) -> Unit)? = null) {
         if (phase.value != Phase.Idle) { Log.i(TAG, "busy (${phase.value}), not starting"); return }
         val app = ctx.applicationContext
+        stayAwake(app)
         if (mic && !Engine.installed(app)) { Notice.show(app, "Open Uplink settings to download the speech model"); return }
         Engine.warm(app)
         // Pick up dictionary changes from your other devices while you talk.
