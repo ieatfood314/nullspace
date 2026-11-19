@@ -482,9 +482,11 @@ if QWebEngineView is not None:
         def __init__(self, profile, parent, on_link):
             super().__init__(profile, parent)
             self.on_link = on_link
+            self.caught = False   # Qt reports a refused navigation as a failed load
 
         def acceptNavigationRequest(self, url, kind, main):
             if url.path().startswith("/desktop-app/"):
+                self.caught = True
                 what = url.path().removeprefix("/desktop-app/")
                 QTimer.singleShot(0, lambda: self.on_link(what))
                 return False
@@ -524,6 +526,11 @@ class Window(QWidget):
             self.on_settings()
 
     def loaded(self, ok):
+        page = self.view.page()
+        if not ok and page.caught:   # the gear's link, not a hub that's down
+            page.caught = False
+            return
+        page.caught = False
         if ok:
             self.view.page().runJavaScript("window.uplinkDesktop && uplinkDesktop()")
             self.paint_accent()
