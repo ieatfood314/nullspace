@@ -1,0 +1,12 @@
+[Unit]
+Description=Nullspace hub on this computer (files captures; used when Settings has no other hub)
+
+[Service]
+ExecStart=/usr/lib/nullspace/server/nullspace.py --port 4645
+# The AI key from Settings, if you added one
+EnvironmentFile=-%h/.config/nullspace/hub.env
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

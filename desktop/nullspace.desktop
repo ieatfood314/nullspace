@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Nullspace
+GenericName=Tasks, notes and captures
+Comment=Capture the screen, leave voice notes, keep your list
+Exec=nullspace-desktop
+Icon=nullspace
+Categories=Utility;
+Keywords=tasks;todo;notes;reminders;screenshot;voice;
+StartupNotify=false

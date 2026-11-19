@@ -1,0 +1,15 @@
+[Unit]
+Description=Nullspace (tray, screen captures, voice notes, reminders)
+After=graphical-session.target
+PartOf=graphical-session.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/bin/nullspace-desktop --background
+# Not always: Quit in the tray menu exits cleanly and should stay stopped.
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,0 +1,943 @@
+#!/usr/bin/env python3
+"""Nullspace for the Linux desktop (KDE Plasma on Wayland).
+
+The trigger key works as the Essential key does on the phone. Squelch reads
+the key and does the speech; this app does everything else:
+
+  hold                  dictation (Squelch, unchanged)
+  press                 capture the screen and the text on it; a card shows
+                        it, and holding the key while it shows adds a note
+  press, then hold      voice note
+  double press          open Nullspace
+
+squelch-ptt tells it about presses over the socket below ("capture", "open",
+"note-start {json}", "note-end {json}"). Captures go to a hub, which files
+them like the phone's: the one in Settings, or a hub on this computer (the
+nullspace-hub user unit) when none is set. The window is the hub's page.
+"""
+import ctypes
+import json
+import os
+import secrets
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+from PyQt6 import sip
+from PyQt6.QtCore import (QBuffer, QByteArray, QIODevice, QObject, QSize, Qt,
+                          QTimer, QUrl, pyqtSignal)
+from PyQt6.QtGui import (QAction, QColor, QDesktopServices, QGuiApplication,
+                         QIcon, QImage, QPainter, QPixmap)
+from PyQt6.QtNetwork import QLocalServer
+from PyQt6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QDialog,
+                             QHBoxLayout, QLabel, QLineEdit, QMenu,
+                             QPushButton, QRadioButton, QSystemTrayIcon,
+                             QVBoxLayout, QWidget)
+
+try:
+    from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
+    from PyQt6.QtWebEngineWidgets import QWebEngineView
+except ImportError:  # no QtWebEngine: open the page in the browser instead
+    QWebEngineView = None
+
+HOME = Path.home()
+CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME") or HOME / ".config") / "nullspace"
+CONFIG = CONFIG_DIR / "desktop.json"
+HUB_ENV = CONFIG_DIR / "hub.env"        # the local hub's settings (its AI key)
+LLM_KEY = CONFIG_DIR / "llm.key"
+STATE = Path(os.environ.get("XDG_STATE_HOME") or HOME / ".local/state") / "nullspace"
+WEB_DATA = Path(os.environ.get("XDG_DATA_HOME") or HOME / ".local/share") / "nullspace" / "web"
+RUNTIME = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
+SOCKET = os.path.join(RUNTIME, f"nullspace-{os.getuid()}")
+CARD_FILE = SOCKET + "-card"            # squelch-ptt reads it: a hold now is a note about this shot
+LOCAL_HUB = "http://127.0.0.1:4645"
+HUB_UNIT = "nullspace-hub"
+DEVICE = "desktop-" + socket.gethostname()[:24]
+
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODELS = "llama-3.3-70b-versatile,llama-3.1-8b-instant"
+GROQ_KEYS = "https://console.groq.com/keys"
+
+# The phone's accent swatches (Prefs.ACCENTS), so both can match.
+ACCENTS = ["#3D9BFF", "#D71921", "#FF6A3D", "#F2C230", "#3DDC84", "#8B7CFF", "#FFFFFF"]
+DEFAULTS = {"hub": "", "accent": ACCENTS[0], "reminders": True}
+
+SYNC_EVERY_S = 60
+CARD_S = 4.0          # how long the card waits for a hold
+NOTE_MAX_S = 16 * 60  # a note longer than Squelch's stuck-key ceiling never ends
+SHOT_W = 1280         # screenshots are scaled down to this width
+SHOT_QUALITY = 72
+TEXT_MAX = 12000      # the phone's screen_text limit
+REMIND_LATE_S = 15 * 60   # a reminder this late is skipped (the computer was off)
+
+HERE = Path(__file__).resolve().parent
+ICON_PATHS = [Path("/usr/share/icons/hicolor/scalable/apps/nullspace.svg"),
+              HERE.parent / "web" / "icon.svg"]
+
+
+def log(*a):
+    print("nullspace:", *a, file=sys.stderr, flush=True)
+
+
+def load_json(path, default):
+    try:
+        with open(path) as f:
+            v = json.load(f)
+        return v if isinstance(v, type(default)) else default
+    except (OSError, ValueError):
+        return default
+
+
+def save_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with open(tmp, "w") as f:
+        json.dump(value, f)
+    os.replace(tmp, path)
+
+
+def config():
+    return {**DEFAULTS, **load_json(CONFIG, {})}
+
+
+def hub_url():
+    return (config()["hub"].strip().rstrip("/")) or LOCAL_HUB
+
+
+def systemctl(*args):
+    try:
+        return subprocess.run(["systemctl", "--user", *args], capture_output=True,
+                              text=True, timeout=10).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def ensure_local_hub():
+    if not config()["hub"].strip():
+        systemctl("start", HUB_UNIT)
+
+
+def icon():
+    for p in ICON_PATHS:
+        if p.exists():
+            return QIcon(str(p))
+    return QIcon.fromTheme("view-list-details")
+
+
+def now_ms():
+    return int(time.time() * 1000)
+
+
+# ---------------- the hub ----------------
+
+class Hub(QObject):
+    """Talks to the hub from a thread of its own. Records waiting to go are
+    kept on disk, so a capture made while the hub is away isn't lost."""
+
+    changed = pyqtSignal()           # new records arrived
+    filed = pyqtSignal(str)          # a capture of ours came back filed: what it became
+    status = pyqtSignal(str)
+
+    def __init__(self):
+        super().__init__()
+        self.lock = threading.Lock()
+        self.recs = {}               # (kind, uid) -> record
+        self.rev = 0
+        self.pending = load_json(STATE / "pending.json", [])
+        self.shots = load_json(STATE / "shots.json", [])   # uids whose shot isn't uploaded
+        self.mine = set(load_json(STATE / "announce.json", []))  # captures to say the result of
+        self.wake = threading.Event()
+        self.url = None
+        self.wait = 0                # seconds the next sync asks the hub to wait for filing
+        threading.Thread(target=self.run, daemon=True).start()
+
+    def put(self, kind, uid, data, shot=None, wait=0):
+        rec = {"kind": kind, "uid": uid, "data": data, "updated_at": now_ms(), "deleted": False}
+        with self.lock:
+            self.recs[(kind, uid)] = rec
+            self.pending.append(rec)
+            save_json(STATE / "pending.json", self.pending)
+            if shot is not None:
+                (STATE / "shots").mkdir(parents=True, exist_ok=True)
+                (STATE / "shots" / f"{uid}.webp").write_bytes(shot)
+                self.shots.append(uid)
+                save_json(STATE / "shots.json", self.shots)
+            if kind == "capture" and data.get("announce"):
+                self.mine.add(uid)
+                save_json(STATE / "announce.json", sorted(self.mine))
+        self.wait = wait
+        self.wake.set()
+
+    def items(self):
+        with self.lock:
+            return [r for (k, _), r in self.recs.items() if k == "item" and not r.get("deleted")]
+
+    def get(self, kind, uid):
+        with self.lock:
+            return self.recs.get((kind, uid))
+
+    def post(self, path, body, ctype="application/json", timeout=40):
+        req = urllib.request.Request(self.url + path, data=body, method="POST",
+                                     headers={"Content-Type": ctype,
+                                              "User-Agent": "Nullspace-desktop"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read() or b"{}")
+
+    def run(self):
+        fails = 0
+        while True:
+            url = hub_url()
+            if url != self.url:          # a new hub: start over
+                with self.lock:
+                    self.recs, self.rev, self.url = {}, 0, url
+            try:
+                self.sync_once()
+                self.status.emit("")
+                fails = 0
+            except (OSError, ValueError) as e:
+                self.status.emit("Offline")
+                log("sync:", e)
+                fails += 1
+            # Retry soon at first: the hub on this computer may still be starting.
+            self.wake.wait(min(SYNC_EVERY_S, 5 * 2 ** (fails - 1)) if fails else SYNC_EVERY_S)
+            self.wake.clear()
+
+    def sync_once(self):
+        with self.lock:
+            out = list(self.pending)
+        wait, self.wait = self.wait, 0
+        body = {"since": self.rev, "records": out, "device": DEVICE}
+        if wait:
+            body["wait"] = wait
+        got = self.post("/api/sync", json.dumps(body).encode(), timeout=40 + wait)
+        with self.lock:
+            sent = {id(r) for r in out}
+            self.pending = [r for r in self.pending if id(r) not in sent]
+            save_json(STATE / "pending.json", self.pending)
+            for r in got.get("records") or []:
+                key = (r.get("kind"), r.get("uid"))
+                old = self.recs.get(key)
+                if old is None or (r.get("updated_at") or 0) >= (old.get("updated_at") or 0):
+                    self.recs[key] = r
+            self.rev = got.get("rev", self.rev)
+            shots = list(self.shots)
+        for uid in shots:
+            f = STATE / "shots" / f"{uid}.webp"
+            try:
+                if f.exists():
+                    self.post(f"/api/shot/{uid}", f.read_bytes(), "image/webp")
+                    f.unlink()
+            except urllib.error.HTTPError as e:
+                if e.code >= 500:
+                    raise
+                f.unlink(missing_ok=True)   # the hub won't take it; don't retry forever
+            with self.lock:
+                self.shots.remove(uid)
+                save_json(STATE / "shots.json", self.shots)
+        self.announce()
+        self.changed.emit()
+
+    def announce(self):
+        """Say what a voice note became once the hub filed it, as the phone does."""
+        with self.lock:
+            for uid in list(self.mine):
+                c = self.recs.get(("capture", uid))
+                if c is None or (c["data"].get("status") or "new") != "done":
+                    continue
+                self.mine.discard(uid)
+                if time.time() - (c["data"].get("created_at") or 0) > 120:
+                    continue
+                titles = [self.recs[("item", u)]["data"].get("title", "")
+                          for u in c["data"].get("items") or [] if ("item", u) in self.recs]
+                changed = [ch.get("title") for ch in c["data"].get("changed") or [] if ch.get("title")]
+                parts = []
+                if titles:
+                    parts.append("Added " + ", ".join(titles))
+                if changed:
+                    parts.append(("changed " if parts else "Changed ") + ", ".join(changed))
+                self.filed.emit(", ".join(parts) or "Saved")
+            save_json(STATE / "announce.json", sorted(self.mine))
+
+
+# ---------------- what's on screen ----------------
+
+def take_shot():
+    """The screen the pointer is on, as PNG bytes, or None. Spectacle asks
+    KWin for it, which lets KDE's own apps take screenshots without asking."""
+    fd, path = tempfile.mkstemp(suffix=".png")
+    os.close(fd)
+    try:
+        for mode in ("-m", "-f"):     # current screen, else all of them
+            r = subprocess.run(["spectacle", "-b", "-n", mode, "-o", path],
+                               capture_output=True, timeout=20)
+            if r.returncode == 0 and os.path.getsize(path) > 0:
+                return Path(path).read_bytes()
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log("screenshot:", e)
+    finally:
+        os.unlink(path)
+    return None
+
+
+def to_webp(png):
+    img = QImage.fromData(png)
+    if img.isNull():
+        return None
+    if img.width() > SHOT_W:
+        img = img.scaledToWidth(SHOT_W, Qt.TransformationMode.SmoothTransformation)
+    buf = QBuffer()
+    buf.open(QIODevice.OpenModeFlag.WriteOnly)
+    if not img.save(buf, "WEBP", SHOT_QUALITY):
+        return None
+    return bytes(buf.data())
+
+
+def screen_text(budget_s=1.5):
+    """(app name, text) of the focused window, read over accessibility.
+    Squelch already keeps accessibility switched on for its edit capture."""
+    try:
+        import gi
+        gi.require_version("Atspi", "2.0")
+        from gi.repository import Atspi
+    except (ImportError, ValueError):
+        return "", ""
+    deadline = time.time() + budget_s
+    try:
+        Atspi.init()
+        desk = Atspi.get_desktop(0)
+        win, app_name = None, ""
+        for i in range(desk.get_child_count()):
+            app = desk.get_child_at_index(i)
+            if app is None:
+                continue
+            for j in range(app.get_child_count()):
+                w = app.get_child_at_index(j)
+                if w is not None and w.get_state_set().contains(Atspi.StateType.ACTIVE):
+                    win, app_name = w, app.get_name() or ""
+                    break
+            if win is not None:
+                break
+        if win is None:
+            return "", ""
+        out, size, stack, seen = [], 0, [win], 0
+        while stack and size < TEXT_MAX and time.time() < deadline and seen < 4000:
+            node = stack.pop()
+            seen += 1
+            try:
+                if not node.get_state_set().contains(Atspi.StateType.SHOWING):
+                    continue
+                t = ""
+                if node.get_text_iface() is not None:
+                    n = Atspi.Text.get_character_count(node)
+                    t = (Atspi.Text.get_text(node, 0, min(n, TEXT_MAX)) or "").replace("￼", "")
+                if not t.strip() and node.get_child_count() == 0:
+                    t = node.get_name() or ""
+                t = t.strip()
+                if t and (not out or out[-1] != t):
+                    out.append(t)
+                    size += len(t) + 1
+                kids = [node.get_child_at_index(k) for k in range(min(node.get_child_count(), 400))]
+                stack.extend(k for k in reversed(kids) if k is not None)
+            except Exception:
+                continue
+        return app_name, "\n".join(out)[:TEXT_MAX]
+    except Exception as e:
+        log("screen text:", e)
+        return "", ""
+
+
+# ---------------- the card ----------------
+
+def make_overlay(widget, right, bottom):
+    """A layer-shell overlay in the bottom-right corner that never takes
+    keyboard focus (the same trick as Squelch's pill). False off Wayland."""
+    if QGuiApplication.platformName() != "wayland":
+        return False
+    try:
+        lib = ctypes.CDLL("libLayerShellQtInterface.so.6")
+    except OSError:
+        return False
+    get = lib._ZN12LayerShellQt6Window3getEP7QWindow
+    get.restype, get.argtypes = ctypes.c_void_p, [ctypes.c_void_p]
+    set_margins = lib._ZN12LayerShellQt6Window10setMarginsERK8QMargins
+    set_margins.restype, set_margins.argtypes = None, [ctypes.c_void_p, ctypes.c_void_p]
+    widget.winId()
+    ptr = get(sip.unwrapinstance(widget.windowHandle()))
+    if not ptr:
+        return False
+    win = sip.wrapinstance(ptr, QObject)
+    for prop, value in (("layer", 3), ("anchors", 2 | 8), ("keyboardInteractivity", 0),
+                        ("activateOnShow", False), ("wantsToBeOnActiveScreen", True),
+                        ("scope", "nullspace-card")):
+        win.setProperty(prop, value)
+    margins = (ctypes.c_int * 4)(0, 0, right, bottom)
+    set_margins(ptr, ctypes.addressof(margins))
+    widget._margins = margins
+    return True
+
+
+class Card(QWidget):
+    """The screenshot you just took, for a few seconds: hold the key while it
+    shows to say something about it. Clicking it keeps it as it is."""
+
+    W = 300
+
+    def __init__(self, on_done):
+        super().__init__(None, Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
+                         | Qt.WindowType.Tool | Qt.WindowType.WindowDoesNotAcceptFocus)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.on_done = on_done
+        self.shot = None             # the pending capture
+        self.timer = QTimer(self, singleShot=True)
+        self.timer.timeout.connect(lambda: self.finish(None))
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(10, 10, 10, 12)
+        lay.setSpacing(10)
+        self.pic = QLabel(objectName="shot")
+        self.pic.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.line = QLabel()
+        self.line.setObjectName("line")
+        lay.addWidget(self.pic)
+        lay.addWidget(self.line)
+        self.overlay = make_overlay(self, 24, 24)
+
+    def open(self, shot):
+        if self.shot is not None:
+            self.finish(None)
+        self.shot = shot
+        pix = QPixmap()
+        pix.loadFromData(shot["png"] or b"")
+        if not pix.isNull():
+            pix = pix.scaledToWidth(self.W - 22, Qt.TransformationMode.SmoothTransformation)
+            if pix.height() > 220:
+                pix = pix.copy(0, 0, pix.width(), 220)
+        self.pic.setPixmap(pix)
+        self.pic.setVisible(not pix.isNull())
+        self.line.setText("Hold to add a note")
+        self.line.setProperty("live", False)
+        self.line.setStyle(self.line.style())
+        self.setFixedWidth(self.W)
+        self.adjustSize()
+        Path(CARD_FILE).write_text(shot["uid"])
+        self.show()
+        self.timer.start(int(CARD_S * 1000))
+
+    def listening(self, uid):
+        if self.shot and self.shot["uid"] == uid:
+            # If the note never ends (squelch-ptt died), keep the shot without one.
+            self.timer.start(int(NOTE_MAX_S * 1000))
+            self.line.setText("Listening")
+            self.line.setProperty("live", True)
+            self.line.setStyle(self.line.style())
+
+    def finish(self, said):
+        shot, self.shot = self.shot, None
+        self.timer.stop()
+        Path(CARD_FILE).unlink(missing_ok=True)
+        self.hide()
+        if shot is not None:
+            self.on_done(shot, said)
+
+    def mousePressEvent(self, _e):
+        self.finish(None)
+
+    def paintEvent(self, _e):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setPen(QColor("#1d2731"))
+        p.setBrush(QColor(6, 8, 11, 235))
+        p.drawRoundedRect(self.rect().adjusted(0, 0, -1, -1), 14, 14)
+
+
+# ---------------- the window ----------------
+
+class Window(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Nullspace")
+        self.setWindowIcon(icon())
+        self.resize(1000, 820)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        profile = QWebEngineProfile("nullspace", self)
+        profile.setPersistentStoragePath(str(WEB_DATA))
+        profile.setCachePath(str(WEB_DATA / "cache"))
+        self.view = QWebEngineView(self)
+        self.view.setPage(QWebEnginePage(profile, self.view))
+        self.view.page().setBackgroundColor(QColor("#000000"))
+        self.view.loadFinished.connect(self.paint_accent)
+        lay.addWidget(self.view)
+        self.url = None
+
+    def open(self):
+        url = hub_url()
+        if url != self.url or not self.view.url().isValid():
+            self.url = url
+            self.view.load(QUrl(url + "/"))
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+    def paint_accent(self, _ok=True):
+        hexc = config()["accent"]
+        self.view.page().runJavaScript(f"window.uplinkAccent && uplinkAccent({json.dumps(hexc)})")
+
+    def toggle(self):
+        if self.isVisible() and self.isActiveWindow():
+            self.hide()
+        else:
+            self.open()
+
+    def closeEvent(self, e):
+        e.ignore()
+        self.hide()
+
+
+def open_page():
+    QDesktopServices.openUrl(QUrl(hub_url() + "/"))
+
+
+# ---------------- settings ----------------
+
+def write_ai_key(key):
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    if key:
+        fd = os.open(LLM_KEY, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(key + "\n")
+        HUB_ENV.write_text(f"NULLSPACE_LLM_URL={GROQ_URL}\nNULLSPACE_LLM_MODELS={GROQ_MODELS}\n"
+                           f"NULLSPACE_LLM_KEY_FILE={LLM_KEY}\n")
+    else:
+        LLM_KEY.unlink(missing_ok=True)
+        HUB_ENV.unlink(missing_ok=True)
+
+
+def ai_key_set():
+    return LLM_KEY.exists() and LLM_KEY.read_text().strip() != ""
+
+
+class Settings(QDialog):
+    def __init__(self, on_saved):
+        super().__init__(None)
+        self.on_saved = on_saved
+        self.setWindowTitle("Nullspace settings")
+        self.setWindowIcon(icon())
+        self.setMinimumWidth(420)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(24, 22, 24, 22)
+        lay.setSpacing(10)
+
+        lay.addWidget(self.head("Hub"))
+        self.here = QRadioButton("This computer")
+        self.there = QRadioButton("Another computer")
+        g = QButtonGroup(self)
+        g.addButton(self.here)
+        g.addButton(self.there)
+        self.addr = QLineEdit(placeholderText="http://your-hub:4645")
+        lay.addWidget(self.here)
+        lay.addWidget(self.there)
+        lay.addWidget(self.addr)
+        self.there.toggled.connect(self.refresh)
+
+        self.ai_head = self.head("AI key")
+        lay.addWidget(self.ai_head)
+        row = QHBoxLayout()
+        self.key = QLineEdit(placeholderText="gsk_…", echoMode=QLineEdit.EchoMode.Password)
+        get = QPushButton("Get a key")
+        get.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(GROQ_KEYS)))
+        row.addWidget(self.key, 1)
+        row.addWidget(get)
+        self.ai_row = QWidget()
+        self.ai_row.setLayout(row)
+        row.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self.ai_row)
+
+        lay.addWidget(self.head("Accent"))
+        sw = QHBoxLayout()
+        sw.setSpacing(8)
+        self.swatches = []
+        for c in ACCENTS:
+            b = QPushButton(objectName="swatch", checkable=True)
+            b.setFixedSize(28, 28)
+            b.setProperty("hex", c)
+            b.setStyleSheet(f"QPushButton#swatch {{ background: {c}; }}")
+            b.clicked.connect(lambda _=False, c=c: self.pick(c))
+            sw.addWidget(b)
+            self.swatches.append(b)
+        self.hex = QLineEdit(maxLength=7)
+        self.hex.setFixedWidth(84)
+        self.hex.textEdited.connect(lambda t: self.pick(t, typed=True))
+        sw.addStretch(1)
+        sw.addWidget(self.hex)
+        lay.addLayout(sw)
+
+        self.remind = QCheckBox("Reminders on this computer")
+        lay.addSpacing(6)
+        lay.addWidget(self.remind)
+
+        lay.addSpacing(10)
+        bottom = QHBoxLayout()
+        dict_btn = QPushButton("Dictation")
+        dict_btn.clicked.connect(open_dictation)
+        save = QPushButton("Save", objectName="primary", default=True)
+        save.clicked.connect(self.save)
+        bottom.addWidget(dict_btn)
+        bottom.addStretch(1)
+        bottom.addWidget(save)
+        lay.addLayout(bottom)
+
+    @staticmethod
+    def head(text):
+        h = QLabel(text, objectName="head")
+        return h
+
+    def load(self):
+        c = config()
+        (self.there if c["hub"].strip() else self.here).setChecked(True)
+        self.addr.setText(c["hub"])
+        self.key.clear()
+        self.key.setPlaceholderText("Saved" if ai_key_set() else "gsk_…")
+        self.pick(c["accent"])
+        self.remind.setChecked(bool(c["reminders"]))
+        self.refresh()
+
+    def refresh(self):
+        there = self.there.isChecked()
+        self.addr.setVisible(there)
+        self.ai_head.setVisible(not there)
+        self.ai_row.setVisible(not there)
+        self.adjustSize()
+
+    def pick(self, c, typed=False):
+        c = c.strip().upper()
+        if not c.startswith("#"):
+            c = "#" + c
+        if len(c) != 7 or not QColor(c).isValid():
+            return
+        self.accent = c
+        for b in self.swatches:
+            b.setChecked(b.property("hex").upper() == c)
+        if not typed:
+            self.hex.setText(c)
+        self.setStyleSheet(style(c))
+
+    def save(self):
+        c = config()
+        c["hub"] = self.addr.text().strip() if self.there.isChecked() else ""
+        c["accent"] = getattr(self, "accent", c["accent"])
+        c["reminders"] = self.remind.isChecked()
+        save_json(CONFIG, c)
+        key = self.key.text().strip()
+        if not c["hub"] and key:
+            write_ai_key(key)
+            systemctl("restart", HUB_UNIT)
+        ensure_local_hub()
+        self.on_saved()
+        self.close()
+
+
+def open_dictation():
+    """Squelch's settings, in the tray that's running if there is one."""
+    try:
+        subprocess.Popen(["squelch-tray", "--settings"], start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        notify("Squelch isn't installed", "Dictation and voice notes need it.")
+
+
+def style(accent):
+    on = "#000000" if QColor(accent).lightnessF() > 0.6 else "#FFFFFF"
+    return f"""
+    * {{ font-family: Inter; }}
+    QDialog, QMenu {{ background: #000000; color: #FFFFFF; font-size: 14px; }}
+    QLabel {{ color: #FFFFFF; }}
+    QLabel#head {{ color: #7d8a99; font-size: 12px; padding-top: 8px; }}
+    QLabel#line {{ color: #7d8a99; font-family: Inter; font-size: 13px; padding: 0 2px; }}
+    QLabel#line[live="true"] {{ color: #FFFFFF; }}
+    QLabel#shot {{ border: 1px solid #1d2731; border-radius: 6px; }}
+    QLineEdit {{ background: #000000; color: #FFFFFF; border: 1px solid #1d2731;
+                 border-radius: 8px; padding: 7px 10px; selection-background-color: {accent}; }}
+    QLineEdit:focus {{ border-color: {accent}; }}
+    QPushButton {{ background: #000000; color: #FFFFFF; border: 1px solid #1d2731;
+                   border-radius: 8px; padding: 7px 14px; }}
+    QPushButton:focus {{ border-color: #6f93b8; }}
+    QPushButton#primary {{ background: {accent}; color: {on}; border-color: {accent}; }}
+    QPushButton#swatch {{ border-radius: 14px; border: 2px solid #000000; padding: 0; }}
+    QPushButton#swatch:checked {{ border: 2px solid #FFFFFF; }}
+    QRadioButton, QCheckBox {{ color: #FFFFFF; spacing: 10px; padding: 3px 0; }}
+    QRadioButton::indicator:checked, QCheckBox::indicator:checked {{ background: {accent}; border: 1px solid {accent}; }}
+    QRadioButton::indicator, QCheckBox::indicator {{ width: 14px; height: 14px; border: 1px solid #4a5666; background: #000000; }}
+    QRadioButton::indicator {{ border-radius: 8px; }}
+    QCheckBox::indicator {{ border-radius: 4px; }}
+    QMenu::item {{ padding: 6px 18px; }}
+    QMenu::item:selected {{ background: #31475F; }}
+    QMenu::separator {{ height: 1px; background: #1d2731; margin: 4px 8px; }}
+    """
+
+
+# ---------------- notifications ----------------
+
+def notify(title, body="", actions=(), on_action=None):
+    """A desktop notification. With actions, waits (off the Qt thread) for
+    one to be clicked and calls on_action with its key."""
+    cmd = ["notify-send", "--app-name=Nullspace", "--icon=nullspace", title]
+    if body:
+        cmd.append(body)
+    if not actions:
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return
+    for key, label in actions:
+        cmd.insert(1, f"--action={key}={label}")
+
+    def wait():
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=3600).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            return
+        if out and on_action:
+            on_action(out)
+    threading.Thread(target=wait, daemon=True).start()
+
+
+# ---------------- the app ----------------
+
+class App(QObject):
+    shot_ready = pyqtSignal(dict)
+    action = pyqtSignal(str, str)     # a notification button: (key, item uid)
+
+    def __init__(self, qapp):
+        super().__init__()
+        self.qapp = qapp
+        self.hub = Hub()
+        self.window = Window() if QWebEngineView else None
+        self.card = Card(self.commit_shot)
+        self.settings = Settings(self.saved)
+        self.fired = load_json(STATE / "fired.json", {})
+        self.started = time.time()
+        self.taking = False
+
+        self.tray = QSystemTrayIcon(icon())
+        self.tray.setToolTip("Nullspace")
+        menu = QMenu()
+        for text, fn in (("Open Nullspace", self.open), ("Capture screen", lambda: QTimer.singleShot(400, self.capture)),
+                         (None, None), ("Dictation", open_dictation), ("Settings", self.open_settings),
+                         (None, None), ("Quit", qapp.quit)):
+            if text is None:
+                menu.addSeparator()
+            else:
+                a = QAction(text, menu)
+                a.triggered.connect(fn)
+                menu.addAction(a)
+        self.menu = menu
+        self.tray.setContextMenu(menu)
+        self.tray.activated.connect(self.on_tray)
+        self.tray.show()
+
+        self.shot_ready.connect(self.card.open)
+        self.action.connect(self.on_action)
+        self.hub.filed.connect(lambda text: notify(text))
+        self.hub.status.connect(lambda s: self.tray.setToolTip("Nullspace" + (f": {s}" if s else "")))
+        self.remind_timer = QTimer(self)
+        self.remind_timer.timeout.connect(self.remind)
+        self.remind_timer.start(15000)
+        self.hub.changed.connect(self.remind)
+        self.restyle()
+
+        self.server = QLocalServer(self)
+        QLocalServer.removeServer(SOCKET)
+        if not self.server.listen(SOCKET):
+            log("can't listen on", SOCKET, self.server.errorString())
+        self.server.newConnection.connect(self.on_connection)
+        Path(CARD_FILE).unlink(missing_ok=True)
+        qapp.aboutToQuit.connect(self.cleanup)
+
+    def cleanup(self):
+        self.server.close()
+        Path(CARD_FILE).unlink(missing_ok=True)
+        try:
+            os.unlink(SOCKET)
+        except OSError:
+            pass
+
+    def restyle(self):
+        self.qapp.setStyleSheet(style(config()["accent"]))
+
+    def saved(self):
+        self.restyle()
+        if self.window is not None:
+            self.window.url = None
+            if self.window.isVisible():
+                self.window.open()
+            self.window.paint_accent()
+        self.hub.wake.set()
+
+    def on_tray(self, reason):
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            self.window.toggle() if self.window else open_page()
+
+    def open(self):
+        self.window.open() if self.window else open_page()
+
+    def open_settings(self):
+        self.settings.load()
+        self.settings.show()
+        self.settings.raise_()
+        self.settings.activateWindow()
+
+    # --- squelch-ptt's messages ---
+    def on_connection(self):
+        while self.server.hasPendingConnections():
+            conn = self.server.nextPendingConnection()
+            buf = QByteArray()
+
+            def read(conn=conn, buf=buf):
+                buf.append(conn.readAll())
+                while b"\n" in bytes(buf):
+                    raw = bytes(buf)
+                    line, rest = raw.split(b"\n", 1)
+                    buf.clear()
+                    buf.append(rest)
+                    self.on_message(line.decode(errors="replace").strip())
+            conn.readyRead.connect(read)
+            conn.disconnected.connect(conn.deleteLater)
+
+    def on_message(self, line):
+        cmd, _, arg = line.partition(" ")
+        try:
+            data = json.loads(arg) if arg else {}
+        except ValueError:
+            data = {}
+        if cmd == "capture":
+            self.capture()
+        elif cmd == "open":
+            if self.card.shot is not None:
+                self.card.finish(None)
+            self.open()
+        elif cmd == "settings":
+            self.open_settings()
+        elif cmd == "note-start":
+            if data.get("about"):
+                self.card.listening(data["about"])
+        elif cmd == "note-end":
+            self.note(data.get("about"), (data.get("text") or "").strip())
+
+    # --- captures ---
+    def capture(self):
+        if self.card.shot is not None:   # a press while the card shows keeps it as it is
+            self.card.finish(None)
+            return
+        if self.taking:
+            return
+        self.taking = True
+
+        def work():
+            try:
+                got = {}
+                reader = threading.Thread(target=lambda: got.update(t=screen_text()), daemon=True)
+                reader.start()
+                png = take_shot()
+                reader.join(3)
+                app_name, text = got.get("t", ("", ""))
+                shot = {"uid": secrets.token_hex(8), "png": png, "webp": to_webp(png) if png else None,
+                        "app": app_name, "text": text, "at": int(time.time())}
+                if png is None and not text:
+                    notify("Couldn't capture the screen", "Is Spectacle installed?")
+                    return
+                self.shot_ready.emit(shot)
+            finally:
+                self.taking = False
+        threading.Thread(target=work, daemon=True).start()
+
+    def commit_shot(self, shot, said):
+        d = {"type": "screenshot", "status": "new", "created_at": shot["at"], "app": shot["app"],
+             "screen_text": shot["text"], "image": shot["webp"] is not None, "device": "desktop"}
+        if said:
+            d.update(text=said, voice=True, announce=True)
+        self.hub.put("capture", shot["uid"], d, shot=shot["webp"], wait=20 if said else 0)
+
+    def note(self, about, text):
+        if about and self.card.shot is not None and self.card.shot["uid"] == about:
+            self.card.finish(text or None)
+            return
+        if not text:
+            return
+        self.hub.put("capture", secrets.token_hex(8),
+                     {"type": "voice", "status": "new", "created_at": int(time.time()), "text": text,
+                      "device": "desktop", "announce": True}, wait=20)
+
+    # --- reminders ---
+    def remind(self):
+        if not config()["reminders"]:
+            return
+        now = time.time()
+        for r in self.hub.items():
+            d = r["data"]
+            at = d.get("remind_at") or 0
+            if not at or d.get("type") == "note" or d.get("done_at"):
+                continue
+            key = f"{r['uid']}:{at}"
+            if key in self.fired or at > now or now - at > REMIND_LATE_S:
+                continue
+            self.fired[key] = int(now)
+            title = d.get("title") or "Reminder"
+            uid = r["uid"]
+            notify(title, d.get("notes") or "", actions=(("done", "Done"), ("open", "Open")),
+                   on_action=lambda k, uid=uid: self.action.emit(k, uid))
+        if len(self.fired) > 500:
+            self.fired = dict(sorted(self.fired.items(), key=lambda kv: kv[1])[-300:])
+        save_json(STATE / "fired.json", self.fired)
+
+    def on_action(self, key, uid):
+        if key == "open":
+            self.open()
+        elif key == "done":
+            r = self.hub.get("item", uid)
+            if r is not None and not r["data"].get("done_at"):
+                self.hub.put("item", uid, {**r["data"], "done_at": int(time.time())})
+
+
+def tell_running(msg):
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.settimeout(0.5)
+            s.connect(SOCKET)
+            s.sendall(msg.encode() + b"\n")
+        return True
+    except OSError:
+        return False
+
+
+def main():
+    args = sys.argv[1:]
+    msg = "settings" if "--settings" in args else "capture" if "--capture" in args else "open"
+    # A second start (the app menu) opens the window of the one running.
+    if tell_running("ping" if "--background" in args else msg):
+        return
+    os.environ.setdefault("QT_QPA_PLATFORM", "wayland;xcb")
+    qapp = QApplication(sys.argv)
+    qapp.setApplicationName("Nullspace")
+    qapp.setDesktopFileName("nullspace")
+    qapp.setQuitOnLastWindowClosed(False)
+    qapp.setWindowIcon(icon())
+    ensure_local_hub()
+    app = App(qapp)
+    if "--background" not in args:
+        QTimer.singleShot(0, {"settings": app.open_settings, "capture": app.capture}.get(msg, app.open))
+    if not systemctl("is-active", "--quiet", "squelch-ptt") and shutil.which("squelch-tray"):
+        if not (STATE / "asked-setup").exists():
+            STATE.mkdir(parents=True, exist_ok=True)
+            (STATE / "asked-setup").touch()
+            open_dictation()
+    sys.exit(qapp.exec())
+
+
+if __name__ == "__main__":
+    main()

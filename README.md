@@ -27,7 +27,9 @@ Essential key, and it runs on any Android phone, Nothing or not.
   Tuesday, no, Wednesday" are cut, and your own words are kept. Turn it off
   if you like it raw.
 - **Real sync.** Run the optional hub on any computer, and your phone,
-  laptop and desktop share one list, with a web page for the big screen.
+  laptop and desktop share one list.
+- **On your desktop too.** The same key and the same gestures on Linux,
+  with dictation on your graphics card.
 - **Yours.** No account, no cloud, no subscription. Your list lives on your
   phone (and your hub, if you run one). MIT licensed.
 - **Your look.** Pick the accent color, the key, the speech model and your
@@ -174,13 +176,50 @@ counted, plus an allowance for VPN overhead. On mobile data it:
 - past 80% of the cap, only sends things you made;
 - past 95%, sends nothing until Wi-Fi or next month.
 
+## On your computer (Linux)
+
+The same key, on your desktop: hold it to dictate, press it to keep what's
+on screen, press then hold for a voice note, double press to open your
+list. It all lands in the same list as your phone's.
+
+Nullspace for Linux runs on KDE Plasma (Wayland) and uses
+[Squelch](https://github.com/ieatfood314/squelch) for the speech, which
+runs on your graphics card, so a sentence types in a fraction of a second.
+On Arch:
+
+```
+yay -S nullspace
+```
+
+Then open **Nullspace** from the app menu. The first time, Squelch's setup
+opens too: give it keyboard access, download the speech model and pick
+your key (Menu by default). After that, everything is in the tray icon:
+
+- **Settings → Hub:** "This computer" keeps your list here, with a hub of
+  its own (paste a Groq key under **AI key**, as on the phone). To share
+  one list with your phone, run the hub on one machine and pick "Another
+  computer" on the rest, with its address, plus **Settings → Hub** on the
+  phone.
+- **Dictation** opens Squelch's settings: the speech model, the key, your
+  own words, typing as you speak.
+- **Reminders on this computer** shows your reminders as notifications,
+  with a **Done** button.
+
+The text of a screen capture is read through accessibility. For Chromium
+and Electron apps (VS Code, Obsidian, Discord) start them with
+`--force-renderer-accessibility`, or Nullspace only sees the picture.
+
 ## Squelch
 
-[Squelch](https://github.com/ieatfood314/squelch) is the same dictation for
-your Linux desktop: hold a key, talk, and it types. Nullspace and Squelch
-are separate apps that work well together. Point **Settings → Words sync**
-at your Squelch hub, and the words you taught either one, and your
-dictation stats, are shared between them (Wi-Fi only).
+[Squelch](https://github.com/ieatfood314/squelch) is the dictation for
+your Linux desktop, and it's also its own app: install just Squelch if all
+you want is to hold a key, talk, and have it type. With Nullspace
+installed, Squelch's tray icon steps aside and the key does Nullspace's
+gestures.
+
+Point **Settings → Words sync** on the phone at your Squelch hub, and the
+words you taught either one, and your dictation stats, are shared between
+them (Wi-Fi only).
 
 ## The hub (optional)
 
