@@ -145,6 +145,12 @@ class SettingsActivity : ComponentActivity() {
                 }
             }
             if (a11y) KeyLegend(Prefs.volumeKey)
+            // As the phone's digital assistant, holding power opens the menu (on phones that let
+            // power open the assistant: Pixels and most others, not Samsung).
+            val assistant = getSystemService(android.app.role.RoleManager::class.java)
+                ?.isRoleHeld(android.app.role.RoleManager.ROLE_ASSISTANT) == true
+            SettingRow("Power button", if (assistant) "Hold for the menu" else null, "Set up",
+                action = if (assistant) "Change" else null) { open(Settings.ACTION_VOICE_INPUT_SETTINGS) }
             AiRow(open == "ai") { toggle("ai") }
             if (Brain.on() || HubSync.url() != null) {
                 var tidy by remember { mutableStateOf(Prefs.tidy) }
@@ -273,7 +279,7 @@ class SettingsActivity : ComponentActivity() {
 
     @Composable
     private fun KeyLegend(volume: Boolean) {
-        val rows = if (volume) listOf("Hold in a text box" to "Dictate", "Hold anywhere else" to "Voice note",
+        val rows = if (volume) listOf("Hold volume up" to "Capture the screen", "Hold volume down" to "Dictate or voice note",
                 "Press" to "Volume, as usual")
             else listOf("Hold" to "Dictate", "Press" to "Capture the screen",
                 "Press, then hold" to "Voice note", "Double press" to "Open Nullspace")

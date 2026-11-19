@@ -50,6 +50,21 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Lets Nullspace be the phone's digital assistant, so holding power (or a swipe up from
+             a bottom corner) opens its menu. It has no screen; see AssistMenu. -->
+        <activity
+            android:name=".AssistActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Reads the Essential key: hold to dictate, press to capture the screen, press then
              hold for a voice note, double press to open Uplink. -->
         <service

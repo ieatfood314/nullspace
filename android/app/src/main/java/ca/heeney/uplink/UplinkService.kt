@@ -33,6 +33,7 @@ class UplinkService : AccessibilityService() {
     override fun onDestroy() {
         unlisten?.invoke()
         card?.keep()
+        menu?.close()
         hidePill()
         if (instance === this) instance = null
         super.onDestroy()
@@ -111,6 +112,7 @@ class UplinkService : AccessibilityService() {
     private fun down() {
         main.removeCallbacks(single)
         downAt = android.os.SystemClock.uptimeMillis()
+        menu?.close()
         card?.takeIf { it.open }?.let { toCard = true; it.keyDown(); return }
         card = null
         if (Dictation.listening) Dictation.cancel()
@@ -154,60 +156,105 @@ class UplinkService : AccessibilityService() {
         }
     }
 
-    // ---- a volume key as the trigger ----
+    // ---- the volume keys as the trigger ----
     //   press                 changes the volume, as always
-    //   hold                  dictate into the field you're in, or a voice note when there's none
-    // Phones with no spare key only have this one. A press can't be handed back to Android once
+    //   hold volume up        capture the screen; the card shows it
+    //   hold volume down      dictate into the field you're in, a voice note when there's none,
+    //                         or a voice note about the screenshot while its card is up
+    // Phones with no spare key only have these. A press can't be handed back to Android once
     // it's taken, so a short one sets the volume itself. The mic waits until the press is long
     // enough to be a hold, so changing the volume doesn't flash the mic dot. In a call, with the
-    // screen off, or before the model is downloaded, it's just a volume key.
+    // screen off, or before the model is downloaded, they're just volume keys.
 
     /** this press went straight through to Android */
     private var volPassing = false
+    /** this hold of volume up has taken its screenshot */
+    private var volCaptured = false
     private val volListen = Runnable {
         val typing = focusedField() != null
-        Log.i(TAG, "volume key held: ${if (typing) "dictation" else "voice note"}")
+        Log.i(TAG, "volume down held: ${if (typing) "dictation" else "voice note"}")
         if (typing) Dictation.start(this, ::insert, onSaid = ::insertSaid)
         else Dictation.start(this, { text -> Capture.voiceNote(this, text) })
     }
+    private val volCapture = Runnable { volCaptured = true; captureNow() }
 
     private fun volumeKey(ev: KeyEvent): Boolean {
+        val up = ev.keyCode == KeyEvent.KEYCODE_VOLUME_UP
         when (ev.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (ev.repeatCount > 0) return !volPassing
                 volPassing = !volumeIsOurs()
                 if (volPassing) return false
                 downAt = android.os.SystemClock.uptimeMillis()
-                card?.takeIf { it.open }?.keep()
-                card = null
-                if (Dictation.listening) Dictation.cancel()
+                menu?.close()
+                if (Dictation.listening && card?.open != true) Dictation.cancel()
                 endWatch("next")
-                main.postDelayed(volListen, VOL_LISTEN_MS)
+                val c = card?.takeIf { it.open }
+                if (c != null && !up) { toCard = true; c.keyDown(); return true }
+                c?.keep()
+                card = null
+                if (up) { volCaptured = false; main.postDelayed(volCapture, HOLD_MS) }
+                else main.postDelayed(volListen, VOL_LISTEN_MS)
             }
             KeyEvent.ACTION_UP -> {
                 if (volPassing) return false
                 main.removeCallbacks(volListen)
-                if (android.os.SystemClock.uptimeMillis() - downAt >= HOLD_MS) {
-                    Dictation.finish(this)
-                } else {
-                    Dictation.cancel()
-                    hidePill()
-                    val dir = if (ev.keyCode == KeyEvent.KEYCODE_VOLUME_UP) android.media.AudioManager.ADJUST_RAISE
-                        else android.media.AudioManager.ADJUST_LOWER
-                    // The same call the system makes for a volume key nobody took: it picks the
-                    // stream that's playing, or a cast session's volume.
-                    getSystemService(android.media.AudioManager::class.java).adjustSuggestedStreamVolume(
-                        dir, android.media.AudioManager.USE_DEFAULT_STREAM_TYPE, android.media.AudioManager.FLAG_SHOW_UI)
+                main.removeCallbacks(volCapture)
+                val held = android.os.SystemClock.uptimeMillis() - downAt
+                when {
+                    toCard -> {
+                        toCard = false
+                        // A hold talks about the screenshot; a press keeps it and is a volume press too.
+                        card?.keyUp(held)
+                        if (held < HOLD_MS) setVolume(up)
+                    }
+                    up -> if (!volCaptured) setVolume(true)
+                    held >= HOLD_MS -> Dictation.finish(this)
+                    else -> { Dictation.cancel(); hidePill(); setVolume(false) }
                 }
             }
         }
         return true
     }
 
+    /** The same call the system makes for a volume key nobody took: it picks the stream that's
+     *  playing, or a cast session's volume. */
+    private fun setVolume(up: Boolean) {
+        val a = android.media.AudioManager::class.java
+        getSystemService(a).adjustSuggestedStreamVolume(
+            if (up) android.media.AudioManager.ADJUST_RAISE else android.media.AudioManager.ADJUST_LOWER,
+            android.media.AudioManager.USE_DEFAULT_STREAM_TYPE, android.media.AudioManager.FLAG_SHOW_UI)
+    }
+
     private fun volumeIsOurs(): Boolean {
         val power = getSystemService(android.os.PowerManager::class.java)
         val audio = getSystemService(android.media.AudioManager::class.java)
         return power.isInteractive && audio.mode == android.media.AudioManager.MODE_NORMAL && Engine.installed(this)
+    }
+
+    /** Take the screenshot now and show its card (volume up, the menu's Capture). */
+    fun captureNow() {
+        card?.takeIf { it.open }?.keep()
+        val p = try { Capture.grab(this) } catch (t: Throwable) { Log.e(TAG, "grab", t); return }
+        val c = ShotCard(this, p)
+        if (c.show()) card = c
+        else { card = null; Capture.commit(this, p); Notice.show(this, "Captured") }
+    }
+
+    // ---- the menu, from AssistActivity ----
+
+    private var menu: AssistMenu? = null
+
+    fun showMenu() {
+        menu?.close()
+        card?.takeIf { it.open }?.keep()
+        if (Dictation.listening) Dictation.cancel()
+        // Once the assistant activity is gone, so focus is back in the app and the field shows.
+        main.postDelayed({
+            val m = AssistMenu(this)
+            m.show(typing = focusedField() != null)
+            menu = m
+        }, 250)
     }
 
     fun openApp() {
@@ -220,13 +267,13 @@ class UplinkService : AccessibilityService() {
     // ---- the pill ----
 
     private fun showPhase(p: Dictation.Phase) {
-        // The card's mic shows it instead.
-        if (card?.open == true) { hidePill(); return }
+        // The card's mic, or the menu, shows it instead.
+        if (card?.open == true || menu?.open == true) { hidePill(); return }
         when (p) {
             Dictation.Phase.Idle -> hidePill()
             // Only once the press is a hold: a short press is a screenshot, which mustn't catch the pill.
             Dictation.Phase.Listening -> main.postDelayed({
-                if (Dictation.phase.value == Dictation.Phase.Listening && card?.open != true) { showPill(); pill?.phase = Dictation.Phase.Listening }
+                if (Dictation.phase.value == Dictation.Phase.Listening && card?.open != true && menu?.open != true) { showPill(); pill?.phase = Dictation.Phase.Listening }
             }, HOLD_MS)
             else -> { showPill(); pill?.phase = p }
         }

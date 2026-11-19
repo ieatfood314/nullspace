@@ -33,8 +33,8 @@ object Prefs {
     /** Samsung's Bixby key (Galaxy S8 to S10, Note 8 to 10), if One UI passes it on at all. */
     const val BIXBY_KEY = 1082
 
-    /** Nothing and CMF phones have the Essential key. Everything else starts on volume down,
-     *  which still changes the volume with a press (see UplinkService.volumeKey). */
+    /** Nothing and CMF phones have the Essential key. Everything else starts on the volume keys,
+     *  which still change the volume with a press (see UplinkService.volumeKey). */
     private val hasEssential: Boolean get() =
         listOf(android.os.Build.MANUFACTURER, android.os.Build.BRAND).any { it.equals("nothing", true) || it.equals("cmf", true) }
 
@@ -112,10 +112,12 @@ object Prefs {
 
     fun isTrigger(ev: KeyEvent): Boolean {
         val code = keyCode
+        // Either volume key picks both: up captures, down talks.
+        if (volumeKey) return ev.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || ev.keyCode == KeyEvent.KEYCODE_VOLUME_UP
         return if (code != KeyEvent.KEYCODE_UNKNOWN) ev.keyCode == code else ev.scanCode == scanCode
     }
 
-    /** The trigger is a volume key, which has a job of its own: a press keeps it. */
+    /** The trigger is the volume keys, which have a job of their own: a press keeps it. */
     val volumeKey: Boolean get() = keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP
 
     fun keyName(): String {
@@ -123,6 +125,7 @@ object Prefs {
         if (code == KeyEvent.KEYCODE_UNKNOWN) {
             return if (scanCode == ESSENTIAL_SCAN) "Essential key" else "Key $scanCode"
         }
+        if (volumeKey) return "Volume keys"
         if (code == BIXBY_KEY) return "Bixby key"
         val name = KeyEvent.keyCodeToString(code)
         // Vendor keys Android has no name for come back as a bare number.
@@ -133,7 +136,7 @@ object Prefs {
     /** The Captures tab's empty line. */
     fun keyHint(): String {
         val name = keyName()
-        if (volumeKey) return "Hold ${name.lowercase()} for a voice note"
+        if (volumeKey) return "Hold volume up to capture the screen, volume down for a voice note"
         val the = if (name.endsWith(" key")) "the $name" else name.lowercase()
         return "Press $the to capture the screen, press then hold for a voice note"
     }

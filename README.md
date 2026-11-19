@@ -60,7 +60,7 @@ has a colored action on the right. The (i) next to a row says what it does:
 3. **Speech model: pick one.** "English" is the right choice for most people. It's
    about 600 MB, downloaded once over Wi-Fi.
 4. **Shortcut key.** On Nothing and CMF phones it's the Essential key. Other phones
-   start on volume down, which still changes the volume (see
+   start on the volume keys, which still change the volume (see
    [No spare key](#no-spare-key)). Have a spare button, like the
    programmable key on a rugged phone? Tap **Change** and press it. On older
    Samsungs the Bixby key is worth a try: some One UI versions pass it on to
@@ -131,16 +131,30 @@ To undo, `pm enable` the two apps and set the two settings back to `0` and
 
 ### No spare key
 
-Volume down (or up) keeps its job, so it gets a smaller set:
+The volume keys keep their job, so a press still changes the volume and a
+hold does the rest:
 
 | Press | Does |
 |---|---|
-| Press | Changes the volume, as usual |
-| Hold in a text field | Dictation |
-| Hold anywhere else | A voice note |
+| Hold volume up | Keeps a screenshot; the card shows it |
+| Hold volume down | Dictation in a text field, a voice note anywhere else, or a voice note about the screenshot while its card shows |
+| Press either | Changes the volume, as usual |
 
-Screenshots need a key of their own. In a call, with the screen off, or
-before the speech model is downloaded, it's just a volume key.
+In a call, with the screen off, or before the speech model is downloaded,
+they're just volume keys.
+
+### Hold power for the menu
+
+Nullspace can be your phone's digital assistant. Then holding power (or a
+swipe up from a bottom corner, or holding home) opens a small menu over
+whatever you're doing: **Dictate** (when you're typing), **Voice note** and
+**Capture**. Tap **Done** when you've said it.
+
+In Nullspace's settings, tap **Set up** next to **Power button** and pick
+Nullspace as the digital assistant app. If holding power still opens the
+power menu, find "Press and hold power button" in your phone's settings
+(often under Gestures or Buttons) and set it to the digital assistant.
+Samsung only lets that open Bixby, so on a Samsung use the corner swipe.
 
 Sharing text or an image to Nullspace from any app saves it too.
 
