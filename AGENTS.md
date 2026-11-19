@@ -4,6 +4,9 @@ The README covers what Nullspace does and how the data looks. This file covers w
 
 Nullspace was called Uplink until November 2026. Things that keep the old name on purpose, so nothing breaks: the Android `applicationId` and package `ca.heeney.uplink` (the phone updates in place), class names (`UplinkService`, the `UplinkNative` bridge, `uplink*` JS hooks), the phone's storage (`uplink.db`, the `uplink` prefs file, the page's `uplink-*` localStorage keys), `uplinkVersion` in gradle.properties, the repo folder `~/repos/uplink` and the `uplink` unit on nas, `~/.config/uplink/` and `~/.local/share/uplink/` on nas (the hub and Gradle look in the `nullspace` folders first, then these), and the `UPLINK_*` variables (`NULLSPACE_*` wins when both are set). Everything people see says Nullspace.
 
+## Dictation speed
+Transcription must never take more than 1 second per 50 words, on every device: halley, mars and regolith alike. Aidan set this rule on 2026-11-19, after Nullspace made dictation feel slower than Squelch. Check it in the logs (`transcribed in Xs` from squelch-ptt and the parakeet server; on the phone, logcat with the dictation's length). Anything that runs between letting go of the key and the text going in (tidying, guessing a cut-off start) gets a hard deadline and is skipped when it misses it: the phone gives both 1 s in all (`POLISH_MS`), and squelch-ptt's guess-start gets 0.6 s (`GUESS_WAIT_S`). A change that makes dictation slower needs Aidan's OK first.
+
 ## Branches and releases
 Nullspace has users besides Aidan, so experiments must not reach them.
 
