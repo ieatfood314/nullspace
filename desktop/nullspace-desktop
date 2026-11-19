@@ -475,9 +475,26 @@ class Card(QWidget):
 
 # ---------------- the window ----------------
 
+if QWebEngineView is not None:
+    class Page(QWebEnginePage):
+        """Takes the page's /desktop-app/ links (its Settings button) instead of following them.
+        (A custom scheme never gets here: Chromium hands those to the system.)"""
+        def __init__(self, profile, parent, on_link):
+            super().__init__(profile, parent)
+            self.on_link = on_link
+
+        def acceptNavigationRequest(self, url, kind, main):
+            if url.path().startswith("/desktop-app/"):
+                what = url.path().removeprefix("/desktop-app/")
+                QTimer.singleShot(0, lambda: self.on_link(what))
+                return False
+            return super().acceptNavigationRequest(url, kind, main)
+
+
 class Window(QWidget):
-    def __init__(self):
+    def __init__(self, on_settings):
         super().__init__()
+        self.on_settings = on_settings
         self.setWindowTitle("Nullspace")
         self.setWindowIcon(icon())
         self.resize(1000, 820)
@@ -487,7 +504,7 @@ class Window(QWidget):
         profile.setPersistentStoragePath(str(WEB_DATA))
         profile.setCachePath(str(WEB_DATA / "cache"))
         self.view = QWebEngineView(self)
-        self.view.setPage(QWebEnginePage(profile, self.view))
+        self.view.setPage(Page(profile, self.view, self.on_link))
         self.view.page().setBackgroundColor(QColor("#000000"))
         self.view.loadFinished.connect(self.loaded)
         lay.addWidget(self.view)
@@ -502,8 +519,13 @@ class Window(QWidget):
         self.raise_()
         self.activateWindow()
 
+    def on_link(self, what):
+        if what == "settings":
+            self.on_settings()
+
     def loaded(self, ok):
         if ok:
+            self.view.page().runJavaScript("window.uplinkDesktop && uplinkDesktop()")
             self.paint_accent()
         else:   # the hub may still be starting: try again while the window shows
             QTimer.singleShot(3000, lambda: self.isVisible() and self.view.reload())
@@ -739,7 +761,7 @@ class App(QObject):
         super().__init__()
         self.qapp = qapp
         self.hub = Hub()
-        self.window = Window() if QWebEngineView else None
+        self.window = Window(lambda: self.open_settings()) if QWebEngineView else None
         self.card = Card(self.commit_shot)
         self.settings = Settings(self.saved)
         self.fired = load_json(STATE / "fired.json", {})

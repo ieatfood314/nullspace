@@ -896,6 +896,14 @@ window.uplinkAccent = (hex) => {
   root.setProperty("--on-accent", lum > 0.45 ? "#000" : "#fff");
 };
 
+/* The desktop app's window calls this once the page has loaded: the gear opens the app's settings. */
+window.uplinkDesktop = () => {
+  const s = $("#settings");
+  s.hidden = false;
+  s.setAttribute("aria-label", "Settings");
+  s.onclick = () => { location.href = "/desktop-app/settings"; };
+};
+
 if (N) {
   if (N.accent) window.uplinkAccent(N.accent());
   const s = $("#settings");
