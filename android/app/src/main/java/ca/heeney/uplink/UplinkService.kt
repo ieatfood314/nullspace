@@ -75,6 +75,7 @@ class UplinkService : AccessibilityService() {
             return true
         }
         if (!Prefs.isTrigger(ev)) return false
+        if (Prefs.volumeKey) return volumeKey(ev)
         when (ev.action) {
             KeyEvent.ACTION_DOWN -> if (ev.repeatCount == 0) down()
             KeyEvent.ACTION_UP -> up()
@@ -151,6 +152,62 @@ class UplinkService : AccessibilityService() {
             presses = 0
             openApp()
         }
+    }
+
+    // ---- a volume key as the trigger ----
+    //   press                 changes the volume, as always
+    //   hold                  dictate into the field you're in, or a voice note when there's none
+    // Phones with no spare key only have this one. A press can't be handed back to Android once
+    // it's taken, so a short one sets the volume itself. The mic waits until the press is long
+    // enough to be a hold, so changing the volume doesn't flash the mic dot. In a call, with the
+    // screen off, or before the model is downloaded, it's just a volume key.
+
+    /** this press went straight through to Android */
+    private var volPassing = false
+    private val volListen = Runnable {
+        val typing = focusedField() != null
+        Log.i(TAG, "volume key held: ${if (typing) "dictation" else "voice note"}")
+        if (typing) Dictation.start(this, ::insert, onSaid = ::insertSaid)
+        else Dictation.start(this, { text -> Capture.voiceNote(this, text) })
+    }
+
+    private fun volumeKey(ev: KeyEvent): Boolean {
+        when (ev.action) {
+            KeyEvent.ACTION_DOWN -> {
+                if (ev.repeatCount > 0) return !volPassing
+                volPassing = !volumeIsOurs()
+                if (volPassing) return false
+                downAt = android.os.SystemClock.uptimeMillis()
+                card?.takeIf { it.open }?.keep()
+                card = null
+                if (Dictation.listening) Dictation.cancel()
+                endWatch("next")
+                main.postDelayed(volListen, VOL_LISTEN_MS)
+            }
+            KeyEvent.ACTION_UP -> {
+                if (volPassing) return false
+                main.removeCallbacks(volListen)
+                if (android.os.SystemClock.uptimeMillis() - downAt >= HOLD_MS) {
+                    Dictation.finish(this)
+                } else {
+                    Dictation.cancel()
+                    hidePill()
+                    val dir = if (ev.keyCode == KeyEvent.KEYCODE_VOLUME_UP) android.media.AudioManager.ADJUST_RAISE
+                        else android.media.AudioManager.ADJUST_LOWER
+                    // The same call the system makes for a volume key nobody took: it picks the
+                    // stream that's playing, or a cast session's volume.
+                    getSystemService(android.media.AudioManager::class.java).adjustSuggestedStreamVolume(
+                        dir, android.media.AudioManager.USE_DEFAULT_STREAM_TYPE, android.media.AudioManager.FLAG_SHOW_UI)
+                }
+            }
+        }
+        return true
+    }
+
+    private fun volumeIsOurs(): Boolean {
+        val power = getSystemService(android.os.PowerManager::class.java)
+        val audio = getSystemService(android.media.AudioManager::class.java)
+        return power.isInteractive && audio.mode == android.media.AudioManager.MODE_NORMAL && Engine.installed(this)
     }
 
     fun openApp() {
@@ -435,6 +492,8 @@ class UplinkService : AccessibilityService() {
         const val HOLD_MS = 350L
         /** how long after a press a second one still makes it a double */
         const val GAP_MS = 380L
+        /** how long a volume key is down before the mic starts (most presses are over by then) */
+        const val VOL_LISTEN_MS = 180L
         /** a dictation untouched this long is done with */
         const val EDIT_IDLE_MS = 120_000L
         const val EDIT_MAX_MS = 600_000L

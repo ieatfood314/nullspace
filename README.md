@@ -59,9 +59,12 @@ has a colored action on the right. The (i) next to a row says what it does:
 2. **Microphone: Allow.**
 3. **Speech model: pick one.** "English" is the right choice for most people. It's
    about 600 MB, downloaded once over Wi-Fi.
-4. **Shortcut key.** On Nothing and CMF phones it's the Essential key already. On
-   other phones tap **Change** and press the key you want: a spare side
-   button, or volume down if your phone has nothing else.
+4. **Shortcut key.** On Nothing and CMF phones it's the Essential key. Other phones
+   start on volume down, which still changes the volume (see
+   [No spare key](#no-spare-key)). Have a spare button, like the
+   programmable key on a rugged phone? Tap **Change** and press it. On older
+   Samsungs the Bixby key is worth a try: some One UI versions pass it on to
+   apps, some don't.
 5. **Notifications** and **Location: Allow.** Location is only used for
    place reminders. Pick **Allow all the time**, or they can't fire.
 
@@ -125,6 +128,19 @@ To undo, `pm enable` the two apps and set the two settings back to `0` and
 | Press, then hold once the card shows | A voice note about that screenshot |
 | Press, then hold | A voice note |
 | Double press | Opens Nullspace |
+
+### No spare key
+
+Volume down (or up) keeps its job, so it gets a smaller set:
+
+| Press | Does |
+|---|---|
+| Press | Changes the volume, as usual |
+| Hold in a text field | Dictation |
+| Hold anywhere else | A voice note |
+
+Screenshots need a key of their own. In a call, with the screen off, or
+before the speech model is downloaded, it's just a volume key.
 
 Sharing text or an image to Nullspace from any app saves it too.
 

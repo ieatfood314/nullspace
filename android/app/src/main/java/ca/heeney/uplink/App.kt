@@ -30,8 +30,16 @@ object Prefs {
     /** The Essential key sends Linux code 250, which Android has no keycode for. */
     const val ESSENTIAL_SCAN = 250
 
+    /** Samsung's Bixby key (Galaxy S8 to S10, Note 8 to 10), if One UI passes it on at all. */
+    const val BIXBY_KEY = 1082
+
+    /** Nothing and CMF phones have the Essential key. Everything else starts on volume down,
+     *  which still changes the volume with a press (see UplinkService.volumeKey). */
+    private val hasEssential: Boolean get() =
+        listOf(android.os.Build.MANUFACTURER, android.os.Build.BRAND).any { it.equals("nothing", true) || it.equals("cmf", true) }
+
     var keyCode: Int
-        get() = sp.getInt("key_code", KeyEvent.KEYCODE_UNKNOWN)
+        get() = sp.getInt("key_code", if (hasEssential) KeyEvent.KEYCODE_UNKNOWN else KeyEvent.KEYCODE_VOLUME_DOWN)
         set(v) = sp.edit().putInt("key_code", v).apply()
     var scanCode: Int
         get() = sp.getInt("scan_code", ESSENTIAL_SCAN)
@@ -107,13 +115,27 @@ object Prefs {
         return if (code != KeyEvent.KEYCODE_UNKNOWN) ev.keyCode == code else ev.scanCode == scanCode
     }
 
+    /** The trigger is a volume key, which has a job of its own: a press keeps it. */
+    val volumeKey: Boolean get() = keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP
+
     fun keyName(): String {
         val code = keyCode
         if (code == KeyEvent.KEYCODE_UNKNOWN) {
             return if (scanCode == ESSENTIAL_SCAN) "Essential key" else "Key $scanCode"
         }
-        return KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_").lowercase()
-            .split('_').joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
+        if (code == BIXBY_KEY) return "Bixby key"
+        val name = KeyEvent.keyCodeToString(code)
+        // Vendor keys Android has no name for come back as a bare number.
+        if (!name.startsWith("KEYCODE_")) return "Key $code"
+        return name.removePrefix("KEYCODE_").lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase)
+    }
+
+    /** The Captures tab's empty line. */
+    fun keyHint(): String {
+        val name = keyName()
+        if (volumeKey) return "Hold ${name.lowercase()} for a voice note"
+        val the = if (name.endsWith(" key")) "the $name" else name.lowercase()
+        return "Press $the to capture the screen, press then hold for a voice note"
     }
 }
 

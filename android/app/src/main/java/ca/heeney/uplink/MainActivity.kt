@@ -163,6 +163,7 @@ class MainActivity : ComponentActivity() {
 
         /** the accent color, as #RRGGBB */
         @JavascriptInterface fun accent(): String = Prefs.accentHex()
+        @JavascriptInterface fun keyHint(): String = Prefs.keyHint()
 
         @JavascriptInterface fun openSettings() {
             main.post { startActivity(Intent(this@MainActivity, SettingsActivity::class.java)) }

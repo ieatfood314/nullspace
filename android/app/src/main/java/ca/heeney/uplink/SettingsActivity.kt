@@ -144,7 +144,7 @@ class SettingsActivity : ComponentActivity() {
                     runOnUiThread { learning = false; keyName = Prefs.keyName() }
                 }
             }
-            if (a11y) KeyLegend()
+            if (a11y) KeyLegend(Prefs.volumeKey)
             AiRow(open == "ai") { toggle("ai") }
             if (Brain.on() || HubSync.url() != null) {
                 var tidy by remember { mutableStateOf(Prefs.tidy) }
@@ -272,10 +272,13 @@ class SettingsActivity : ComponentActivity() {
     // ---- the key ----
 
     @Composable
-    private fun KeyLegend() {
+    private fun KeyLegend(volume: Boolean) {
+        val rows = if (volume) listOf("Hold in a text box" to "Dictate", "Hold anywhere else" to "Voice note",
+                "Press" to "Volume, as usual")
+            else listOf("Hold" to "Dictate", "Press" to "Capture the screen",
+                "Press, then hold" to "Voice note", "Double press" to "Open Nullspace")
         Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-            for ((a, b) in listOf("Hold" to "Dictate", "Press" to "Capture the screen",
-                "Press, then hold" to "Voice note", "Double press" to "Open Nullspace")) {
+            for ((a, b) in rows) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                     Text(a, color = Dim, fontFamily = Inter, fontSize = 14.sp, modifier = Modifier.width(140.dp))
                     Text(b, color = Color.White, fontFamily = Inter, fontSize = 14.sp)

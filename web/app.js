@@ -479,7 +479,7 @@ function renderCaptures(view) {
         : `<span class="gone">${esc(c.title || "Deleted task")}</span>`).join("")}</div>` : ""}
       <div class="acts"><button data-redo="${esc(c.uid)}">Redo</button><button data-delcap="${esc(c.uid)}">Delete</button></div>
     </div>`;
-  }).join("") : `<p class="empty">Press the Essential key to capture the screen, press then hold for a voice note</p>`;
+  }).join("") : `<p class="empty">${esc(N && N.keyHint ? N.keyHint() : "Press the Essential key to capture the screen, press then hold for a voice note")}</p>`;
 }
 
 /* Tasks a capture changed ("mark X done"), with the task as it is now (null once deleted). */

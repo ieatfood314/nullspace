@@ -92,6 +92,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 400 1.0625rem/1
 .vs td:nth-child(3) { color: var(--dim); }
 .vs tr:last-child > * { border-bottom: 0; }
 .vs + .fine { margin-top: 24px; }
+.gesture + .fine { margin-top: 22px; }
 
 /* hub */
 .two { display: grid; gap: 36px; }
