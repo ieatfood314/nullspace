@@ -43,6 +43,8 @@ class AssistMenu(private val svc: UplinkService) {
     private var unlisten: (() -> Unit)? = null
     private var talking = false
     private val timeout = Runnable { close() }
+    /** No key to let go of here, so a Done that never comes doesn't leave the mic on. */
+    private val tooLong = Runnable { if (talking && Dictation.listening) Dictation.finish(svc) }
 
     val open get() = root != null
 
@@ -76,6 +78,7 @@ class AssistMenu(private val svc: UplinkService) {
         if (talking && Dictation.listening) Dictation.cancel()
         talking = false
         main.removeCallbacks(timeout)
+        main.removeCallbacks(tooLong)
         unlisten?.invoke()
         unlisten = null
         val v = root ?: return
@@ -90,6 +93,7 @@ class AssistMenu(private val svc: UplinkService) {
         else Dictation.start(svc, { text -> Capture.voiceNote(svc, text) })
         if (!Dictation.listening) { close(); return }
         talking = true
+        main.postDelayed(tooLong, MAX_TALK_MS)
         val row = root ?: return
         row.removeAllViews()
         row.addView(PillView(svc).apply { phase = Dictation.Phase.Listening },
@@ -162,5 +166,7 @@ class AssistMenu(private val svc: UplinkService) {
     companion object {
         /** how long it waits for a choice */
         const val SHOW_MS = 8000L
+        /** the longest it listens before it stops by itself */
+        const val MAX_TALK_MS = 120_000L
     }
 }
