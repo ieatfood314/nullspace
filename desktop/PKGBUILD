@@ -4,7 +4,7 @@
 # Squelch release, bump _squelch and keep depends and the whisper.cpp commit in
 # step with Squelch's PKGBUILD.
 pkgname=nullspace
-pkgver=1.1.2
+pkgver=1.1.3
 pkgrel=1
 _squelch=0.12.1
 pkgdesc='Tasks, notes, screen captures, voice notes and dictation from one key'
