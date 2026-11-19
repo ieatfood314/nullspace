@@ -1,9 +1,10 @@
-# Uplink for Android
+# Nullspace for Android
 
-The phone half of [Uplink](../README.md): dictation, captures, reminders and
-the list. Dictation started as Squelch for Android, and Uplink replaces it.
-Only one app can own the key, and the speech model takes about 1 GB of RAM
-whichever app loads it.
+The app itself: dictation, captures, reminders and the list, all working on
+the phone alone, with [the hub](../README.md#the-hub-optional) as an
+option. Dictation started as Squelch for Android, and Nullspace replaces it
+there. Only one app can own the key, and the speech model takes about 1 GB
+of RAM whichever app loads it.
 
 ## Dictation
 
@@ -21,6 +22,12 @@ whichever app loads it.
   pasted.
 - **Cleanup:** filler words removed and your dictionary applied, the same as
   desktop Squelch.
+- **Tidy:** with an AI key (or a hub), a dictation of 8 words or more has its
+  repeats, false starts and self-corrections cut (`Brain.tidy`, 4 s at
+  most). A check throws the answer away if it added words or cut too much,
+  so the worst case is the text as heard.
+- **Cut-off starts:** if you were already talking when the mic opened, the
+  missing first words are guessed the same way.
 - **Memory:** when Android runs low the model is unloaded, and the next
   dictation loads it again while you talk (about 3 s).
 
@@ -29,18 +36,20 @@ whichever app loads it.
 - **Press:** a screenshot (scaled to 720 px wide, WebP) and the text on
   screen, read from the accessibility tree rather than OCR. The pill only
   appears once a press turns into a hold, so it's never in the shot.
-- **Press, then hold:** a voice note. It's transcribed on the phone, and
-  only the text goes to the hub.
-- **Share** text or an image to Uplink from any app.
+- **Press, then hold:** a voice note, transcribed on the phone.
+- **Share** text or an image to Nullspace from any app.
 
-The hub turns each capture into tasks and notes, and the phone says what it
-made ("Added Call the dentist").
+Each capture becomes tasks and notes, and the phone says what it made
+("Added Call the dentist"). With no hub the phone files it itself
+(`Filer`): through your AI key if there is one (`Brain`, the hub's prompt),
+else with the built-in parser (`Plain`, a port of the hub's). With a hub,
+the hub files it.
 
 ### The Essential key on Nothing OS
 
 Nothing's own handler sees the key before any app can stop it, so it
 still opens Essential Space (tap) or the recorder (hold). Turn those apps off
-over adb (Uplink replaces both):
+over adb (Nullspace replaces both):
 
 ```
 adb shell pm disable-user --user 0 com.nothing.ntessentialspace
@@ -71,10 +80,12 @@ checksum-checked on the first build.
 ./build.sh
 ```
 
-Signing and first-run defaults are read from `~/.config/uplink/`:
-`keystore.properties` (`storeFile`, `storePassword`, `keyAlias`,
-`keyPassword`) and `android.properties` (`hub=`, `squelch_hub=`). Without
-them the release is signed with the debug key and has no defaults. `-Phub=http://10.0.2.2:4645`
+Signing and first-run defaults are read from `~/.config/nullspace/` (or
+`~/.config/uplink/`): `keystore.properties` (`storeFile`, `storePassword`,
+`keyAlias`, `keyPassword`) and `android.properties` (`hub=`, `squelch_hub=`,
+and `donate_url=`, where opt-in training data goes; without it the setting
+is hidden). Without them the release is signed with the debug key and has
+no defaults. `-Phub=http://10.0.2.2:4645`
 points a build at a hub on the emulator's host.
 
 `./release.sh` builds the committed, pushed HEAD and publishes it as GitHub

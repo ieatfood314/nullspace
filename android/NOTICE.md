@@ -12,3 +12,5 @@
   License 2.0
 - The dictation code started as [Squelch](https://github.com/ieatfood314/squelch)
   for Android (MIT).
+- **Address search** data from [OpenStreetMap](https://www.openstreetmap.org/copyright)
+  through Nominatim, © OpenStreetMap contributors, ODbL.

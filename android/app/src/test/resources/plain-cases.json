@@ -1,0 +1,9100 @@
+{
+ "zone": "America/Vancouver",
+ "tasks": [
+  {
+   "id": "t1",
+   "uid": "a1",
+   "data": {
+    "type": "task",
+    "title": "Call the dentist",
+    "remind_at": 1795039200
+   }
+  },
+  {
+   "id": "t2",
+   "uid": "a2",
+   "data": {
+    "type": "task",
+    "title": "Essay",
+    "due": "2026-11-21"
+   }
+  },
+  {
+   "id": "t3",
+   "uid": "a3",
+   "data": {
+    "type": "task",
+    "title": "Buy stamps"
+   }
+  },
+  {
+   "id": "t4",
+   "uid": "a4",
+   "data": {
+    "type": "task",
+    "title": "Water plants",
+    "due": "2026-11-19T10:00",
+    "repeat": "FREQ=WEEKLY;INTERVAL=2"
+   }
+  }
+ ],
+ "places": [
+  "home",
+  "the library",
+  "Sarah's"
+ ],
+ "runs": [
+  {
+   "now": "2026-11-17T08:12:30",
+   "parse": [
+    [
+     "buy milk",
+     {
+      "summary": "Buy milk",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy milk",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     {
+      "summary": "Call the dentist",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call the dentist",
+        "notes": "",
+        "remind_at": "2026-11-18T15:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to call mom at 5",
+     {
+      "summary": "Call mom",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call mom",
+        "notes": "",
+        "remind_at": "2026-11-17T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     {
+      "summary": "Email Mr. Smith",
+      "items": [
+       {
+        "type": "task",
+        "title": "Email Mr. Smith",
+        "notes": "",
+        "remind_at": "2026-11-18T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "when I get home, take the bins out",
+     {
+      "summary": "Take the bins out",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take the bins out",
+        "notes": "",
+        "place": "home",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     {
+      "summary": "Buy stamps",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy stamps",
+        "notes": "",
+        "place": "post office",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "when I leave work call Sarah",
+     {
+      "summary": "Call Sarah",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call Sarah",
+        "notes": "",
+        "place": "work",
+        "place_on": "leave"
+       }
+      ]
+     }
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     {
+      "summary": "Pick up the parcel",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pick up the parcel",
+        "notes": "",
+        "place": "library",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     {
+      "summary": "Practice piano",
+      "items": [
+       {
+        "type": "task",
+        "title": "Practice piano",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+        "remind_at": "2026-11-17T16:00"
+       }
+      ]
+     }
+    ],
+    [
+     "water the plants every 2 weeks",
+     {
+      "summary": "Water the plants",
+      "items": [
+       {
+        "type": "task",
+        "title": "Water the plants",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;INTERVAL=2",
+        "remind_at": "2026-11-17T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "take pills every day for the next week",
+     {
+      "summary": "Take pills",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take pills",
+        "notes": "",
+        "repeat": "FREQ=DAILY;UNTIL=20261124",
+        "remind_at": "2026-11-17T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "stretch every 11.46 hours",
+     {
+      "summary": "Stretch",
+      "items": [
+       {
+        "type": "task",
+        "title": "Stretch",
+        "notes": "",
+        "repeat": "FREQ=MINUTELY;INTERVAL=688",
+        "remind_at": "2026-11-17T19:40"
+       }
+      ]
+     }
+    ],
+    [
+     "pay rent on the 1st of every month",
+     {
+      "summary": "Pay rent",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay rent",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY;BYMONTHDAY=1",
+        "remind_at": "2026-12-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "take out recycling every other Monday",
+     {
+      "summary": "Take out recycling",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take out recycling",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     {
+      "summary": "Call grandma",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call grandma",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+        "remind_at": "2026-11-17T18:00"
+       }
+      ]
+     }
+    ],
+    [
+     "journal every night",
+     {
+      "summary": "Journal",
+      "items": [
+       {
+        "type": "task",
+        "title": "Journal",
+        "notes": "",
+        "repeat": "FREQ=DAILY",
+        "remind_at": "2026-11-17T20:00"
+       }
+      ]
+     }
+    ],
+    [
+     "pay rent monthly",
+     {
+      "summary": "Pay rent",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay rent",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY",
+        "remind_at": "2026-11-17T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "read the weekly report",
+     {
+      "summary": "Read the weekly report",
+      "items": [
+       {
+        "type": "task",
+        "title": "Read the weekly report",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "essay due Friday",
+     {
+      "summary": "Essay",
+      "items": [
+       {
+        "type": "task",
+        "title": "Essay",
+        "notes": "",
+        "due": "2026-11-20"
+       }
+      ]
+     }
+    ],
+    [
+     "the essay is due by the 20th",
+     {
+      "summary": "The essay",
+      "items": [
+       {
+        "type": "task",
+        "title": "The essay",
+        "notes": "",
+        "due": "2026-11-20"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     {
+      "summary": "The homework",
+      "items": [
+       {
+        "type": "task",
+        "title": "The homework",
+        "notes": "",
+        "due": "2026-11-20",
+        "remind_at": "2026-11-18T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     {
+      "summary": "Dentist appointment",
+      "items": [
+       {
+        "type": "task",
+        "title": "Dentist appointment",
+        "notes": "",
+        "remind_at": "2026-12-03T14:30"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     {
+      "summary": "Check the oven",
+      "items": [
+       {
+        "type": "task",
+        "title": "Check the oven",
+        "notes": "",
+        "remind_at": "2026-11-17T08:32"
+       }
+      ]
+     }
+    ],
+    [
+     "in an hour and a half call the bank",
+     {
+      "summary": "Call the bank",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": "",
+        "remind_at": "2026-11-17T09:42"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in half an hour",
+     {
+      "summary": "Remind me in half an hour",
+      "items": [
+       {
+        "type": "task",
+        "title": "Remind me in half an hour",
+        "notes": "",
+        "remind_at": "2026-11-17T08:42"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me at 140 to leave",
+     {
+      "summary": "At 140 to leave",
+      "items": [
+       {
+        "type": "task",
+        "title": "At 140 to leave",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     {
+      "summary": "Meeting",
+      "items": [
+       {
+        "type": "task",
+        "title": "Meeting",
+        "notes": "",
+        "remind_at": "2026-11-18T14:45"
+       }
+      ]
+     }
+    ],
+    [
+     "submit the form by 5pm",
+     {
+      "summary": "Submit the form",
+      "items": [
+       {
+        "type": "task",
+        "title": "Submit the form",
+        "notes": "",
+        "due": "2026-11-17T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     {
+      "summary": "Grab my notes",
+      "items": [
+       {
+        "type": "task",
+        "title": "Grab my notes",
+        "notes": "Before my meeting",
+        "remind_at": "2026-11-17T14:50"
+       }
+      ]
+     }
+    ],
+    [
+     "tonight at 9 watch the game",
+     {
+      "summary": "Watch the game",
+      "items": [
+       {
+        "type": "task",
+        "title": "Watch the game",
+        "notes": "",
+        "remind_at": "2026-11-17T21:00"
+       }
+      ]
+     }
+    ],
+    [
+     "this afternoon clean the kitchen",
+     {
+      "summary": "Clean the kitchen",
+      "items": [
+       {
+        "type": "task",
+        "title": "Clean the kitchen",
+        "notes": "",
+        "remind_at": "2026-11-17T14:00"
+       }
+      ]
+     }
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     {
+      "summary": "Buy eggs, Call the bank, Email Mr. Smith",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy eggs",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Email Mr. Smith",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "buy eggs and then call the bank",
+     {
+      "summary": "Buy eggs, Call the bank",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy eggs",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "put batteries on my shopping list",
+     {
+      "summary": "Batteries",
+      "items": [
+       {
+        "type": "task",
+        "title": "Batteries",
+        "notes": "",
+        "list": "shopping"
+       }
+      ]
+     }
+    ],
+    [
+     "add milk to the groceries list",
+     {
+      "summary": "Milk",
+      "items": [
+       {
+        "type": "task",
+        "title": "Milk",
+        "notes": "",
+        "list": "groceries"
+       }
+      ]
+     }
+    ],
+    [
+     "Friday at midnight submit the lab",
+     {
+      "summary": "Submit the lab",
+      "items": [
+       {
+        "type": "task",
+        "title": "Submit the lab",
+        "notes": "",
+        "remind_at": "2026-11-21T00:00"
+       }
+      ]
+     }
+    ],
+    [
+     "the day after tomorrow book the flight",
+     {
+      "summary": "Book the flight",
+      "items": [
+       {
+        "type": "task",
+        "title": "Book the flight",
+        "notes": "",
+        "remind_at": "2026-11-19T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "in 3 days renew the library books",
+     {
+      "summary": "Renew the library books",
+      "items": [
+       {
+        "type": "task",
+        "title": "Renew the library books",
+        "notes": "",
+        "remind_at": "2026-11-20T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "next weekend visit grandma",
+     {
+      "summary": "Visit grandma",
+      "items": [
+       {
+        "type": "task",
+        "title": "Visit grandma",
+        "notes": "",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     {
+      "summary": "Mow the lawn",
+      "items": [
+       {
+        "type": "task",
+        "title": "Mow the lawn",
+        "notes": "",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     {
+      "summary": "An idea for the story: a lighthouse that moves",
+      "items": [
+       {
+        "type": "note",
+        "title": "An idea for the story: a lighthouse that moves",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "I need to finish the slides",
+     {
+      "summary": "Finish the slides",
+      "items": [
+       {
+        "type": "task",
+        "title": "Finish the slides",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "don't let me forget to feed the cat",
+     {
+      "summary": "Feed the cat",
+      "items": [
+       {
+        "type": "task",
+        "title": "Feed the cat",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "todo: back up the server",
+     {
+      "summary": "Back up the server",
+      "items": [
+       {
+        "type": "task",
+        "title": "Back up the server",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "mark call the dentist as done",
+     {
+      "summary": "Done: Call the dentist",
+      "items": [],
+      "changes": [
+       {
+        "task": "t1",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "tick off buy stamps",
+     {
+      "summary": "Done: Buy stamps",
+      "items": [],
+      "changes": [
+       {
+        "task": "t3",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "I finished the essay",
+     {
+      "summary": "Done: Essay",
+      "items": [],
+      "changes": [
+       {
+        "task": "t2",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "move the dentist reminder to Friday",
+     {
+      "summary": "Moved Call the dentist",
+      "items": [],
+      "changes": [
+       {
+        "task": "t1",
+        "remind_at": "2026-11-20T15:00"
+       }
+      ]
+     }
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     {
+      "summary": "Moved Essay",
+      "items": [],
+      "changes": [
+       {
+        "task": "t2",
+        "due": "2026-11-18T16:00"
+       }
+      ]
+     }
+    ],
+    [
+     "reschedule water plants to next Monday",
+     {
+      "summary": "Moved Water plants",
+      "items": [],
+      "changes": [
+       {
+        "task": "t4",
+        "due": "2026-11-23T10:00"
+       }
+      ]
+     }
+    ],
+    [
+     "at the end of the day send the report",
+     {
+      "summary": "Send the report",
+      "items": [
+       {
+        "type": "task",
+        "title": "Send the report",
+        "notes": "",
+        "remind_at": "2026-11-17T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     {
+      "summary": "Take vitamins",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take vitamins",
+        "notes": "",
+        "remind_at": "2026-11-17T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "noon lunch with Sam",
+     {
+      "summary": "Lunch with Sam",
+      "items": [
+       {
+        "type": "task",
+        "title": "Lunch with Sam",
+        "notes": "",
+        "remind_at": "2026-11-17T12:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me at 7 to call",
+     {
+      "summary": "Call",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call",
+        "notes": "",
+        "remind_at": "2026-11-18T07:00"
+       }
+      ]
+     }
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     {
+      "summary": "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until falls",
+      "items": [
+       {
+        "type": "task",
+        "title": "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until falls",
+        "notes": "",
+        "remind_at": "2026-11-17T20:00"
+       }
+      ]
+     }
+    ],
+    [
+     "uh",
+     {
+      "summary": "Uh",
+      "items": [
+       {
+        "type": "note",
+        "title": "Uh",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     {
+      "summary": "Stretch",
+      "items": [
+       {
+        "type": "task",
+        "title": "Stretch",
+        "notes": "",
+        "repeat": "FREQ=MINUTELY;INTERVAL=90",
+        "remind_at": "2026-11-17T09:42"
+       }
+      ]
+     }
+    ],
+    [
+     "every month on the 15th pay the card",
+     {
+      "summary": "Pay the card",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay the card",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY;BYMONTHDAY=15",
+        "remind_at": "2026-12-15T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "every 3 days check the mail",
+     {
+      "summary": "Check the mail",
+      "items": [
+       {
+        "type": "task",
+        "title": "Check the mail",
+        "notes": "",
+        "repeat": "FREQ=DAILY;INTERVAL=3",
+        "remind_at": "2026-11-17T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     {
+      "summary": "Go to the gym",
+      "items": [
+       {
+        "type": "task",
+        "title": "Go to the gym",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=MO,WE",
+        "remind_at": "2026-11-18T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     {
+      "summary": "Pay the bill",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay the bill",
+        "notes": "",
+        "remind_at": "2026-11-20T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "renew passport by March",
+     {
+      "summary": "Renew passport by March",
+      "items": [
+       {
+        "type": "task",
+        "title": "Renew passport by March",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "",
+     {
+      "summary": "Screenshot of Chrome",
+      "items": [
+       {
+        "type": "note",
+        "title": "Screenshot: Chrome",
+        "notes": "Hello"
+       }
+      ]
+     }
+    ]
+   ],
+   "settle": [
+    [
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-18T17:00"
+     },
+     "remind me tomorrow at 5 to call mom",
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-18T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-21T17:00"
+     },
+     "remind me Thursday at 5 to call mom",
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-19T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Check oven",
+      "remind_at": "2026-11-17T08:00"
+     },
+     "remind me in 20 minutes to check the oven",
+     {
+      "type": "task",
+      "title": "Check oven",
+      "remind_at": "2026-11-17T08:32"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Email",
+      "due": "2026-11-20"
+     },
+     "remind me to send the email by Friday",
+     {
+      "type": "task",
+      "title": "Email",
+      "due": "2026-11-20",
+      "remind_at": "2026-11-20T09:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Send report",
+      "remind_at": "2026-11-25T17:00"
+     },
+     "at the end of the day send the report",
+     {
+      "type": "task",
+      "title": "Send report",
+      "remind_at": "2026-11-17T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Lab",
+      "remind_at": "2026-11-21T00:00"
+     },
+     "Friday at midnight submit the lab",
+     {
+      "type": "task",
+      "title": "Lab",
+      "remind_at": "2026-11-21T00:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": "2026-11-17T16:00",
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH"
+     },
+     "every Tuesday and Thursday at 4 practice piano",
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": "2026-11-17T16:00",
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Card",
+      "remind_at": "2026-11-17T09:00",
+      "repeat": "FREQ=MONTHLY"
+     },
+     "pay the card on the 15th of every month",
+     {
+      "type": "task",
+      "title": "Card",
+      "remind_at": "2026-12-15T09:00",
+      "repeat": "FREQ=MONTHLY"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Vitamins"
+     },
+     "remind me to take vitamins at 8",
+     {
+      "type": "task",
+      "title": "Vitamins",
+      "remind_at": "2026-11-18T08:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Noon",
+      "remind_at": "2026-11-16T12:00"
+     },
+     "remind me at noon to eat",
+     {
+      "type": "task",
+      "title": "Noon",
+      "remind_at": "2026-11-17T12:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Gift",
+      "due": "2026-12-20"
+     },
+     "buy a gift before christmas",
+     {
+      "type": "task",
+      "title": "Gift",
+      "due": "2026-12-20"
+     }
+    ]
+   ],
+   "said_time": [
+    [
+     "buy milk",
+     ""
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     "15:00"
+    ],
+    [
+     "remind me to call mom at 5",
+     "17:00"
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     ""
+    ],
+    [
+     "when I get home, take the bins out",
+     ""
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     ""
+    ],
+    [
+     "when I leave work call Sarah",
+     ""
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     ""
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     "16:00"
+    ],
+    [
+     "water the plants every 2 weeks",
+     ""
+    ],
+    [
+     "take pills every day for the next week",
+     ""
+    ],
+    [
+     "stretch every 11.46 hours",
+     null
+    ],
+    [
+     "pay rent on the 1st of every month",
+     ""
+    ],
+    [
+     "take out recycling every other Monday",
+     ""
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     "18:00"
+    ],
+    [
+     "journal every night",
+     null
+    ],
+    [
+     "pay rent monthly",
+     ""
+    ],
+    [
+     "read the weekly report",
+     ""
+    ],
+    [
+     "essay due Friday",
+     ""
+    ],
+    [
+     "the essay is due by the 20th",
+     ""
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     ""
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     null
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     null
+    ],
+    [
+     "in an hour and a half call the bank",
+     null
+    ],
+    [
+     "remind me in half an hour",
+     null
+    ],
+    [
+     "remind me at 140 to leave",
+     null
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     "14:45"
+    ],
+    [
+     "submit the form by 5pm",
+     "17:00"
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     null
+    ],
+    [
+     "tonight at 9 watch the game",
+     "21:00"
+    ],
+    [
+     "this afternoon clean the kitchen",
+     null
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     ""
+    ],
+    [
+     "buy eggs and then call the bank",
+     ""
+    ],
+    [
+     "put batteries on my shopping list",
+     ""
+    ],
+    [
+     "add milk to the groceries list",
+     ""
+    ],
+    [
+     "Friday at midnight submit the lab",
+     "00:00"
+    ],
+    [
+     "the day after tomorrow book the flight",
+     null
+    ],
+    [
+     "in 3 days renew the library books",
+     ""
+    ],
+    [
+     "next weekend visit grandma",
+     ""
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     ""
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     ""
+    ],
+    [
+     "I need to finish the slides",
+     ""
+    ],
+    [
+     "don't let me forget to feed the cat",
+     ""
+    ],
+    [
+     "todo: back up the server",
+     ""
+    ],
+    [
+     "mark call the dentist as done",
+     ""
+    ],
+    [
+     "tick off buy stamps",
+     ""
+    ],
+    [
+     "I finished the essay",
+     ""
+    ],
+    [
+     "move the dentist reminder to Friday",
+     ""
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     "16:00"
+    ],
+    [
+     "reschedule water plants to next Monday",
+     ""
+    ],
+    [
+     "at the end of the day send the report",
+     null
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     null
+    ],
+    [
+     "noon lunch with Sam",
+     "12:00"
+    ],
+    [
+     "remind me at 7 to call",
+     "07:00"
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     null
+    ],
+    [
+     "uh",
+     ""
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     null
+    ],
+    [
+     "every month on the 15th pay the card",
+     ""
+    ],
+    [
+     "every 3 days check the mail",
+     ""
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     ""
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     ""
+    ],
+    [
+     "renew passport by March",
+     ""
+    ]
+   ],
+   "said_span": [
+    [
+     "buy milk",
+     null
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     null
+    ],
+    [
+     "remind me to call mom at 5",
+     null
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     null
+    ],
+    [
+     "when I get home, take the bins out",
+     null
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     null
+    ],
+    [
+     "when I leave work call Sarah",
+     null
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     null
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     null
+    ],
+    [
+     "water the plants every 2 weeks",
+     null
+    ],
+    [
+     "take pills every day for the next week",
+     null
+    ],
+    [
+     "stretch every 11.46 hours",
+     null
+    ],
+    [
+     "pay rent on the 1st of every month",
+     null
+    ],
+    [
+     "take out recycling every other Monday",
+     null
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     null
+    ],
+    [
+     "journal every night",
+     null
+    ],
+    [
+     "pay rent monthly",
+     null
+    ],
+    [
+     "read the weekly report",
+     null
+    ],
+    [
+     "essay due Friday",
+     null
+    ],
+    [
+     "the essay is due by the 20th",
+     null
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     null
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     null
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     1200
+    ],
+    [
+     "in an hour and a half call the bank",
+     5400
+    ],
+    [
+     "remind me in half an hour",
+     1800
+    ],
+    [
+     "remind me at 140 to leave",
+     null
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     null
+    ],
+    [
+     "submit the form by 5pm",
+     null
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     null
+    ],
+    [
+     "tonight at 9 watch the game",
+     null
+    ],
+    [
+     "this afternoon clean the kitchen",
+     null
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     null
+    ],
+    [
+     "buy eggs and then call the bank",
+     null
+    ],
+    [
+     "put batteries on my shopping list",
+     null
+    ],
+    [
+     "add milk to the groceries list",
+     null
+    ],
+    [
+     "Friday at midnight submit the lab",
+     null
+    ],
+    [
+     "the day after tomorrow book the flight",
+     null
+    ],
+    [
+     "in 3 days renew the library books",
+     null
+    ],
+    [
+     "next weekend visit grandma",
+     null
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     null
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     null
+    ],
+    [
+     "I need to finish the slides",
+     null
+    ],
+    [
+     "don't let me forget to feed the cat",
+     null
+    ],
+    [
+     "todo: back up the server",
+     null
+    ],
+    [
+     "mark call the dentist as done",
+     null
+    ],
+    [
+     "tick off buy stamps",
+     null
+    ],
+    [
+     "I finished the essay",
+     null
+    ],
+    [
+     "move the dentist reminder to Friday",
+     null
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     null
+    ],
+    [
+     "reschedule water plants to next Monday",
+     null
+    ],
+    [
+     "at the end of the day send the report",
+     null
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     null
+    ],
+    [
+     "noon lunch with Sam",
+     null
+    ],
+    [
+     "remind me at 7 to call",
+     null
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     null
+    ],
+    [
+     "uh",
+     null
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     null
+    ],
+    [
+     "every month on the 15th pay the card",
+     null
+    ],
+    [
+     "every 3 days check the mail",
+     null
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     null
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     null
+    ],
+    [
+     "renew passport by March",
+     null
+    ]
+   ],
+   "repeat": [
+    [
+     "buy milk",
+     [
+      null,
+      "buy milk"
+     ]
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     [
+      null,
+      "call the dentist tomorrow at 3"
+     ]
+    ],
+    [
+     "remind me to call mom at 5",
+     [
+      null,
+      "remind me to call mom at 5"
+     ]
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     [
+      null,
+      "remind me tomorrow to email Mr. Smith"
+     ]
+    ],
+    [
+     "when I get home, take the bins out",
+     [
+      null,
+      "when I get home, take the bins out"
+     ]
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     [
+      null,
+      "remind me to buy stamps when I'm at the post office"
+     ]
+    ],
+    [
+     "when I leave work call Sarah",
+     [
+      null,
+      "when I leave work call Sarah"
+     ]
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     [
+      null,
+      "pick up the parcel when I get to the library"
+     ]
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     [
+      "FREQ=WEEKLY;BYDAY=TU,TH",
+      "at 4 practice piano"
+     ]
+    ],
+    [
+     "water the plants every 2 weeks",
+     [
+      "FREQ=WEEKLY;INTERVAL=2",
+      "water the plants"
+     ]
+    ],
+    [
+     "take pills every day for the next week",
+     [
+      "FREQ=DAILY;UNTIL=20261124",
+      "take pills"
+     ]
+    ],
+    [
+     "stretch every 11.46 hours",
+     [
+      "FREQ=MINUTELY;INTERVAL=688",
+      "stretch"
+     ]
+    ],
+    [
+     "pay rent on the 1st of every month",
+     [
+      "FREQ=MONTHLY;BYMONTHDAY=1",
+      "pay rent"
+     ]
+    ],
+    [
+     "take out recycling every other Monday",
+     [
+      "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+      "take out recycling"
+     ]
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     [
+      "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+      "call grandma at 6pm"
+     ]
+    ],
+    [
+     "journal every night",
+     [
+      "FREQ=DAILY",
+      "journal tonight"
+     ]
+    ],
+    [
+     "pay rent monthly",
+     [
+      "FREQ=MONTHLY",
+      "pay rent"
+     ]
+    ],
+    [
+     "read the weekly report",
+     [
+      null,
+      "read the weekly report"
+     ]
+    ],
+    [
+     "essay due Friday",
+     [
+      null,
+      "essay due Friday"
+     ]
+    ],
+    [
+     "the essay is due by the 20th",
+     [
+      null,
+      "the essay is due by the 20th"
+     ]
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     [
+      null,
+      "remind me Wednesday that the homework is due Friday"
+     ]
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     [
+      null,
+      "dentist appointment December 3rd at 2:30pm"
+     ]
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     [
+      null,
+      "remind me in 20 minutes to check the oven"
+     ]
+    ],
+    [
+     "in an hour and a half call the bank",
+     [
+      null,
+      "in an hour and a half call the bank"
+     ]
+    ],
+    [
+     "remind me in half an hour",
+     [
+      null,
+      "remind me in half an hour"
+     ]
+    ],
+    [
+     "remind me at 140 to leave",
+     [
+      null,
+      "remind me at 140 to leave"
+     ]
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     [
+      null,
+      "meeting at 2.45 tomorrow"
+     ]
+    ],
+    [
+     "submit the form by 5pm",
+     [
+      null,
+      "submit the form by 5pm"
+     ]
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     [
+      null,
+      "remind me 10 minutes before my 3 pm meeting to grab my notes"
+     ]
+    ],
+    [
+     "tonight at 9 watch the game",
+     [
+      null,
+      "tonight at 9 watch the game"
+     ]
+    ],
+    [
+     "this afternoon clean the kitchen",
+     [
+      null,
+      "this afternoon clean the kitchen"
+     ]
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     [
+      null,
+      "buy eggs, call the bank and email Mr. Smith"
+     ]
+    ],
+    [
+     "buy eggs and then call the bank",
+     [
+      null,
+      "buy eggs and then call the bank"
+     ]
+    ],
+    [
+     "put batteries on my shopping list",
+     [
+      null,
+      "put batteries on my shopping list"
+     ]
+    ],
+    [
+     "add milk to the groceries list",
+     [
+      null,
+      "add milk to the groceries list"
+     ]
+    ],
+    [
+     "Friday at midnight submit the lab",
+     [
+      null,
+      "Friday at midnight submit the lab"
+     ]
+    ],
+    [
+     "the day after tomorrow book the flight",
+     [
+      null,
+      "the day after tomorrow book the flight"
+     ]
+    ],
+    [
+     "in 3 days renew the library books",
+     [
+      null,
+      "in 3 days renew the library books"
+     ]
+    ],
+    [
+     "next weekend visit grandma",
+     [
+      null,
+      "next weekend visit grandma"
+     ]
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     [
+      null,
+      "remind me this weekend to mow the lawn"
+     ]
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     [
+      null,
+      "an idea for the story: a lighthouse that moves"
+     ]
+    ],
+    [
+     "I need to finish the slides",
+     [
+      null,
+      "I need to finish the slides"
+     ]
+    ],
+    [
+     "don't let me forget to feed the cat",
+     [
+      null,
+      "don't let me forget to feed the cat"
+     ]
+    ],
+    [
+     "todo: back up the server",
+     [
+      null,
+      "todo: back up the server"
+     ]
+    ],
+    [
+     "mark call the dentist as done",
+     [
+      null,
+      "mark call the dentist as done"
+     ]
+    ],
+    [
+     "tick off buy stamps",
+     [
+      null,
+      "tick off buy stamps"
+     ]
+    ],
+    [
+     "I finished the essay",
+     [
+      null,
+      "I finished the essay"
+     ]
+    ],
+    [
+     "move the dentist reminder to Friday",
+     [
+      null,
+      "move the dentist reminder to Friday"
+     ]
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     [
+      null,
+      "push the essay to tomorrow at 4"
+     ]
+    ],
+    [
+     "reschedule water plants to next Monday",
+     [
+      null,
+      "reschedule water plants to next Monday"
+     ]
+    ],
+    [
+     "at the end of the day send the report",
+     [
+      null,
+      "at the end of the day send the report"
+     ]
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     [
+      null,
+      "remind me in the morning to take vitamins"
+     ]
+    ],
+    [
+     "noon lunch with Sam",
+     [
+      null,
+      "noon lunch with Sam"
+     ]
+    ],
+    [
+     "remind me at 7 to call",
+     [
+      null,
+      "remind me at 7 to call"
+     ]
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     [
+      null,
+      "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls"
+     ]
+    ],
+    [
+     "uh",
+     [
+      null,
+      "uh"
+     ]
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     [
+      "FREQ=MINUTELY;INTERVAL=90",
+      "remind me to stretch"
+     ]
+    ],
+    [
+     "every month on the 15th pay the card",
+     [
+      "FREQ=MONTHLY;BYMONTHDAY=15",
+      "pay the card"
+     ]
+    ],
+    [
+     "every 3 days check the mail",
+     [
+      "FREQ=DAILY;INTERVAL=3",
+      "check the mail"
+     ]
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     [
+      "FREQ=WEEKLY;BYDAY=MO,WE",
+      "go to the gym"
+     ]
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     [
+      null,
+      "remind me on the 20th to pay the bill"
+     ]
+    ],
+    [
+     "renew passport by March",
+     [
+      null,
+      "renew passport by March"
+     ]
+    ]
+   ],
+   "tidy": [
+    [
+     [
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-17T07:30"
+      },
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-17T18:00",
+       "notes": "the wet food"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-17T18:00",
+       "times": [
+        "07:30",
+        "18:00"
+       ],
+       "notes": "the wet food"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T08:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "20:00",
+        "8:00",
+        "nope"
+       ]
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T08:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "08:00",
+        "20:00"
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T20:00",
+       "repeat": "FREQ=DAILY"
+      },
+      {
+       "type": "task",
+       "title": "meds",
+       "remind_at": "2026-11-18T08:00",
+       "repeat": "FREQ=DAILY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T20:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "08:00",
+        "20:00"
+       ],
+       "notes": ""
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-16T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=MO"
+      },
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-19T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=TH"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-23T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=MO",
+       "times": null
+      },
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-19T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=TH",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Stretch",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=DAILY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Stretch",
+       "remind_at": "2026-11-18T07:00",
+       "repeat": "FREQ=DAILY",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Pills",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=DAILY;COUNT=7"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Pills",
+       "remind_at": "2026-11-18T07:00",
+       "repeat": "FREQ=DAILY;COUNT=7",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Report",
+       "due": "2026-11-17",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=WEEKLY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Report",
+       "due": "2026-11-17",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=WEEKLY",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Ping",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=HOURLY;INTERVAL=3"
+      },
+      {
+       "type": "note",
+       "title": "An idea"
+      },
+      {
+       "type": "task",
+       "title": "Once",
+       "remind_at": "2026-11-17T09:00"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Ping",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=HOURLY;INTERVAL=3"
+      },
+      {
+       "type": "note",
+       "title": "An idea"
+      },
+      {
+       "type": "task",
+       "title": "Once",
+       "remind_at": "2026-11-17T09:00"
+      }
+     ]
+    ]
+   ],
+   "roll": [
+    [
+     {
+      "type": "task",
+      "title": "Feed the dog",
+      "remind_at": 1794925800,
+      "repeat": "FREQ=DAILY;INTERVAL=2",
+      "times": [
+       "07:30",
+       "18:00"
+      ],
+      "done_at": 1
+     },
+     {
+      "type": "task",
+      "title": "Feed the dog",
+      "remind_at": 1794963600,
+      "repeat": "FREQ=DAILY;INTERVAL=2",
+      "times": [
+       "07:30",
+       "18:00"
+      ],
+      "done_at": null
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Meds",
+      "remind_at": 1794927600,
+      "repeat": "FREQ=DAILY;COUNT=4",
+      "times": [
+       "08:00",
+       "20:00"
+      ],
+      "done_at": 1
+     },
+     {
+      "type": "task",
+      "title": "Meds",
+      "remind_at": 1794970800,
+      "repeat": "FREQ=DAILY;COUNT=3",
+      "times": [
+       "08:00",
+       "20:00"
+      ],
+      "done_at": null
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": 1794956400,
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+      "done_at": 1
+     },
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": 1795129200,
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+      "done_at": null
+     }
+    ]
+   ]
+  },
+  {
+   "now": "2026-11-20T19:40:05",
+   "parse": [
+    [
+     "buy milk",
+     {
+      "summary": "Buy milk",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy milk",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     {
+      "summary": "Call the dentist",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call the dentist",
+        "notes": "",
+        "remind_at": "2026-11-21T15:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to call mom at 5",
+     {
+      "summary": "Call mom",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call mom",
+        "notes": "",
+        "remind_at": "2026-11-21T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     {
+      "summary": "Email Mr. Smith",
+      "items": [
+       {
+        "type": "task",
+        "title": "Email Mr. Smith",
+        "notes": "",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "when I get home, take the bins out",
+     {
+      "summary": "Take the bins out",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take the bins out",
+        "notes": "",
+        "place": "home",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     {
+      "summary": "Buy stamps",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy stamps",
+        "notes": "",
+        "place": "post office",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "when I leave work call Sarah",
+     {
+      "summary": "Call Sarah",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call Sarah",
+        "notes": "",
+        "place": "work",
+        "place_on": "leave"
+       }
+      ]
+     }
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     {
+      "summary": "Pick up the parcel",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pick up the parcel",
+        "notes": "",
+        "place": "library",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     {
+      "summary": "Practice piano",
+      "items": [
+       {
+        "type": "task",
+        "title": "Practice piano",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+        "remind_at": "2026-11-24T16:00"
+       }
+      ]
+     }
+    ],
+    [
+     "water the plants every 2 weeks",
+     {
+      "summary": "Water the plants",
+      "items": [
+       {
+        "type": "task",
+        "title": "Water the plants",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;INTERVAL=2",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "take pills every day for the next week",
+     {
+      "summary": "Take pills",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take pills",
+        "notes": "",
+        "repeat": "FREQ=DAILY;UNTIL=20261127",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "stretch every 11.46 hours",
+     {
+      "summary": "Stretch",
+      "items": [
+       {
+        "type": "task",
+        "title": "Stretch",
+        "notes": "",
+        "repeat": "FREQ=MINUTELY;INTERVAL=688",
+        "remind_at": "2026-11-21T07:08"
+       }
+      ]
+     }
+    ],
+    [
+     "pay rent on the 1st of every month",
+     {
+      "summary": "Pay rent",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay rent",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY;BYMONTHDAY=1",
+        "remind_at": "2026-12-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "take out recycling every other Monday",
+     {
+      "summary": "Take out recycling",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take out recycling",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     {
+      "summary": "Call grandma",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call grandma",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+        "remind_at": "2026-11-23T18:00"
+       }
+      ]
+     }
+    ],
+    [
+     "journal every night",
+     {
+      "summary": "Journal",
+      "items": [
+       {
+        "type": "task",
+        "title": "Journal",
+        "notes": "",
+        "repeat": "FREQ=DAILY",
+        "remind_at": "2026-11-20T20:00"
+       }
+      ]
+     }
+    ],
+    [
+     "pay rent monthly",
+     {
+      "summary": "Pay rent",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay rent",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "read the weekly report",
+     {
+      "summary": "Read the weekly report",
+      "items": [
+       {
+        "type": "task",
+        "title": "Read the weekly report",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "essay due Friday",
+     {
+      "summary": "Essay",
+      "items": [
+       {
+        "type": "task",
+        "title": "Essay",
+        "notes": "",
+        "due": "2026-11-27"
+       }
+      ]
+     }
+    ],
+    [
+     "the essay is due by the 20th",
+     {
+      "summary": "The essay",
+      "items": [
+       {
+        "type": "task",
+        "title": "The essay",
+        "notes": "",
+        "due": "2026-11-21"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     {
+      "summary": "The homework",
+      "items": [
+       {
+        "type": "task",
+        "title": "The homework",
+        "notes": "",
+        "due": "2026-11-27",
+        "remind_at": "2026-11-25T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     {
+      "summary": "Dentist appointment",
+      "items": [
+       {
+        "type": "task",
+        "title": "Dentist appointment",
+        "notes": "",
+        "remind_at": "2026-12-03T14:30"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     {
+      "summary": "Check the oven",
+      "items": [
+       {
+        "type": "task",
+        "title": "Check the oven",
+        "notes": "",
+        "remind_at": "2026-11-20T20:00"
+       }
+      ]
+     }
+    ],
+    [
+     "in an hour and a half call the bank",
+     {
+      "summary": "Call the bank",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": "",
+        "remind_at": "2026-11-20T21:10"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in half an hour",
+     {
+      "summary": "Remind me in half an hour",
+      "items": [
+       {
+        "type": "task",
+        "title": "Remind me in half an hour",
+        "notes": "",
+        "remind_at": "2026-11-20T20:10"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me at 140 to leave",
+     {
+      "summary": "At 140 to leave",
+      "items": [
+       {
+        "type": "task",
+        "title": "At 140 to leave",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     {
+      "summary": "Meeting",
+      "items": [
+       {
+        "type": "task",
+        "title": "Meeting",
+        "notes": "",
+        "remind_at": "2026-11-21T14:45"
+       }
+      ]
+     }
+    ],
+    [
+     "submit the form by 5pm",
+     {
+      "summary": "Submit the form",
+      "items": [
+       {
+        "type": "task",
+        "title": "Submit the form",
+        "notes": "",
+        "due": "2026-11-21T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     {
+      "summary": "Grab my notes",
+      "items": [
+       {
+        "type": "task",
+        "title": "Grab my notes",
+        "notes": "Before my meeting",
+        "remind_at": "2026-11-21T14:50"
+       }
+      ]
+     }
+    ],
+    [
+     "tonight at 9 watch the game",
+     {
+      "summary": "Watch the game",
+      "items": [
+       {
+        "type": "task",
+        "title": "Watch the game",
+        "notes": "",
+        "remind_at": "2026-11-20T21:00"
+       }
+      ]
+     }
+    ],
+    [
+     "this afternoon clean the kitchen",
+     {
+      "summary": "Clean the kitchen",
+      "items": [
+       {
+        "type": "task",
+        "title": "Clean the kitchen",
+        "notes": "",
+        "remind_at": "2026-11-21T14:00"
+       }
+      ]
+     }
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     {
+      "summary": "Buy eggs, Call the bank, Email Mr. Smith",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy eggs",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Email Mr. Smith",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "buy eggs and then call the bank",
+     {
+      "summary": "Buy eggs, Call the bank",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy eggs",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "put batteries on my shopping list",
+     {
+      "summary": "Batteries",
+      "items": [
+       {
+        "type": "task",
+        "title": "Batteries",
+        "notes": "",
+        "list": "shopping"
+       }
+      ]
+     }
+    ],
+    [
+     "add milk to the groceries list",
+     {
+      "summary": "Milk",
+      "items": [
+       {
+        "type": "task",
+        "title": "Milk",
+        "notes": "",
+        "list": "groceries"
+       }
+      ]
+     }
+    ],
+    [
+     "Friday at midnight submit the lab",
+     {
+      "summary": "Submit the lab",
+      "items": [
+       {
+        "type": "task",
+        "title": "Submit the lab",
+        "notes": "",
+        "remind_at": "2026-11-28T00:00"
+       }
+      ]
+     }
+    ],
+    [
+     "the day after tomorrow book the flight",
+     {
+      "summary": "Book the flight",
+      "items": [
+       {
+        "type": "task",
+        "title": "Book the flight",
+        "notes": "",
+        "remind_at": "2026-11-22T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "in 3 days renew the library books",
+     {
+      "summary": "Renew the library books",
+      "items": [
+       {
+        "type": "task",
+        "title": "Renew the library books",
+        "notes": "",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "next weekend visit grandma",
+     {
+      "summary": "Visit grandma",
+      "items": [
+       {
+        "type": "task",
+        "title": "Visit grandma",
+        "notes": "",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     {
+      "summary": "Mow the lawn",
+      "items": [
+       {
+        "type": "task",
+        "title": "Mow the lawn",
+        "notes": "",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     {
+      "summary": "An idea for the story: a lighthouse that moves",
+      "items": [
+       {
+        "type": "note",
+        "title": "An idea for the story: a lighthouse that moves",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "I need to finish the slides",
+     {
+      "summary": "Finish the slides",
+      "items": [
+       {
+        "type": "task",
+        "title": "Finish the slides",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "don't let me forget to feed the cat",
+     {
+      "summary": "Feed the cat",
+      "items": [
+       {
+        "type": "task",
+        "title": "Feed the cat",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "todo: back up the server",
+     {
+      "summary": "Back up the server",
+      "items": [
+       {
+        "type": "task",
+        "title": "Back up the server",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "mark call the dentist as done",
+     {
+      "summary": "Done: Call the dentist",
+      "items": [],
+      "changes": [
+       {
+        "task": "t1",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "tick off buy stamps",
+     {
+      "summary": "Done: Buy stamps",
+      "items": [],
+      "changes": [
+       {
+        "task": "t3",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "I finished the essay",
+     {
+      "summary": "Done: Essay",
+      "items": [],
+      "changes": [
+       {
+        "task": "t2",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "move the dentist reminder to Friday",
+     {
+      "summary": "Moved Call the dentist",
+      "items": [],
+      "changes": [
+       {
+        "task": "t1",
+        "remind_at": "2026-11-27T15:00"
+       }
+      ]
+     }
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     {
+      "summary": "Moved Essay",
+      "items": [],
+      "changes": [
+       {
+        "task": "t2",
+        "due": "2026-11-21T16:00"
+       }
+      ]
+     }
+    ],
+    [
+     "reschedule water plants to next Monday",
+     {
+      "summary": "Moved Water plants",
+      "items": [],
+      "changes": [
+       {
+        "task": "t4",
+        "due": "2026-11-23T10:00"
+       }
+      ]
+     }
+    ],
+    [
+     "at the end of the day send the report",
+     {
+      "summary": "Send the report",
+      "items": [
+       {
+        "type": "task",
+        "title": "Send the report",
+        "notes": "",
+        "remind_at": "2026-11-21T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     {
+      "summary": "Take vitamins",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take vitamins",
+        "notes": "",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "noon lunch with Sam",
+     {
+      "summary": "Lunch with Sam",
+      "items": [
+       {
+        "type": "task",
+        "title": "Lunch with Sam",
+        "notes": "",
+        "remind_at": "2026-11-21T12:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me at 7 to call",
+     {
+      "summary": "Call",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call",
+        "notes": "",
+        "remind_at": "2026-11-21T07:00"
+       }
+      ]
+     }
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     {
+      "summary": "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until falls",
+      "items": [
+       {
+        "type": "task",
+        "title": "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until falls",
+        "notes": "",
+        "remind_at": "2026-11-20T20:00"
+       }
+      ]
+     }
+    ],
+    [
+     "uh",
+     {
+      "summary": "Uh",
+      "items": [
+       {
+        "type": "note",
+        "title": "Uh",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     {
+      "summary": "Stretch",
+      "items": [
+       {
+        "type": "task",
+        "title": "Stretch",
+        "notes": "",
+        "repeat": "FREQ=MINUTELY;INTERVAL=90",
+        "remind_at": "2026-11-20T21:10"
+       }
+      ]
+     }
+    ],
+    [
+     "every month on the 15th pay the card",
+     {
+      "summary": "Pay the card",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay the card",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY;BYMONTHDAY=15",
+        "remind_at": "2026-12-15T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "every 3 days check the mail",
+     {
+      "summary": "Check the mail",
+      "items": [
+       {
+        "type": "task",
+        "title": "Check the mail",
+        "notes": "",
+        "repeat": "FREQ=DAILY;INTERVAL=3",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     {
+      "summary": "Go to the gym",
+      "items": [
+       {
+        "type": "task",
+        "title": "Go to the gym",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=MO,WE",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     {
+      "summary": "Pay the bill",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay the bill",
+        "notes": "",
+        "remind_at": "2026-11-21T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "renew passport by March",
+     {
+      "summary": "Renew passport by March",
+      "items": [
+       {
+        "type": "task",
+        "title": "Renew passport by March",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "",
+     {
+      "summary": "Screenshot of Chrome",
+      "items": [
+       {
+        "type": "note",
+        "title": "Screenshot: Chrome",
+        "notes": "Hello"
+       }
+      ]
+     }
+    ]
+   ],
+   "settle": [
+    [
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-18T17:00"
+     },
+     "remind me tomorrow at 5 to call mom",
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-21T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-21T17:00"
+     },
+     "remind me Thursday at 5 to call mom",
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-26T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Check oven",
+      "remind_at": "2026-11-17T08:00"
+     },
+     "remind me in 20 minutes to check the oven",
+     {
+      "type": "task",
+      "title": "Check oven",
+      "remind_at": "2026-11-20T20:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Email",
+      "due": "2026-11-20"
+     },
+     "remind me to send the email by Friday",
+     {
+      "type": "task",
+      "title": "Email",
+      "due": "2026-11-20",
+      "remind_at": "2026-11-21T09:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Send report",
+      "remind_at": "2026-11-25T17:00"
+     },
+     "at the end of the day send the report",
+     {
+      "type": "task",
+      "title": "Send report",
+      "remind_at": "2026-11-21T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Lab",
+      "remind_at": "2026-11-21T00:00"
+     },
+     "Friday at midnight submit the lab",
+     {
+      "type": "task",
+      "title": "Lab",
+      "remind_at": "2026-11-21T00:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": "2026-11-17T16:00",
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH"
+     },
+     "every Tuesday and Thursday at 4 practice piano",
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": "2026-11-17T16:00",
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Card",
+      "remind_at": "2026-11-17T09:00",
+      "repeat": "FREQ=MONTHLY"
+     },
+     "pay the card on the 15th of every month",
+     {
+      "type": "task",
+      "title": "Card",
+      "remind_at": "2026-12-15T09:00",
+      "repeat": "FREQ=MONTHLY"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Vitamins"
+     },
+     "remind me to take vitamins at 8",
+     {
+      "type": "task",
+      "title": "Vitamins",
+      "remind_at": "2026-11-21T08:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Noon",
+      "remind_at": "2026-11-16T12:00"
+     },
+     "remind me at noon to eat",
+     {
+      "type": "task",
+      "title": "Noon",
+      "remind_at": "2026-11-21T12:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Gift",
+      "due": "2026-12-20"
+     },
+     "buy a gift before christmas",
+     {
+      "type": "task",
+      "title": "Gift",
+      "due": "2026-12-20"
+     }
+    ]
+   ],
+   "said_time": [
+    [
+     "buy milk",
+     ""
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     "15:00"
+    ],
+    [
+     "remind me to call mom at 5",
+     "17:00"
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     ""
+    ],
+    [
+     "when I get home, take the bins out",
+     ""
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     ""
+    ],
+    [
+     "when I leave work call Sarah",
+     ""
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     ""
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     "16:00"
+    ],
+    [
+     "water the plants every 2 weeks",
+     ""
+    ],
+    [
+     "take pills every day for the next week",
+     ""
+    ],
+    [
+     "stretch every 11.46 hours",
+     null
+    ],
+    [
+     "pay rent on the 1st of every month",
+     ""
+    ],
+    [
+     "take out recycling every other Monday",
+     ""
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     "18:00"
+    ],
+    [
+     "journal every night",
+     null
+    ],
+    [
+     "pay rent monthly",
+     ""
+    ],
+    [
+     "read the weekly report",
+     ""
+    ],
+    [
+     "essay due Friday",
+     ""
+    ],
+    [
+     "the essay is due by the 20th",
+     ""
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     ""
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     null
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     null
+    ],
+    [
+     "in an hour and a half call the bank",
+     null
+    ],
+    [
+     "remind me in half an hour",
+     null
+    ],
+    [
+     "remind me at 140 to leave",
+     null
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     "14:45"
+    ],
+    [
+     "submit the form by 5pm",
+     "17:00"
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     null
+    ],
+    [
+     "tonight at 9 watch the game",
+     "21:00"
+    ],
+    [
+     "this afternoon clean the kitchen",
+     null
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     ""
+    ],
+    [
+     "buy eggs and then call the bank",
+     ""
+    ],
+    [
+     "put batteries on my shopping list",
+     ""
+    ],
+    [
+     "add milk to the groceries list",
+     ""
+    ],
+    [
+     "Friday at midnight submit the lab",
+     "00:00"
+    ],
+    [
+     "the day after tomorrow book the flight",
+     null
+    ],
+    [
+     "in 3 days renew the library books",
+     ""
+    ],
+    [
+     "next weekend visit grandma",
+     ""
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     ""
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     ""
+    ],
+    [
+     "I need to finish the slides",
+     ""
+    ],
+    [
+     "don't let me forget to feed the cat",
+     ""
+    ],
+    [
+     "todo: back up the server",
+     ""
+    ],
+    [
+     "mark call the dentist as done",
+     ""
+    ],
+    [
+     "tick off buy stamps",
+     ""
+    ],
+    [
+     "I finished the essay",
+     ""
+    ],
+    [
+     "move the dentist reminder to Friday",
+     ""
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     "16:00"
+    ],
+    [
+     "reschedule water plants to next Monday",
+     ""
+    ],
+    [
+     "at the end of the day send the report",
+     null
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     null
+    ],
+    [
+     "noon lunch with Sam",
+     "12:00"
+    ],
+    [
+     "remind me at 7 to call",
+     "07:00"
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     null
+    ],
+    [
+     "uh",
+     ""
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     null
+    ],
+    [
+     "every month on the 15th pay the card",
+     ""
+    ],
+    [
+     "every 3 days check the mail",
+     ""
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     ""
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     ""
+    ],
+    [
+     "renew passport by March",
+     ""
+    ]
+   ],
+   "said_span": [
+    [
+     "buy milk",
+     null
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     null
+    ],
+    [
+     "remind me to call mom at 5",
+     null
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     null
+    ],
+    [
+     "when I get home, take the bins out",
+     null
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     null
+    ],
+    [
+     "when I leave work call Sarah",
+     null
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     null
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     null
+    ],
+    [
+     "water the plants every 2 weeks",
+     null
+    ],
+    [
+     "take pills every day for the next week",
+     null
+    ],
+    [
+     "stretch every 11.46 hours",
+     null
+    ],
+    [
+     "pay rent on the 1st of every month",
+     null
+    ],
+    [
+     "take out recycling every other Monday",
+     null
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     null
+    ],
+    [
+     "journal every night",
+     null
+    ],
+    [
+     "pay rent monthly",
+     null
+    ],
+    [
+     "read the weekly report",
+     null
+    ],
+    [
+     "essay due Friday",
+     null
+    ],
+    [
+     "the essay is due by the 20th",
+     null
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     null
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     null
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     1200
+    ],
+    [
+     "in an hour and a half call the bank",
+     5400
+    ],
+    [
+     "remind me in half an hour",
+     1800
+    ],
+    [
+     "remind me at 140 to leave",
+     null
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     null
+    ],
+    [
+     "submit the form by 5pm",
+     null
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     null
+    ],
+    [
+     "tonight at 9 watch the game",
+     null
+    ],
+    [
+     "this afternoon clean the kitchen",
+     null
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     null
+    ],
+    [
+     "buy eggs and then call the bank",
+     null
+    ],
+    [
+     "put batteries on my shopping list",
+     null
+    ],
+    [
+     "add milk to the groceries list",
+     null
+    ],
+    [
+     "Friday at midnight submit the lab",
+     null
+    ],
+    [
+     "the day after tomorrow book the flight",
+     null
+    ],
+    [
+     "in 3 days renew the library books",
+     null
+    ],
+    [
+     "next weekend visit grandma",
+     null
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     null
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     null
+    ],
+    [
+     "I need to finish the slides",
+     null
+    ],
+    [
+     "don't let me forget to feed the cat",
+     null
+    ],
+    [
+     "todo: back up the server",
+     null
+    ],
+    [
+     "mark call the dentist as done",
+     null
+    ],
+    [
+     "tick off buy stamps",
+     null
+    ],
+    [
+     "I finished the essay",
+     null
+    ],
+    [
+     "move the dentist reminder to Friday",
+     null
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     null
+    ],
+    [
+     "reschedule water plants to next Monday",
+     null
+    ],
+    [
+     "at the end of the day send the report",
+     null
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     null
+    ],
+    [
+     "noon lunch with Sam",
+     null
+    ],
+    [
+     "remind me at 7 to call",
+     null
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     null
+    ],
+    [
+     "uh",
+     null
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     null
+    ],
+    [
+     "every month on the 15th pay the card",
+     null
+    ],
+    [
+     "every 3 days check the mail",
+     null
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     null
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     null
+    ],
+    [
+     "renew passport by March",
+     null
+    ]
+   ],
+   "repeat": [
+    [
+     "buy milk",
+     [
+      null,
+      "buy milk"
+     ]
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     [
+      null,
+      "call the dentist tomorrow at 3"
+     ]
+    ],
+    [
+     "remind me to call mom at 5",
+     [
+      null,
+      "remind me to call mom at 5"
+     ]
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     [
+      null,
+      "remind me tomorrow to email Mr. Smith"
+     ]
+    ],
+    [
+     "when I get home, take the bins out",
+     [
+      null,
+      "when I get home, take the bins out"
+     ]
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     [
+      null,
+      "remind me to buy stamps when I'm at the post office"
+     ]
+    ],
+    [
+     "when I leave work call Sarah",
+     [
+      null,
+      "when I leave work call Sarah"
+     ]
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     [
+      null,
+      "pick up the parcel when I get to the library"
+     ]
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     [
+      "FREQ=WEEKLY;BYDAY=TU,TH",
+      "at 4 practice piano"
+     ]
+    ],
+    [
+     "water the plants every 2 weeks",
+     [
+      "FREQ=WEEKLY;INTERVAL=2",
+      "water the plants"
+     ]
+    ],
+    [
+     "take pills every day for the next week",
+     [
+      "FREQ=DAILY;UNTIL=20261127",
+      "take pills"
+     ]
+    ],
+    [
+     "stretch every 11.46 hours",
+     [
+      "FREQ=MINUTELY;INTERVAL=688",
+      "stretch"
+     ]
+    ],
+    [
+     "pay rent on the 1st of every month",
+     [
+      "FREQ=MONTHLY;BYMONTHDAY=1",
+      "pay rent"
+     ]
+    ],
+    [
+     "take out recycling every other Monday",
+     [
+      "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+      "take out recycling"
+     ]
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     [
+      "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+      "call grandma at 6pm"
+     ]
+    ],
+    [
+     "journal every night",
+     [
+      "FREQ=DAILY",
+      "journal tonight"
+     ]
+    ],
+    [
+     "pay rent monthly",
+     [
+      "FREQ=MONTHLY",
+      "pay rent"
+     ]
+    ],
+    [
+     "read the weekly report",
+     [
+      null,
+      "read the weekly report"
+     ]
+    ],
+    [
+     "essay due Friday",
+     [
+      null,
+      "essay due Friday"
+     ]
+    ],
+    [
+     "the essay is due by the 20th",
+     [
+      null,
+      "the essay is due by the 20th"
+     ]
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     [
+      null,
+      "remind me Wednesday that the homework is due Friday"
+     ]
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     [
+      null,
+      "dentist appointment December 3rd at 2:30pm"
+     ]
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     [
+      null,
+      "remind me in 20 minutes to check the oven"
+     ]
+    ],
+    [
+     "in an hour and a half call the bank",
+     [
+      null,
+      "in an hour and a half call the bank"
+     ]
+    ],
+    [
+     "remind me in half an hour",
+     [
+      null,
+      "remind me in half an hour"
+     ]
+    ],
+    [
+     "remind me at 140 to leave",
+     [
+      null,
+      "remind me at 140 to leave"
+     ]
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     [
+      null,
+      "meeting at 2.45 tomorrow"
+     ]
+    ],
+    [
+     "submit the form by 5pm",
+     [
+      null,
+      "submit the form by 5pm"
+     ]
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     [
+      null,
+      "remind me 10 minutes before my 3 pm meeting to grab my notes"
+     ]
+    ],
+    [
+     "tonight at 9 watch the game",
+     [
+      null,
+      "tonight at 9 watch the game"
+     ]
+    ],
+    [
+     "this afternoon clean the kitchen",
+     [
+      null,
+      "this afternoon clean the kitchen"
+     ]
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     [
+      null,
+      "buy eggs, call the bank and email Mr. Smith"
+     ]
+    ],
+    [
+     "buy eggs and then call the bank",
+     [
+      null,
+      "buy eggs and then call the bank"
+     ]
+    ],
+    [
+     "put batteries on my shopping list",
+     [
+      null,
+      "put batteries on my shopping list"
+     ]
+    ],
+    [
+     "add milk to the groceries list",
+     [
+      null,
+      "add milk to the groceries list"
+     ]
+    ],
+    [
+     "Friday at midnight submit the lab",
+     [
+      null,
+      "Friday at midnight submit the lab"
+     ]
+    ],
+    [
+     "the day after tomorrow book the flight",
+     [
+      null,
+      "the day after tomorrow book the flight"
+     ]
+    ],
+    [
+     "in 3 days renew the library books",
+     [
+      null,
+      "in 3 days renew the library books"
+     ]
+    ],
+    [
+     "next weekend visit grandma",
+     [
+      null,
+      "next weekend visit grandma"
+     ]
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     [
+      null,
+      "remind me this weekend to mow the lawn"
+     ]
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     [
+      null,
+      "an idea for the story: a lighthouse that moves"
+     ]
+    ],
+    [
+     "I need to finish the slides",
+     [
+      null,
+      "I need to finish the slides"
+     ]
+    ],
+    [
+     "don't let me forget to feed the cat",
+     [
+      null,
+      "don't let me forget to feed the cat"
+     ]
+    ],
+    [
+     "todo: back up the server",
+     [
+      null,
+      "todo: back up the server"
+     ]
+    ],
+    [
+     "mark call the dentist as done",
+     [
+      null,
+      "mark call the dentist as done"
+     ]
+    ],
+    [
+     "tick off buy stamps",
+     [
+      null,
+      "tick off buy stamps"
+     ]
+    ],
+    [
+     "I finished the essay",
+     [
+      null,
+      "I finished the essay"
+     ]
+    ],
+    [
+     "move the dentist reminder to Friday",
+     [
+      null,
+      "move the dentist reminder to Friday"
+     ]
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     [
+      null,
+      "push the essay to tomorrow at 4"
+     ]
+    ],
+    [
+     "reschedule water plants to next Monday",
+     [
+      null,
+      "reschedule water plants to next Monday"
+     ]
+    ],
+    [
+     "at the end of the day send the report",
+     [
+      null,
+      "at the end of the day send the report"
+     ]
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     [
+      null,
+      "remind me in the morning to take vitamins"
+     ]
+    ],
+    [
+     "noon lunch with Sam",
+     [
+      null,
+      "noon lunch with Sam"
+     ]
+    ],
+    [
+     "remind me at 7 to call",
+     [
+      null,
+      "remind me at 7 to call"
+     ]
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     [
+      null,
+      "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls"
+     ]
+    ],
+    [
+     "uh",
+     [
+      null,
+      "uh"
+     ]
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     [
+      "FREQ=MINUTELY;INTERVAL=90",
+      "remind me to stretch"
+     ]
+    ],
+    [
+     "every month on the 15th pay the card",
+     [
+      "FREQ=MONTHLY;BYMONTHDAY=15",
+      "pay the card"
+     ]
+    ],
+    [
+     "every 3 days check the mail",
+     [
+      "FREQ=DAILY;INTERVAL=3",
+      "check the mail"
+     ]
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     [
+      "FREQ=WEEKLY;BYDAY=MO,WE",
+      "go to the gym"
+     ]
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     [
+      null,
+      "remind me on the 20th to pay the bill"
+     ]
+    ],
+    [
+     "renew passport by March",
+     [
+      null,
+      "renew passport by March"
+     ]
+    ]
+   ],
+   "tidy": [
+    [
+     [
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-17T07:30"
+      },
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-17T18:00",
+       "notes": "the wet food"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-21T07:30",
+       "times": [
+        "07:30",
+        "18:00"
+       ],
+       "notes": "the wet food"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T08:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "20:00",
+        "8:00",
+        "nope"
+       ]
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-20T20:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "08:00",
+        "20:00"
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T20:00",
+       "repeat": "FREQ=DAILY"
+      },
+      {
+       "type": "task",
+       "title": "meds",
+       "remind_at": "2026-11-18T08:00",
+       "repeat": "FREQ=DAILY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-20T20:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "08:00",
+        "20:00"
+       ],
+       "notes": ""
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-16T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=MO"
+      },
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-19T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=TH"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-23T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=MO",
+       "times": null
+      },
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-26T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=TH",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Stretch",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=DAILY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Stretch",
+       "remind_at": "2026-11-21T07:00",
+       "repeat": "FREQ=DAILY",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Pills",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=DAILY;COUNT=7"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Pills",
+       "remind_at": "2026-11-21T07:00",
+       "repeat": "FREQ=DAILY;COUNT=7",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Report",
+       "due": "2026-11-17",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=WEEKLY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Report",
+       "due": "2026-11-17",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=WEEKLY",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Ping",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=HOURLY;INTERVAL=3"
+      },
+      {
+       "type": "note",
+       "title": "An idea"
+      },
+      {
+       "type": "task",
+       "title": "Once",
+       "remind_at": "2026-11-17T09:00"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Ping",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=HOURLY;INTERVAL=3"
+      },
+      {
+       "type": "note",
+       "title": "An idea"
+      },
+      {
+       "type": "task",
+       "title": "Once",
+       "remind_at": "2026-11-17T09:00"
+      }
+     ]
+    ]
+   ],
+   "roll": [
+    [
+     {
+      "type": "task",
+      "title": "Feed the dog",
+      "remind_at": 1794925800,
+      "repeat": "FREQ=DAILY;INTERVAL=2",
+      "times": [
+       "07:30",
+       "18:00"
+      ],
+      "done_at": 1
+     },
+     {
+      "type": "task",
+      "title": "Feed the dog",
+      "remind_at": 1795271400,
+      "repeat": "FREQ=DAILY;INTERVAL=2",
+      "times": [
+       "07:30",
+       "18:00"
+      ],
+      "done_at": null
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Meds",
+      "remind_at": 1794927600,
+      "repeat": "FREQ=DAILY;COUNT=4",
+      "times": [
+       "08:00",
+       "20:00"
+      ],
+      "done_at": 1
+     },
+     null
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": 1794956400,
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+      "done_at": 1
+     },
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": 1795561200,
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+      "done_at": null
+     }
+    ]
+   ]
+  },
+  {
+   "now": "2026-11-22T23:30:00",
+   "parse": [
+    [
+     "buy milk",
+     {
+      "summary": "Buy milk",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy milk",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     {
+      "summary": "Call the dentist",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call the dentist",
+        "notes": "",
+        "remind_at": "2026-11-23T15:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to call mom at 5",
+     {
+      "summary": "Call mom",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call mom",
+        "notes": "",
+        "remind_at": "2026-11-23T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     {
+      "summary": "Email Mr. Smith",
+      "items": [
+       {
+        "type": "task",
+        "title": "Email Mr. Smith",
+        "notes": "",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "when I get home, take the bins out",
+     {
+      "summary": "Take the bins out",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take the bins out",
+        "notes": "",
+        "place": "home",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     {
+      "summary": "Buy stamps",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy stamps",
+        "notes": "",
+        "place": "post office",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "when I leave work call Sarah",
+     {
+      "summary": "Call Sarah",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call Sarah",
+        "notes": "",
+        "place": "work",
+        "place_on": "leave"
+       }
+      ]
+     }
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     {
+      "summary": "Pick up the parcel",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pick up the parcel",
+        "notes": "",
+        "place": "library",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     {
+      "summary": "Practice piano",
+      "items": [
+       {
+        "type": "task",
+        "title": "Practice piano",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+        "remind_at": "2026-11-24T16:00"
+       }
+      ]
+     }
+    ],
+    [
+     "water the plants every 2 weeks",
+     {
+      "summary": "Water the plants",
+      "items": [
+       {
+        "type": "task",
+        "title": "Water the plants",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;INTERVAL=2",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "take pills every day for the next week",
+     {
+      "summary": "Take pills",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take pills",
+        "notes": "",
+        "repeat": "FREQ=DAILY;UNTIL=20261129",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "stretch every 11.46 hours",
+     {
+      "summary": "Stretch",
+      "items": [
+       {
+        "type": "task",
+        "title": "Stretch",
+        "notes": "",
+        "repeat": "FREQ=MINUTELY;INTERVAL=688",
+        "remind_at": "2026-11-23T10:58"
+       }
+      ]
+     }
+    ],
+    [
+     "pay rent on the 1st of every month",
+     {
+      "summary": "Pay rent",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay rent",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY;BYMONTHDAY=1",
+        "remind_at": "2026-12-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "take out recycling every other Monday",
+     {
+      "summary": "Take out recycling",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take out recycling",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     {
+      "summary": "Call grandma",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call grandma",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+        "remind_at": "2026-11-23T18:00"
+       }
+      ]
+     }
+    ],
+    [
+     "journal every night",
+     {
+      "summary": "Journal",
+      "items": [
+       {
+        "type": "task",
+        "title": "Journal",
+        "notes": "",
+        "repeat": "FREQ=DAILY",
+        "remind_at": "2026-11-23T20:00"
+       }
+      ]
+     }
+    ],
+    [
+     "pay rent monthly",
+     {
+      "summary": "Pay rent",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay rent",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "read the weekly report",
+     {
+      "summary": "Read the weekly report",
+      "items": [
+       {
+        "type": "task",
+        "title": "Read the weekly report",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "essay due Friday",
+     {
+      "summary": "Essay",
+      "items": [
+       {
+        "type": "task",
+        "title": "Essay",
+        "notes": "",
+        "due": "2026-11-27"
+       }
+      ]
+     }
+    ],
+    [
+     "the essay is due by the 20th",
+     {
+      "summary": "The essay",
+      "items": [
+       {
+        "type": "task",
+        "title": "The essay",
+        "notes": "",
+        "due": "2026-12-20"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     {
+      "summary": "The homework",
+      "items": [
+       {
+        "type": "task",
+        "title": "The homework",
+        "notes": "",
+        "due": "2026-11-27",
+        "remind_at": "2026-11-25T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     {
+      "summary": "Dentist appointment",
+      "items": [
+       {
+        "type": "task",
+        "title": "Dentist appointment",
+        "notes": "",
+        "remind_at": "2026-12-03T14:30"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     {
+      "summary": "Check the oven",
+      "items": [
+       {
+        "type": "task",
+        "title": "Check the oven",
+        "notes": "",
+        "remind_at": "2026-11-22T23:50"
+       }
+      ]
+     }
+    ],
+    [
+     "in an hour and a half call the bank",
+     {
+      "summary": "Call the bank",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": "",
+        "remind_at": "2026-11-23T01:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in half an hour",
+     {
+      "summary": "Remind me in half an hour",
+      "items": [
+       {
+        "type": "task",
+        "title": "Remind me in half an hour",
+        "notes": "",
+        "remind_at": "2026-11-23T00:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me at 140 to leave",
+     {
+      "summary": "At 140 to leave",
+      "items": [
+       {
+        "type": "task",
+        "title": "At 140 to leave",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     {
+      "summary": "Meeting",
+      "items": [
+       {
+        "type": "task",
+        "title": "Meeting",
+        "notes": "",
+        "remind_at": "2026-11-23T14:45"
+       }
+      ]
+     }
+    ],
+    [
+     "submit the form by 5pm",
+     {
+      "summary": "Submit the form",
+      "items": [
+       {
+        "type": "task",
+        "title": "Submit the form",
+        "notes": "",
+        "due": "2026-11-23T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     {
+      "summary": "Grab my notes",
+      "items": [
+       {
+        "type": "task",
+        "title": "Grab my notes",
+        "notes": "Before my meeting",
+        "remind_at": "2026-11-23T14:50"
+       }
+      ]
+     }
+    ],
+    [
+     "tonight at 9 watch the game",
+     {
+      "summary": "Watch the game",
+      "items": [
+       {
+        "type": "task",
+        "title": "Watch the game",
+        "notes": "",
+        "remind_at": "2026-11-23T21:00"
+       }
+      ]
+     }
+    ],
+    [
+     "this afternoon clean the kitchen",
+     {
+      "summary": "Clean the kitchen",
+      "items": [
+       {
+        "type": "task",
+        "title": "Clean the kitchen",
+        "notes": "",
+        "remind_at": "2026-11-23T14:00"
+       }
+      ]
+     }
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     {
+      "summary": "Buy eggs, Call the bank, Email Mr. Smith",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy eggs",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Email Mr. Smith",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "buy eggs and then call the bank",
+     {
+      "summary": "Buy eggs, Call the bank",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy eggs",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "put batteries on my shopping list",
+     {
+      "summary": "Batteries",
+      "items": [
+       {
+        "type": "task",
+        "title": "Batteries",
+        "notes": "",
+        "list": "shopping"
+       }
+      ]
+     }
+    ],
+    [
+     "add milk to the groceries list",
+     {
+      "summary": "Milk",
+      "items": [
+       {
+        "type": "task",
+        "title": "Milk",
+        "notes": "",
+        "list": "groceries"
+       }
+      ]
+     }
+    ],
+    [
+     "Friday at midnight submit the lab",
+     {
+      "summary": "Submit the lab",
+      "items": [
+       {
+        "type": "task",
+        "title": "Submit the lab",
+        "notes": "",
+        "remind_at": "2026-11-28T00:00"
+       }
+      ]
+     }
+    ],
+    [
+     "the day after tomorrow book the flight",
+     {
+      "summary": "Book the flight",
+      "items": [
+       {
+        "type": "task",
+        "title": "Book the flight",
+        "notes": "",
+        "remind_at": "2026-11-24T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "in 3 days renew the library books",
+     {
+      "summary": "Renew the library books",
+      "items": [
+       {
+        "type": "task",
+        "title": "Renew the library books",
+        "notes": "",
+        "remind_at": "2026-11-25T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "next weekend visit grandma",
+     {
+      "summary": "Visit grandma",
+      "items": [
+       {
+        "type": "task",
+        "title": "Visit grandma",
+        "notes": "",
+        "remind_at": "2026-11-28T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     {
+      "summary": "Mow the lawn",
+      "items": [
+       {
+        "type": "task",
+        "title": "Mow the lawn",
+        "notes": "",
+        "remind_at": "2026-11-28T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     {
+      "summary": "An idea for the story: a lighthouse that moves",
+      "items": [
+       {
+        "type": "note",
+        "title": "An idea for the story: a lighthouse that moves",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "I need to finish the slides",
+     {
+      "summary": "Finish the slides",
+      "items": [
+       {
+        "type": "task",
+        "title": "Finish the slides",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "don't let me forget to feed the cat",
+     {
+      "summary": "Feed the cat",
+      "items": [
+       {
+        "type": "task",
+        "title": "Feed the cat",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "todo: back up the server",
+     {
+      "summary": "Back up the server",
+      "items": [
+       {
+        "type": "task",
+        "title": "Back up the server",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "mark call the dentist as done",
+     {
+      "summary": "Done: Call the dentist",
+      "items": [],
+      "changes": [
+       {
+        "task": "t1",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "tick off buy stamps",
+     {
+      "summary": "Done: Buy stamps",
+      "items": [],
+      "changes": [
+       {
+        "task": "t3",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "I finished the essay",
+     {
+      "summary": "Done: Essay",
+      "items": [],
+      "changes": [
+       {
+        "task": "t2",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "move the dentist reminder to Friday",
+     {
+      "summary": "Moved Call the dentist",
+      "items": [],
+      "changes": [
+       {
+        "task": "t1",
+        "remind_at": "2026-11-27T15:00"
+       }
+      ]
+     }
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     {
+      "summary": "Moved Essay",
+      "items": [],
+      "changes": [
+       {
+        "task": "t2",
+        "due": "2026-11-23T16:00"
+       }
+      ]
+     }
+    ],
+    [
+     "reschedule water plants to next Monday",
+     {
+      "summary": "Moved Water plants",
+      "items": [],
+      "changes": [
+       {
+        "task": "t4",
+        "due": "2026-11-23T10:00"
+       }
+      ]
+     }
+    ],
+    [
+     "at the end of the day send the report",
+     {
+      "summary": "Send the report",
+      "items": [
+       {
+        "type": "task",
+        "title": "Send the report",
+        "notes": "",
+        "remind_at": "2026-11-23T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     {
+      "summary": "Take vitamins",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take vitamins",
+        "notes": "",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "noon lunch with Sam",
+     {
+      "summary": "Lunch with Sam",
+      "items": [
+       {
+        "type": "task",
+        "title": "Lunch with Sam",
+        "notes": "",
+        "remind_at": "2026-11-23T12:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me at 7 to call",
+     {
+      "summary": "Call",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call",
+        "notes": "",
+        "remind_at": "2026-11-23T07:00"
+       }
+      ]
+     }
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     {
+      "summary": "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until falls",
+      "items": [
+       {
+        "type": "task",
+        "title": "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until falls",
+        "notes": "",
+        "remind_at": "2026-11-23T20:00"
+       }
+      ]
+     }
+    ],
+    [
+     "uh",
+     {
+      "summary": "Uh",
+      "items": [
+       {
+        "type": "note",
+        "title": "Uh",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     {
+      "summary": "Stretch",
+      "items": [
+       {
+        "type": "task",
+        "title": "Stretch",
+        "notes": "",
+        "repeat": "FREQ=MINUTELY;INTERVAL=90",
+        "remind_at": "2026-11-23T01:00"
+       }
+      ]
+     }
+    ],
+    [
+     "every month on the 15th pay the card",
+     {
+      "summary": "Pay the card",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay the card",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY;BYMONTHDAY=15",
+        "remind_at": "2026-12-15T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "every 3 days check the mail",
+     {
+      "summary": "Check the mail",
+      "items": [
+       {
+        "type": "task",
+        "title": "Check the mail",
+        "notes": "",
+        "repeat": "FREQ=DAILY;INTERVAL=3",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     {
+      "summary": "Go to the gym",
+      "items": [
+       {
+        "type": "task",
+        "title": "Go to the gym",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=MO,WE",
+        "remind_at": "2026-11-23T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     {
+      "summary": "Pay the bill",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay the bill",
+        "notes": "",
+        "remind_at": "2026-12-20T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "renew passport by March",
+     {
+      "summary": "Renew passport by March",
+      "items": [
+       {
+        "type": "task",
+        "title": "Renew passport by March",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "",
+     {
+      "summary": "Screenshot of Chrome",
+      "items": [
+       {
+        "type": "note",
+        "title": "Screenshot: Chrome",
+        "notes": "Hello"
+       }
+      ]
+     }
+    ]
+   ],
+   "settle": [
+    [
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-18T17:00"
+     },
+     "remind me tomorrow at 5 to call mom",
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-23T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-21T17:00"
+     },
+     "remind me Thursday at 5 to call mom",
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-26T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Check oven",
+      "remind_at": "2026-11-17T08:00"
+     },
+     "remind me in 20 minutes to check the oven",
+     {
+      "type": "task",
+      "title": "Check oven",
+      "remind_at": "2026-11-22T23:50"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Email",
+      "due": "2026-11-20"
+     },
+     "remind me to send the email by Friday",
+     {
+      "type": "task",
+      "title": "Email",
+      "due": "2026-11-27",
+      "remind_at": "2026-11-27T09:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Send report",
+      "remind_at": "2026-11-25T17:00"
+     },
+     "at the end of the day send the report",
+     {
+      "type": "task",
+      "title": "Send report",
+      "remind_at": "2026-11-23T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Lab",
+      "remind_at": "2026-11-21T00:00"
+     },
+     "Friday at midnight submit the lab",
+     {
+      "type": "task",
+      "title": "Lab",
+      "remind_at": "2026-11-28T00:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": "2026-11-17T16:00",
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH"
+     },
+     "every Tuesday and Thursday at 4 practice piano",
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": "2026-11-17T16:00",
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Card",
+      "remind_at": "2026-11-17T09:00",
+      "repeat": "FREQ=MONTHLY"
+     },
+     "pay the card on the 15th of every month",
+     {
+      "type": "task",
+      "title": "Card",
+      "remind_at": "2026-12-15T09:00",
+      "repeat": "FREQ=MONTHLY"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Vitamins"
+     },
+     "remind me to take vitamins at 8",
+     {
+      "type": "task",
+      "title": "Vitamins",
+      "remind_at": "2026-11-23T08:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Noon",
+      "remind_at": "2026-11-16T12:00"
+     },
+     "remind me at noon to eat",
+     {
+      "type": "task",
+      "title": "Noon",
+      "remind_at": "2026-11-23T12:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Gift",
+      "due": "2026-12-20"
+     },
+     "buy a gift before christmas",
+     {
+      "type": "task",
+      "title": "Gift",
+      "due": "2026-12-20"
+     }
+    ]
+   ],
+   "said_time": [
+    [
+     "buy milk",
+     ""
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     "15:00"
+    ],
+    [
+     "remind me to call mom at 5",
+     "17:00"
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     ""
+    ],
+    [
+     "when I get home, take the bins out",
+     ""
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     ""
+    ],
+    [
+     "when I leave work call Sarah",
+     ""
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     ""
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     "16:00"
+    ],
+    [
+     "water the plants every 2 weeks",
+     ""
+    ],
+    [
+     "take pills every day for the next week",
+     ""
+    ],
+    [
+     "stretch every 11.46 hours",
+     null
+    ],
+    [
+     "pay rent on the 1st of every month",
+     ""
+    ],
+    [
+     "take out recycling every other Monday",
+     ""
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     "18:00"
+    ],
+    [
+     "journal every night",
+     null
+    ],
+    [
+     "pay rent monthly",
+     ""
+    ],
+    [
+     "read the weekly report",
+     ""
+    ],
+    [
+     "essay due Friday",
+     ""
+    ],
+    [
+     "the essay is due by the 20th",
+     ""
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     ""
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     null
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     null
+    ],
+    [
+     "in an hour and a half call the bank",
+     null
+    ],
+    [
+     "remind me in half an hour",
+     null
+    ],
+    [
+     "remind me at 140 to leave",
+     null
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     "14:45"
+    ],
+    [
+     "submit the form by 5pm",
+     "17:00"
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     null
+    ],
+    [
+     "tonight at 9 watch the game",
+     "21:00"
+    ],
+    [
+     "this afternoon clean the kitchen",
+     null
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     ""
+    ],
+    [
+     "buy eggs and then call the bank",
+     ""
+    ],
+    [
+     "put batteries on my shopping list",
+     ""
+    ],
+    [
+     "add milk to the groceries list",
+     ""
+    ],
+    [
+     "Friday at midnight submit the lab",
+     "00:00"
+    ],
+    [
+     "the day after tomorrow book the flight",
+     null
+    ],
+    [
+     "in 3 days renew the library books",
+     ""
+    ],
+    [
+     "next weekend visit grandma",
+     ""
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     ""
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     ""
+    ],
+    [
+     "I need to finish the slides",
+     ""
+    ],
+    [
+     "don't let me forget to feed the cat",
+     ""
+    ],
+    [
+     "todo: back up the server",
+     ""
+    ],
+    [
+     "mark call the dentist as done",
+     ""
+    ],
+    [
+     "tick off buy stamps",
+     ""
+    ],
+    [
+     "I finished the essay",
+     ""
+    ],
+    [
+     "move the dentist reminder to Friday",
+     ""
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     "16:00"
+    ],
+    [
+     "reschedule water plants to next Monday",
+     ""
+    ],
+    [
+     "at the end of the day send the report",
+     null
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     null
+    ],
+    [
+     "noon lunch with Sam",
+     "12:00"
+    ],
+    [
+     "remind me at 7 to call",
+     "07:00"
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     null
+    ],
+    [
+     "uh",
+     ""
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     null
+    ],
+    [
+     "every month on the 15th pay the card",
+     ""
+    ],
+    [
+     "every 3 days check the mail",
+     ""
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     ""
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     ""
+    ],
+    [
+     "renew passport by March",
+     ""
+    ]
+   ],
+   "said_span": [
+    [
+     "buy milk",
+     null
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     null
+    ],
+    [
+     "remind me to call mom at 5",
+     null
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     null
+    ],
+    [
+     "when I get home, take the bins out",
+     null
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     null
+    ],
+    [
+     "when I leave work call Sarah",
+     null
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     null
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     null
+    ],
+    [
+     "water the plants every 2 weeks",
+     null
+    ],
+    [
+     "take pills every day for the next week",
+     null
+    ],
+    [
+     "stretch every 11.46 hours",
+     null
+    ],
+    [
+     "pay rent on the 1st of every month",
+     null
+    ],
+    [
+     "take out recycling every other Monday",
+     null
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     null
+    ],
+    [
+     "journal every night",
+     null
+    ],
+    [
+     "pay rent monthly",
+     null
+    ],
+    [
+     "read the weekly report",
+     null
+    ],
+    [
+     "essay due Friday",
+     null
+    ],
+    [
+     "the essay is due by the 20th",
+     null
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     null
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     null
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     1200
+    ],
+    [
+     "in an hour and a half call the bank",
+     5400
+    ],
+    [
+     "remind me in half an hour",
+     1800
+    ],
+    [
+     "remind me at 140 to leave",
+     null
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     null
+    ],
+    [
+     "submit the form by 5pm",
+     null
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     null
+    ],
+    [
+     "tonight at 9 watch the game",
+     null
+    ],
+    [
+     "this afternoon clean the kitchen",
+     null
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     null
+    ],
+    [
+     "buy eggs and then call the bank",
+     null
+    ],
+    [
+     "put batteries on my shopping list",
+     null
+    ],
+    [
+     "add milk to the groceries list",
+     null
+    ],
+    [
+     "Friday at midnight submit the lab",
+     null
+    ],
+    [
+     "the day after tomorrow book the flight",
+     null
+    ],
+    [
+     "in 3 days renew the library books",
+     null
+    ],
+    [
+     "next weekend visit grandma",
+     null
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     null
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     null
+    ],
+    [
+     "I need to finish the slides",
+     null
+    ],
+    [
+     "don't let me forget to feed the cat",
+     null
+    ],
+    [
+     "todo: back up the server",
+     null
+    ],
+    [
+     "mark call the dentist as done",
+     null
+    ],
+    [
+     "tick off buy stamps",
+     null
+    ],
+    [
+     "I finished the essay",
+     null
+    ],
+    [
+     "move the dentist reminder to Friday",
+     null
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     null
+    ],
+    [
+     "reschedule water plants to next Monday",
+     null
+    ],
+    [
+     "at the end of the day send the report",
+     null
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     null
+    ],
+    [
+     "noon lunch with Sam",
+     null
+    ],
+    [
+     "remind me at 7 to call",
+     null
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     null
+    ],
+    [
+     "uh",
+     null
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     null
+    ],
+    [
+     "every month on the 15th pay the card",
+     null
+    ],
+    [
+     "every 3 days check the mail",
+     null
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     null
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     null
+    ],
+    [
+     "renew passport by March",
+     null
+    ]
+   ],
+   "repeat": [
+    [
+     "buy milk",
+     [
+      null,
+      "buy milk"
+     ]
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     [
+      null,
+      "call the dentist tomorrow at 3"
+     ]
+    ],
+    [
+     "remind me to call mom at 5",
+     [
+      null,
+      "remind me to call mom at 5"
+     ]
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     [
+      null,
+      "remind me tomorrow to email Mr. Smith"
+     ]
+    ],
+    [
+     "when I get home, take the bins out",
+     [
+      null,
+      "when I get home, take the bins out"
+     ]
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     [
+      null,
+      "remind me to buy stamps when I'm at the post office"
+     ]
+    ],
+    [
+     "when I leave work call Sarah",
+     [
+      null,
+      "when I leave work call Sarah"
+     ]
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     [
+      null,
+      "pick up the parcel when I get to the library"
+     ]
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     [
+      "FREQ=WEEKLY;BYDAY=TU,TH",
+      "at 4 practice piano"
+     ]
+    ],
+    [
+     "water the plants every 2 weeks",
+     [
+      "FREQ=WEEKLY;INTERVAL=2",
+      "water the plants"
+     ]
+    ],
+    [
+     "take pills every day for the next week",
+     [
+      "FREQ=DAILY;UNTIL=20261129",
+      "take pills"
+     ]
+    ],
+    [
+     "stretch every 11.46 hours",
+     [
+      "FREQ=MINUTELY;INTERVAL=688",
+      "stretch"
+     ]
+    ],
+    [
+     "pay rent on the 1st of every month",
+     [
+      "FREQ=MONTHLY;BYMONTHDAY=1",
+      "pay rent"
+     ]
+    ],
+    [
+     "take out recycling every other Monday",
+     [
+      "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+      "take out recycling"
+     ]
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     [
+      "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+      "call grandma at 6pm"
+     ]
+    ],
+    [
+     "journal every night",
+     [
+      "FREQ=DAILY",
+      "journal tonight"
+     ]
+    ],
+    [
+     "pay rent monthly",
+     [
+      "FREQ=MONTHLY",
+      "pay rent"
+     ]
+    ],
+    [
+     "read the weekly report",
+     [
+      null,
+      "read the weekly report"
+     ]
+    ],
+    [
+     "essay due Friday",
+     [
+      null,
+      "essay due Friday"
+     ]
+    ],
+    [
+     "the essay is due by the 20th",
+     [
+      null,
+      "the essay is due by the 20th"
+     ]
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     [
+      null,
+      "remind me Wednesday that the homework is due Friday"
+     ]
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     [
+      null,
+      "dentist appointment December 3rd at 2:30pm"
+     ]
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     [
+      null,
+      "remind me in 20 minutes to check the oven"
+     ]
+    ],
+    [
+     "in an hour and a half call the bank",
+     [
+      null,
+      "in an hour and a half call the bank"
+     ]
+    ],
+    [
+     "remind me in half an hour",
+     [
+      null,
+      "remind me in half an hour"
+     ]
+    ],
+    [
+     "remind me at 140 to leave",
+     [
+      null,
+      "remind me at 140 to leave"
+     ]
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     [
+      null,
+      "meeting at 2.45 tomorrow"
+     ]
+    ],
+    [
+     "submit the form by 5pm",
+     [
+      null,
+      "submit the form by 5pm"
+     ]
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     [
+      null,
+      "remind me 10 minutes before my 3 pm meeting to grab my notes"
+     ]
+    ],
+    [
+     "tonight at 9 watch the game",
+     [
+      null,
+      "tonight at 9 watch the game"
+     ]
+    ],
+    [
+     "this afternoon clean the kitchen",
+     [
+      null,
+      "this afternoon clean the kitchen"
+     ]
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     [
+      null,
+      "buy eggs, call the bank and email Mr. Smith"
+     ]
+    ],
+    [
+     "buy eggs and then call the bank",
+     [
+      null,
+      "buy eggs and then call the bank"
+     ]
+    ],
+    [
+     "put batteries on my shopping list",
+     [
+      null,
+      "put batteries on my shopping list"
+     ]
+    ],
+    [
+     "add milk to the groceries list",
+     [
+      null,
+      "add milk to the groceries list"
+     ]
+    ],
+    [
+     "Friday at midnight submit the lab",
+     [
+      null,
+      "Friday at midnight submit the lab"
+     ]
+    ],
+    [
+     "the day after tomorrow book the flight",
+     [
+      null,
+      "the day after tomorrow book the flight"
+     ]
+    ],
+    [
+     "in 3 days renew the library books",
+     [
+      null,
+      "in 3 days renew the library books"
+     ]
+    ],
+    [
+     "next weekend visit grandma",
+     [
+      null,
+      "next weekend visit grandma"
+     ]
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     [
+      null,
+      "remind me this weekend to mow the lawn"
+     ]
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     [
+      null,
+      "an idea for the story: a lighthouse that moves"
+     ]
+    ],
+    [
+     "I need to finish the slides",
+     [
+      null,
+      "I need to finish the slides"
+     ]
+    ],
+    [
+     "don't let me forget to feed the cat",
+     [
+      null,
+      "don't let me forget to feed the cat"
+     ]
+    ],
+    [
+     "todo: back up the server",
+     [
+      null,
+      "todo: back up the server"
+     ]
+    ],
+    [
+     "mark call the dentist as done",
+     [
+      null,
+      "mark call the dentist as done"
+     ]
+    ],
+    [
+     "tick off buy stamps",
+     [
+      null,
+      "tick off buy stamps"
+     ]
+    ],
+    [
+     "I finished the essay",
+     [
+      null,
+      "I finished the essay"
+     ]
+    ],
+    [
+     "move the dentist reminder to Friday",
+     [
+      null,
+      "move the dentist reminder to Friday"
+     ]
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     [
+      null,
+      "push the essay to tomorrow at 4"
+     ]
+    ],
+    [
+     "reschedule water plants to next Monday",
+     [
+      null,
+      "reschedule water plants to next Monday"
+     ]
+    ],
+    [
+     "at the end of the day send the report",
+     [
+      null,
+      "at the end of the day send the report"
+     ]
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     [
+      null,
+      "remind me in the morning to take vitamins"
+     ]
+    ],
+    [
+     "noon lunch with Sam",
+     [
+      null,
+      "noon lunch with Sam"
+     ]
+    ],
+    [
+     "remind me at 7 to call",
+     [
+      null,
+      "remind me at 7 to call"
+     ]
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     [
+      null,
+      "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls"
+     ]
+    ],
+    [
+     "uh",
+     [
+      null,
+      "uh"
+     ]
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     [
+      "FREQ=MINUTELY;INTERVAL=90",
+      "remind me to stretch"
+     ]
+    ],
+    [
+     "every month on the 15th pay the card",
+     [
+      "FREQ=MONTHLY;BYMONTHDAY=15",
+      "pay the card"
+     ]
+    ],
+    [
+     "every 3 days check the mail",
+     [
+      "FREQ=DAILY;INTERVAL=3",
+      "check the mail"
+     ]
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     [
+      "FREQ=WEEKLY;BYDAY=MO,WE",
+      "go to the gym"
+     ]
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     [
+      null,
+      "remind me on the 20th to pay the bill"
+     ]
+    ],
+    [
+     "renew passport by March",
+     [
+      null,
+      "renew passport by March"
+     ]
+    ]
+   ],
+   "tidy": [
+    [
+     [
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-17T07:30"
+      },
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-17T18:00",
+       "notes": "the wet food"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-23T07:30",
+       "times": [
+        "07:30",
+        "18:00"
+       ],
+       "notes": "the wet food"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T08:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "20:00",
+        "8:00",
+        "nope"
+       ]
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-23T08:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "08:00",
+        "20:00"
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T20:00",
+       "repeat": "FREQ=DAILY"
+      },
+      {
+       "type": "task",
+       "title": "meds",
+       "remind_at": "2026-11-18T08:00",
+       "repeat": "FREQ=DAILY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-23T08:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "08:00",
+        "20:00"
+       ],
+       "notes": ""
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-16T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=MO"
+      },
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-19T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=TH"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-23T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=MO",
+       "times": null
+      },
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-26T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=TH",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Stretch",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=DAILY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Stretch",
+       "remind_at": "2026-11-23T07:00",
+       "repeat": "FREQ=DAILY",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Pills",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=DAILY;COUNT=7"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Pills",
+       "remind_at": "2026-11-23T07:00",
+       "repeat": "FREQ=DAILY;COUNT=7",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Report",
+       "due": "2026-11-17",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=WEEKLY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Report",
+       "due": "2026-11-17",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=WEEKLY",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Ping",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=HOURLY;INTERVAL=3"
+      },
+      {
+       "type": "note",
+       "title": "An idea"
+      },
+      {
+       "type": "task",
+       "title": "Once",
+       "remind_at": "2026-11-17T09:00"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Ping",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=HOURLY;INTERVAL=3"
+      },
+      {
+       "type": "note",
+       "title": "An idea"
+      },
+      {
+       "type": "task",
+       "title": "Once",
+       "remind_at": "2026-11-17T09:00"
+      }
+     ]
+    ]
+   ],
+   "roll": [
+    [
+     {
+      "type": "task",
+      "title": "Feed the dog",
+      "remind_at": 1794925800,
+      "repeat": "FREQ=DAILY;INTERVAL=2",
+      "times": [
+       "07:30",
+       "18:00"
+      ],
+      "done_at": 1
+     },
+     {
+      "type": "task",
+      "title": "Feed the dog",
+      "remind_at": 1795444200,
+      "repeat": "FREQ=DAILY;INTERVAL=2",
+      "times": [
+       "07:30",
+       "18:00"
+      ],
+      "done_at": null
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Meds",
+      "remind_at": 1794927600,
+      "repeat": "FREQ=DAILY;COUNT=4",
+      "times": [
+       "08:00",
+       "20:00"
+      ],
+      "done_at": 1
+     },
+     null
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": 1794956400,
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+      "done_at": 1
+     },
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": 1795561200,
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+      "done_at": null
+     }
+    ]
+   ]
+  },
+  {
+   "now": "2026-01-31T13:05:00",
+   "parse": [
+    [
+     "buy milk",
+     {
+      "summary": "Buy milk",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy milk",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     {
+      "summary": "Call the dentist",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call the dentist",
+        "notes": "",
+        "remind_at": "2026-02-01T15:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to call mom at 5",
+     {
+      "summary": "Call mom",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call mom",
+        "notes": "",
+        "remind_at": "2026-01-31T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     {
+      "summary": "Email Mr. Smith",
+      "items": [
+       {
+        "type": "task",
+        "title": "Email Mr. Smith",
+        "notes": "",
+        "remind_at": "2026-02-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "when I get home, take the bins out",
+     {
+      "summary": "Take the bins out",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take the bins out",
+        "notes": "",
+        "place": "home",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     {
+      "summary": "Buy stamps",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy stamps",
+        "notes": "",
+        "place": "post office",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "when I leave work call Sarah",
+     {
+      "summary": "Call Sarah",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call Sarah",
+        "notes": "",
+        "place": "work",
+        "place_on": "leave"
+       }
+      ]
+     }
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     {
+      "summary": "Pick up the parcel",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pick up the parcel",
+        "notes": "",
+        "place": "library",
+        "place_on": "arrive"
+       }
+      ]
+     }
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     {
+      "summary": "Practice piano",
+      "items": [
+       {
+        "type": "task",
+        "title": "Practice piano",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+        "remind_at": "2026-02-03T16:00"
+       }
+      ]
+     }
+    ],
+    [
+     "water the plants every 2 weeks",
+     {
+      "summary": "Water the plants",
+      "items": [
+       {
+        "type": "task",
+        "title": "Water the plants",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;INTERVAL=2",
+        "remind_at": "2026-02-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "take pills every day for the next week",
+     {
+      "summary": "Take pills",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take pills",
+        "notes": "",
+        "repeat": "FREQ=DAILY;UNTIL=20260207",
+        "remind_at": "2026-02-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "stretch every 11.46 hours",
+     {
+      "summary": "Stretch",
+      "items": [
+       {
+        "type": "task",
+        "title": "Stretch",
+        "notes": "",
+        "repeat": "FREQ=MINUTELY;INTERVAL=688",
+        "remind_at": "2026-02-01T00:33"
+       }
+      ]
+     }
+    ],
+    [
+     "pay rent on the 1st of every month",
+     {
+      "summary": "Pay rent",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay rent",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY;BYMONTHDAY=1",
+        "remind_at": "2026-02-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "take out recycling every other Monday",
+     {
+      "summary": "Take out recycling",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take out recycling",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+        "remind_at": "2026-02-02T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     {
+      "summary": "Call grandma",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call grandma",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+        "remind_at": "2026-02-02T18:00"
+       }
+      ]
+     }
+    ],
+    [
+     "journal every night",
+     {
+      "summary": "Journal",
+      "items": [
+       {
+        "type": "task",
+        "title": "Journal",
+        "notes": "",
+        "repeat": "FREQ=DAILY",
+        "remind_at": "2026-01-31T20:00"
+       }
+      ]
+     }
+    ],
+    [
+     "pay rent monthly",
+     {
+      "summary": "Pay rent",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay rent",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY",
+        "remind_at": "2026-02-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "read the weekly report",
+     {
+      "summary": "Read the weekly report",
+      "items": [
+       {
+        "type": "task",
+        "title": "Read the weekly report",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "essay due Friday",
+     {
+      "summary": "Essay",
+      "items": [
+       {
+        "type": "task",
+        "title": "Essay",
+        "notes": "",
+        "due": "2026-02-06"
+       }
+      ]
+     }
+    ],
+    [
+     "the essay is due by the 20th",
+     {
+      "summary": "The essay",
+      "items": [
+       {
+        "type": "task",
+        "title": "The essay",
+        "notes": "",
+        "due": "2026-02-20"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     {
+      "summary": "The homework",
+      "items": [
+       {
+        "type": "task",
+        "title": "The homework",
+        "notes": "",
+        "due": "2026-02-06",
+        "remind_at": "2026-02-04T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     {
+      "summary": "Dentist appointment",
+      "items": [
+       {
+        "type": "task",
+        "title": "Dentist appointment",
+        "notes": "",
+        "remind_at": "2026-12-03T14:30"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     {
+      "summary": "Check the oven",
+      "items": [
+       {
+        "type": "task",
+        "title": "Check the oven",
+        "notes": "",
+        "remind_at": "2026-01-31T13:25"
+       }
+      ]
+     }
+    ],
+    [
+     "in an hour and a half call the bank",
+     {
+      "summary": "Call the bank",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": "",
+        "remind_at": "2026-01-31T14:35"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in half an hour",
+     {
+      "summary": "Remind me in half an hour",
+      "items": [
+       {
+        "type": "task",
+        "title": "Remind me in half an hour",
+        "notes": "",
+        "remind_at": "2026-01-31T13:35"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me at 140 to leave",
+     {
+      "summary": "At 140 to leave",
+      "items": [
+       {
+        "type": "task",
+        "title": "At 140 to leave",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     {
+      "summary": "Meeting",
+      "items": [
+       {
+        "type": "task",
+        "title": "Meeting",
+        "notes": "",
+        "remind_at": "2026-02-01T14:45"
+       }
+      ]
+     }
+    ],
+    [
+     "submit the form by 5pm",
+     {
+      "summary": "Submit the form",
+      "items": [
+       {
+        "type": "task",
+        "title": "Submit the form",
+        "notes": "",
+        "due": "2026-01-31T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     {
+      "summary": "Grab my notes",
+      "items": [
+       {
+        "type": "task",
+        "title": "Grab my notes",
+        "notes": "Before my meeting",
+        "remind_at": "2026-01-31T14:50"
+       }
+      ]
+     }
+    ],
+    [
+     "tonight at 9 watch the game",
+     {
+      "summary": "Watch the game",
+      "items": [
+       {
+        "type": "task",
+        "title": "Watch the game",
+        "notes": "",
+        "remind_at": "2026-01-31T21:00"
+       }
+      ]
+     }
+    ],
+    [
+     "this afternoon clean the kitchen",
+     {
+      "summary": "Clean the kitchen",
+      "items": [
+       {
+        "type": "task",
+        "title": "Clean the kitchen",
+        "notes": "",
+        "remind_at": "2026-01-31T14:00"
+       }
+      ]
+     }
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     {
+      "summary": "Buy eggs, Call the bank, Email Mr. Smith",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy eggs",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Email Mr. Smith",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "buy eggs and then call the bank",
+     {
+      "summary": "Buy eggs, Call the bank",
+      "items": [
+       {
+        "type": "task",
+        "title": "Buy eggs",
+        "notes": ""
+       },
+       {
+        "type": "task",
+        "title": "Call the bank",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "put batteries on my shopping list",
+     {
+      "summary": "Batteries",
+      "items": [
+       {
+        "type": "task",
+        "title": "Batteries",
+        "notes": "",
+        "list": "shopping"
+       }
+      ]
+     }
+    ],
+    [
+     "add milk to the groceries list",
+     {
+      "summary": "Milk",
+      "items": [
+       {
+        "type": "task",
+        "title": "Milk",
+        "notes": "",
+        "list": "groceries"
+       }
+      ]
+     }
+    ],
+    [
+     "Friday at midnight submit the lab",
+     {
+      "summary": "Submit the lab",
+      "items": [
+       {
+        "type": "task",
+        "title": "Submit the lab",
+        "notes": "",
+        "remind_at": "2026-02-07T00:00"
+       }
+      ]
+     }
+    ],
+    [
+     "the day after tomorrow book the flight",
+     {
+      "summary": "Book the flight",
+      "items": [
+       {
+        "type": "task",
+        "title": "Book the flight",
+        "notes": "",
+        "remind_at": "2026-02-02T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "in 3 days renew the library books",
+     {
+      "summary": "Renew the library books",
+      "items": [
+       {
+        "type": "task",
+        "title": "Renew the library books",
+        "notes": "",
+        "remind_at": "2026-02-03T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "next weekend visit grandma",
+     {
+      "summary": "Visit grandma",
+      "items": [
+       {
+        "type": "task",
+        "title": "Visit grandma",
+        "notes": "",
+        "remind_at": "2026-02-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     {
+      "summary": "Mow the lawn",
+      "items": [
+       {
+        "type": "task",
+        "title": "Mow the lawn",
+        "notes": "",
+        "remind_at": "2026-02-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     {
+      "summary": "An idea for the story: a lighthouse that moves",
+      "items": [
+       {
+        "type": "note",
+        "title": "An idea for the story: a lighthouse that moves",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "I need to finish the slides",
+     {
+      "summary": "Finish the slides",
+      "items": [
+       {
+        "type": "task",
+        "title": "Finish the slides",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "don't let me forget to feed the cat",
+     {
+      "summary": "Feed the cat",
+      "items": [
+       {
+        "type": "task",
+        "title": "Feed the cat",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "todo: back up the server",
+     {
+      "summary": "Back up the server",
+      "items": [
+       {
+        "type": "task",
+        "title": "Back up the server",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "mark call the dentist as done",
+     {
+      "summary": "Done: Call the dentist",
+      "items": [],
+      "changes": [
+       {
+        "task": "t1",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "tick off buy stamps",
+     {
+      "summary": "Done: Buy stamps",
+      "items": [],
+      "changes": [
+       {
+        "task": "t3",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "I finished the essay",
+     {
+      "summary": "Done: Essay",
+      "items": [],
+      "changes": [
+       {
+        "task": "t2",
+        "done": true
+       }
+      ]
+     }
+    ],
+    [
+     "move the dentist reminder to Friday",
+     {
+      "summary": "Moved Call the dentist",
+      "items": [],
+      "changes": [
+       {
+        "task": "t1",
+        "remind_at": "2026-02-06T15:00"
+       }
+      ]
+     }
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     {
+      "summary": "Moved Essay",
+      "items": [],
+      "changes": [
+       {
+        "task": "t2",
+        "due": "2026-02-01T16:00"
+       }
+      ]
+     }
+    ],
+    [
+     "reschedule water plants to next Monday",
+     {
+      "summary": "Moved Water plants",
+      "items": [],
+      "changes": [
+       {
+        "task": "t4",
+        "due": "2026-02-02T10:00"
+       }
+      ]
+     }
+    ],
+    [
+     "at the end of the day send the report",
+     {
+      "summary": "Send the report",
+      "items": [
+       {
+        "type": "task",
+        "title": "Send the report",
+        "notes": "",
+        "remind_at": "2026-01-31T17:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     {
+      "summary": "Take vitamins",
+      "items": [
+       {
+        "type": "task",
+        "title": "Take vitamins",
+        "notes": "",
+        "remind_at": "2026-02-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "noon lunch with Sam",
+     {
+      "summary": "Lunch with Sam",
+      "items": [
+       {
+        "type": "task",
+        "title": "Lunch with Sam",
+        "notes": "",
+        "remind_at": "2026-02-01T12:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me at 7 to call",
+     {
+      "summary": "Call",
+      "items": [
+       {
+        "type": "task",
+        "title": "Call",
+        "notes": "",
+        "remind_at": "2026-02-01T07:00"
+       }
+      ]
+     }
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     {
+      "summary": "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until falls",
+      "items": [
+       {
+        "type": "task",
+        "title": "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until falls",
+        "notes": "",
+        "remind_at": "2026-01-31T20:00"
+       }
+      ]
+     }
+    ],
+    [
+     "uh",
+     {
+      "summary": "Uh",
+      "items": [
+       {
+        "type": "note",
+        "title": "Uh",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     {
+      "summary": "Stretch",
+      "items": [
+       {
+        "type": "task",
+        "title": "Stretch",
+        "notes": "",
+        "repeat": "FREQ=MINUTELY;INTERVAL=90",
+        "remind_at": "2026-01-31T14:35"
+       }
+      ]
+     }
+    ],
+    [
+     "every month on the 15th pay the card",
+     {
+      "summary": "Pay the card",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay the card",
+        "notes": "",
+        "repeat": "FREQ=MONTHLY;BYMONTHDAY=15",
+        "remind_at": "2026-02-15T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "every 3 days check the mail",
+     {
+      "summary": "Check the mail",
+      "items": [
+       {
+        "type": "task",
+        "title": "Check the mail",
+        "notes": "",
+        "repeat": "FREQ=DAILY;INTERVAL=3",
+        "remind_at": "2026-02-01T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     {
+      "summary": "Go to the gym",
+      "items": [
+       {
+        "type": "task",
+        "title": "Go to the gym",
+        "notes": "",
+        "repeat": "FREQ=WEEKLY;BYDAY=MO,WE",
+        "remind_at": "2026-02-02T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     {
+      "summary": "Pay the bill",
+      "items": [
+       {
+        "type": "task",
+        "title": "Pay the bill",
+        "notes": "",
+        "remind_at": "2026-02-20T09:00"
+       }
+      ]
+     }
+    ],
+    [
+     "renew passport by March",
+     {
+      "summary": "Renew passport by March",
+      "items": [
+       {
+        "type": "task",
+        "title": "Renew passport by March",
+        "notes": ""
+       }
+      ]
+     }
+    ],
+    [
+     "",
+     {
+      "summary": "Screenshot of Chrome",
+      "items": [
+       {
+        "type": "note",
+        "title": "Screenshot: Chrome",
+        "notes": "Hello"
+       }
+      ]
+     }
+    ]
+   ],
+   "settle": [
+    [
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-18T17:00"
+     },
+     "remind me tomorrow at 5 to call mom",
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-02-01T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-11-21T17:00"
+     },
+     "remind me Thursday at 5 to call mom",
+     {
+      "type": "task",
+      "title": "Call mom",
+      "remind_at": "2026-02-05T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Check oven",
+      "remind_at": "2026-11-17T08:00"
+     },
+     "remind me in 20 minutes to check the oven",
+     {
+      "type": "task",
+      "title": "Check oven",
+      "remind_at": "2026-01-31T13:25"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Email",
+      "due": "2026-11-20"
+     },
+     "remind me to send the email by Friday",
+     {
+      "type": "task",
+      "title": "Email",
+      "due": "2026-02-06",
+      "remind_at": "2026-02-06T09:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Send report",
+      "remind_at": "2026-11-25T17:00"
+     },
+     "at the end of the day send the report",
+     {
+      "type": "task",
+      "title": "Send report",
+      "remind_at": "2026-01-31T17:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Lab",
+      "remind_at": "2026-11-21T00:00"
+     },
+     "Friday at midnight submit the lab",
+     {
+      "type": "task",
+      "title": "Lab",
+      "remind_at": "2026-02-07T00:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": "2026-11-17T16:00",
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH"
+     },
+     "every Tuesday and Thursday at 4 practice piano",
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": "2026-11-17T16:00",
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Card",
+      "remind_at": "2026-11-17T09:00",
+      "repeat": "FREQ=MONTHLY"
+     },
+     "pay the card on the 15th of every month",
+     {
+      "type": "task",
+      "title": "Card",
+      "remind_at": "2026-02-15T09:00",
+      "repeat": "FREQ=MONTHLY"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Vitamins"
+     },
+     "remind me to take vitamins at 8",
+     {
+      "type": "task",
+      "title": "Vitamins",
+      "remind_at": "2026-02-01T08:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Noon",
+      "remind_at": "2026-11-16T12:00"
+     },
+     "remind me at noon to eat",
+     {
+      "type": "task",
+      "title": "Noon",
+      "remind_at": "2026-02-01T12:00"
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Gift",
+      "due": "2026-12-20"
+     },
+     "buy a gift before christmas",
+     {
+      "type": "task",
+      "title": "Gift",
+      "due": "2026-12-20"
+     }
+    ]
+   ],
+   "said_time": [
+    [
+     "buy milk",
+     ""
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     "15:00"
+    ],
+    [
+     "remind me to call mom at 5",
+     "17:00"
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     ""
+    ],
+    [
+     "when I get home, take the bins out",
+     ""
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     ""
+    ],
+    [
+     "when I leave work call Sarah",
+     ""
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     ""
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     "16:00"
+    ],
+    [
+     "water the plants every 2 weeks",
+     ""
+    ],
+    [
+     "take pills every day for the next week",
+     ""
+    ],
+    [
+     "stretch every 11.46 hours",
+     null
+    ],
+    [
+     "pay rent on the 1st of every month",
+     ""
+    ],
+    [
+     "take out recycling every other Monday",
+     ""
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     "18:00"
+    ],
+    [
+     "journal every night",
+     null
+    ],
+    [
+     "pay rent monthly",
+     ""
+    ],
+    [
+     "read the weekly report",
+     ""
+    ],
+    [
+     "essay due Friday",
+     ""
+    ],
+    [
+     "the essay is due by the 20th",
+     ""
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     ""
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     null
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     null
+    ],
+    [
+     "in an hour and a half call the bank",
+     null
+    ],
+    [
+     "remind me in half an hour",
+     null
+    ],
+    [
+     "remind me at 140 to leave",
+     null
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     "14:45"
+    ],
+    [
+     "submit the form by 5pm",
+     "17:00"
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     null
+    ],
+    [
+     "tonight at 9 watch the game",
+     "21:00"
+    ],
+    [
+     "this afternoon clean the kitchen",
+     null
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     ""
+    ],
+    [
+     "buy eggs and then call the bank",
+     ""
+    ],
+    [
+     "put batteries on my shopping list",
+     ""
+    ],
+    [
+     "add milk to the groceries list",
+     ""
+    ],
+    [
+     "Friday at midnight submit the lab",
+     "00:00"
+    ],
+    [
+     "the day after tomorrow book the flight",
+     null
+    ],
+    [
+     "in 3 days renew the library books",
+     ""
+    ],
+    [
+     "next weekend visit grandma",
+     ""
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     ""
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     ""
+    ],
+    [
+     "I need to finish the slides",
+     ""
+    ],
+    [
+     "don't let me forget to feed the cat",
+     ""
+    ],
+    [
+     "todo: back up the server",
+     ""
+    ],
+    [
+     "mark call the dentist as done",
+     ""
+    ],
+    [
+     "tick off buy stamps",
+     ""
+    ],
+    [
+     "I finished the essay",
+     ""
+    ],
+    [
+     "move the dentist reminder to Friday",
+     ""
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     "16:00"
+    ],
+    [
+     "reschedule water plants to next Monday",
+     ""
+    ],
+    [
+     "at the end of the day send the report",
+     null
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     null
+    ],
+    [
+     "noon lunch with Sam",
+     "12:00"
+    ],
+    [
+     "remind me at 7 to call",
+     "07:00"
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     null
+    ],
+    [
+     "uh",
+     ""
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     null
+    ],
+    [
+     "every month on the 15th pay the card",
+     ""
+    ],
+    [
+     "every 3 days check the mail",
+     ""
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     ""
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     ""
+    ],
+    [
+     "renew passport by March",
+     ""
+    ]
+   ],
+   "said_span": [
+    [
+     "buy milk",
+     null
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     null
+    ],
+    [
+     "remind me to call mom at 5",
+     null
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     null
+    ],
+    [
+     "when I get home, take the bins out",
+     null
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     null
+    ],
+    [
+     "when I leave work call Sarah",
+     null
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     null
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     null
+    ],
+    [
+     "water the plants every 2 weeks",
+     null
+    ],
+    [
+     "take pills every day for the next week",
+     null
+    ],
+    [
+     "stretch every 11.46 hours",
+     null
+    ],
+    [
+     "pay rent on the 1st of every month",
+     null
+    ],
+    [
+     "take out recycling every other Monday",
+     null
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     null
+    ],
+    [
+     "journal every night",
+     null
+    ],
+    [
+     "pay rent monthly",
+     null
+    ],
+    [
+     "read the weekly report",
+     null
+    ],
+    [
+     "essay due Friday",
+     null
+    ],
+    [
+     "the essay is due by the 20th",
+     null
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     null
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     null
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     1200
+    ],
+    [
+     "in an hour and a half call the bank",
+     5400
+    ],
+    [
+     "remind me in half an hour",
+     1800
+    ],
+    [
+     "remind me at 140 to leave",
+     null
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     null
+    ],
+    [
+     "submit the form by 5pm",
+     null
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     null
+    ],
+    [
+     "tonight at 9 watch the game",
+     null
+    ],
+    [
+     "this afternoon clean the kitchen",
+     null
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     null
+    ],
+    [
+     "buy eggs and then call the bank",
+     null
+    ],
+    [
+     "put batteries on my shopping list",
+     null
+    ],
+    [
+     "add milk to the groceries list",
+     null
+    ],
+    [
+     "Friday at midnight submit the lab",
+     null
+    ],
+    [
+     "the day after tomorrow book the flight",
+     null
+    ],
+    [
+     "in 3 days renew the library books",
+     null
+    ],
+    [
+     "next weekend visit grandma",
+     null
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     null
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     null
+    ],
+    [
+     "I need to finish the slides",
+     null
+    ],
+    [
+     "don't let me forget to feed the cat",
+     null
+    ],
+    [
+     "todo: back up the server",
+     null
+    ],
+    [
+     "mark call the dentist as done",
+     null
+    ],
+    [
+     "tick off buy stamps",
+     null
+    ],
+    [
+     "I finished the essay",
+     null
+    ],
+    [
+     "move the dentist reminder to Friday",
+     null
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     null
+    ],
+    [
+     "reschedule water plants to next Monday",
+     null
+    ],
+    [
+     "at the end of the day send the report",
+     null
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     null
+    ],
+    [
+     "noon lunch with Sam",
+     null
+    ],
+    [
+     "remind me at 7 to call",
+     null
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     null
+    ],
+    [
+     "uh",
+     null
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     null
+    ],
+    [
+     "every month on the 15th pay the card",
+     null
+    ],
+    [
+     "every 3 days check the mail",
+     null
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     null
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     null
+    ],
+    [
+     "renew passport by March",
+     null
+    ]
+   ],
+   "repeat": [
+    [
+     "buy milk",
+     [
+      null,
+      "buy milk"
+     ]
+    ],
+    [
+     "call the dentist tomorrow at 3",
+     [
+      null,
+      "call the dentist tomorrow at 3"
+     ]
+    ],
+    [
+     "remind me to call mom at 5",
+     [
+      null,
+      "remind me to call mom at 5"
+     ]
+    ],
+    [
+     "remind me tomorrow to email Mr. Smith",
+     [
+      null,
+      "remind me tomorrow to email Mr. Smith"
+     ]
+    ],
+    [
+     "when I get home, take the bins out",
+     [
+      null,
+      "when I get home, take the bins out"
+     ]
+    ],
+    [
+     "remind me to buy stamps when I'm at the post office",
+     [
+      null,
+      "remind me to buy stamps when I'm at the post office"
+     ]
+    ],
+    [
+     "when I leave work call Sarah",
+     [
+      null,
+      "when I leave work call Sarah"
+     ]
+    ],
+    [
+     "pick up the parcel when I get to the library",
+     [
+      null,
+      "pick up the parcel when I get to the library"
+     ]
+    ],
+    [
+     "every Tuesday and Thursday at 4 practice piano",
+     [
+      "FREQ=WEEKLY;BYDAY=TU,TH",
+      "at 4 practice piano"
+     ]
+    ],
+    [
+     "water the plants every 2 weeks",
+     [
+      "FREQ=WEEKLY;INTERVAL=2",
+      "water the plants"
+     ]
+    ],
+    [
+     "take pills every day for the next week",
+     [
+      "FREQ=DAILY;UNTIL=20260207",
+      "take pills"
+     ]
+    ],
+    [
+     "stretch every 11.46 hours",
+     [
+      "FREQ=MINUTELY;INTERVAL=688",
+      "stretch"
+     ]
+    ],
+    [
+     "pay rent on the 1st of every month",
+     [
+      "FREQ=MONTHLY;BYMONTHDAY=1",
+      "pay rent"
+     ]
+    ],
+    [
+     "take out recycling every other Monday",
+     [
+      "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+      "take out recycling"
+     ]
+    ],
+    [
+     "call grandma every weekday at 6pm",
+     [
+      "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+      "call grandma at 6pm"
+     ]
+    ],
+    [
+     "journal every night",
+     [
+      "FREQ=DAILY",
+      "journal tonight"
+     ]
+    ],
+    [
+     "pay rent monthly",
+     [
+      "FREQ=MONTHLY",
+      "pay rent"
+     ]
+    ],
+    [
+     "read the weekly report",
+     [
+      null,
+      "read the weekly report"
+     ]
+    ],
+    [
+     "essay due Friday",
+     [
+      null,
+      "essay due Friday"
+     ]
+    ],
+    [
+     "the essay is due by the 20th",
+     [
+      null,
+      "the essay is due by the 20th"
+     ]
+    ],
+    [
+     "remind me Wednesday that the homework is due Friday",
+     [
+      null,
+      "remind me Wednesday that the homework is due Friday"
+     ]
+    ],
+    [
+     "dentist appointment December 3rd at 2:30pm",
+     [
+      null,
+      "dentist appointment December 3rd at 2:30pm"
+     ]
+    ],
+    [
+     "remind me in 20 minutes to check the oven",
+     [
+      null,
+      "remind me in 20 minutes to check the oven"
+     ]
+    ],
+    [
+     "in an hour and a half call the bank",
+     [
+      null,
+      "in an hour and a half call the bank"
+     ]
+    ],
+    [
+     "remind me in half an hour",
+     [
+      null,
+      "remind me in half an hour"
+     ]
+    ],
+    [
+     "remind me at 140 to leave",
+     [
+      null,
+      "remind me at 140 to leave"
+     ]
+    ],
+    [
+     "meeting at 2.45 tomorrow",
+     [
+      null,
+      "meeting at 2.45 tomorrow"
+     ]
+    ],
+    [
+     "submit the form by 5pm",
+     [
+      null,
+      "submit the form by 5pm"
+     ]
+    ],
+    [
+     "remind me 10 minutes before my 3 pm meeting to grab my notes",
+     [
+      null,
+      "remind me 10 minutes before my 3 pm meeting to grab my notes"
+     ]
+    ],
+    [
+     "tonight at 9 watch the game",
+     [
+      null,
+      "tonight at 9 watch the game"
+     ]
+    ],
+    [
+     "this afternoon clean the kitchen",
+     [
+      null,
+      "this afternoon clean the kitchen"
+     ]
+    ],
+    [
+     "buy eggs, call the bank and email Mr. Smith",
+     [
+      null,
+      "buy eggs, call the bank and email Mr. Smith"
+     ]
+    ],
+    [
+     "buy eggs and then call the bank",
+     [
+      null,
+      "buy eggs and then call the bank"
+     ]
+    ],
+    [
+     "put batteries on my shopping list",
+     [
+      null,
+      "put batteries on my shopping list"
+     ]
+    ],
+    [
+     "add milk to the groceries list",
+     [
+      null,
+      "add milk to the groceries list"
+     ]
+    ],
+    [
+     "Friday at midnight submit the lab",
+     [
+      null,
+      "Friday at midnight submit the lab"
+     ]
+    ],
+    [
+     "the day after tomorrow book the flight",
+     [
+      null,
+      "the day after tomorrow book the flight"
+     ]
+    ],
+    [
+     "in 3 days renew the library books",
+     [
+      null,
+      "in 3 days renew the library books"
+     ]
+    ],
+    [
+     "next weekend visit grandma",
+     [
+      null,
+      "next weekend visit grandma"
+     ]
+    ],
+    [
+     "remind me this weekend to mow the lawn",
+     [
+      null,
+      "remind me this weekend to mow the lawn"
+     ]
+    ],
+    [
+     "an idea for the story: a lighthouse that moves",
+     [
+      null,
+      "an idea for the story: a lighthouse that moves"
+     ]
+    ],
+    [
+     "I need to finish the slides",
+     [
+      null,
+      "I need to finish the slides"
+     ]
+    ],
+    [
+     "don't let me forget to feed the cat",
+     [
+      null,
+      "don't let me forget to feed the cat"
+     ]
+    ],
+    [
+     "todo: back up the server",
+     [
+      null,
+      "todo: back up the server"
+     ]
+    ],
+    [
+     "mark call the dentist as done",
+     [
+      null,
+      "mark call the dentist as done"
+     ]
+    ],
+    [
+     "tick off buy stamps",
+     [
+      null,
+      "tick off buy stamps"
+     ]
+    ],
+    [
+     "I finished the essay",
+     [
+      null,
+      "I finished the essay"
+     ]
+    ],
+    [
+     "move the dentist reminder to Friday",
+     [
+      null,
+      "move the dentist reminder to Friday"
+     ]
+    ],
+    [
+     "push the essay to tomorrow at 4",
+     [
+      null,
+      "push the essay to tomorrow at 4"
+     ]
+    ],
+    [
+     "reschedule water plants to next Monday",
+     [
+      null,
+      "reschedule water plants to next Monday"
+     ]
+    ],
+    [
+     "at the end of the day send the report",
+     [
+      null,
+      "at the end of the day send the report"
+     ]
+    ],
+    [
+     "remind me in the morning to take vitamins",
+     [
+      null,
+      "remind me in the morning to take vitamins"
+     ]
+    ],
+    [
+     "noon lunch with Sam",
+     [
+      null,
+      "noon lunch with Sam"
+     ]
+    ],
+    [
+     "remind me at 7 to call",
+     [
+      null,
+      "remind me at 7 to call"
+     ]
+    ],
+    [
+     "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls",
+     [
+      null,
+      "The quick brown fox jumps over the lazy dog and keeps on running far away into the forest until night falls"
+     ]
+    ],
+    [
+     "uh",
+     [
+      null,
+      "uh"
+     ]
+    ],
+    [
+     "remind me to stretch every 90 minutes",
+     [
+      "FREQ=MINUTELY;INTERVAL=90",
+      "remind me to stretch"
+     ]
+    ],
+    [
+     "every month on the 15th pay the card",
+     [
+      "FREQ=MONTHLY;BYMONTHDAY=15",
+      "pay the card"
+     ]
+    ],
+    [
+     "every 3 days check the mail",
+     [
+      "FREQ=DAILY;INTERVAL=3",
+      "check the mail"
+     ]
+    ],
+    [
+     "on Mondays and Wednesdays go to the gym",
+     [
+      "FREQ=WEEKLY;BYDAY=MO,WE",
+      "go to the gym"
+     ]
+    ],
+    [
+     "remind me on the 20th to pay the bill",
+     [
+      null,
+      "remind me on the 20th to pay the bill"
+     ]
+    ],
+    [
+     "renew passport by March",
+     [
+      null,
+      "renew passport by March"
+     ]
+    ]
+   ],
+   "tidy": [
+    [
+     [
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-17T07:30"
+      },
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-17T18:00",
+       "notes": "the wet food"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Feed the dog",
+       "repeat": "FREQ=DAILY;INTERVAL=2",
+       "remind_at": "2026-11-17T07:30",
+       "times": [
+        "07:30",
+        "18:00"
+       ],
+       "notes": "the wet food"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T08:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "20:00",
+        "8:00",
+        "nope"
+       ]
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T08:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "08:00",
+        "20:00"
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T20:00",
+       "repeat": "FREQ=DAILY"
+      },
+      {
+       "type": "task",
+       "title": "meds",
+       "remind_at": "2026-11-18T08:00",
+       "repeat": "FREQ=DAILY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Meds",
+       "remind_at": "2026-11-17T20:00",
+       "repeat": "FREQ=DAILY",
+       "times": [
+        "08:00",
+        "20:00"
+       ],
+       "notes": ""
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-16T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=MO"
+      },
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-19T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=TH"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-16T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=MO",
+       "times": null
+      },
+      {
+       "type": "task",
+       "title": "Gym",
+       "remind_at": "2026-11-19T07:00",
+       "repeat": "FREQ=WEEKLY;BYDAY=TH",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Stretch",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=DAILY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Stretch",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=DAILY",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Pills",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=DAILY;COUNT=7"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Pills",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=DAILY;COUNT=7",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Report",
+       "due": "2026-11-17",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=WEEKLY"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Report",
+       "due": "2026-11-17",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=WEEKLY",
+       "times": null
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "type": "task",
+       "title": "Ping",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=HOURLY;INTERVAL=3"
+      },
+      {
+       "type": "note",
+       "title": "An idea"
+      },
+      {
+       "type": "task",
+       "title": "Once",
+       "remind_at": "2026-11-17T09:00"
+      }
+     ],
+     [
+      {
+       "type": "task",
+       "title": "Ping",
+       "remind_at": "2026-11-17T07:00",
+       "repeat": "FREQ=HOURLY;INTERVAL=3"
+      },
+      {
+       "type": "note",
+       "title": "An idea"
+      },
+      {
+       "type": "task",
+       "title": "Once",
+       "remind_at": "2026-11-17T09:00"
+      }
+     ]
+    ]
+   ],
+   "roll": [
+    [
+     {
+      "type": "task",
+      "title": "Feed the dog",
+      "remind_at": 1794925800,
+      "repeat": "FREQ=DAILY;INTERVAL=2",
+      "times": [
+       "07:30",
+       "18:00"
+      ],
+      "done_at": 1
+     },
+     {
+      "type": "task",
+      "title": "Feed the dog",
+      "remind_at": 1794963600,
+      "repeat": "FREQ=DAILY;INTERVAL=2",
+      "times": [
+       "07:30",
+       "18:00"
+      ],
+      "done_at": null
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Meds",
+      "remind_at": 1794927600,
+      "repeat": "FREQ=DAILY;COUNT=4",
+      "times": [
+       "08:00",
+       "20:00"
+      ],
+      "done_at": 1
+     },
+     {
+      "type": "task",
+      "title": "Meds",
+      "remind_at": 1794970800,
+      "repeat": "FREQ=DAILY;COUNT=3",
+      "times": [
+       "08:00",
+       "20:00"
+      ],
+      "done_at": null
+     }
+    ],
+    [
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": 1794956400,
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+      "done_at": 1
+     },
+     {
+      "type": "task",
+      "title": "Piano",
+      "remind_at": 1795129200,
+      "repeat": "FREQ=WEEKLY;BYDAY=TU,TH",
+      "done_at": null
+     }
+    ]
+   ]
+  }
+ ]
+}

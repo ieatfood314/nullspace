@@ -135,7 +135,7 @@ class UplinkService : AccessibilityService() {
             shot?.dropped = true
             shot = null
             presses = 0
-            if (!Engine.installed(this)) Notice.show(this, "Open Uplink settings to download the speech model")
+            if (!Engine.installed(this)) Notice.show(this, "Open Nullspace settings to download the speech model")
             Dictation.finish(this)
             return
         }
@@ -233,28 +233,40 @@ class UplinkService : AccessibilityService() {
         return null
     }
 
-    /** A finished dictation: guess its start first if it was cut off, then put it in. */
+    /** A finished dictation: guess its start if it was cut off, tidy it if it rambles, then put
+     *  it in. Both go to your own LLM if you set one up, else your hub's, else are skipped. */
     fun insertSaid(said: Said) {
         val hub = HubSync.url()
-        val metered = Net.metered(this)
-        if (!said.cut || hub == null || !Net.online(this) || (metered && Budget.used() >= Budget.SOFT)) {
+        val own = Brain.on()
+        val wantTidy = Prefs.tidy && said.text.split(Regex("\\s+")).count { it.isNotEmpty() } >= Brain.TIDY_MIN_WORDS
+        if ((!said.cut && !wantTidy) || (!own && hub == null) || !Brain.canCall(this, made = false)) {
             insert(said.text, said); return
         }
-        val before = focusedField()?.let { n ->
+        val before = if (!said.cut) "" else focusedField()?.let { n ->
             val t = if (n.isShowingHintText || n.isPassword) "" else n.text?.toString().orEmpty()
             val s = n.textSelectionStart
             if (s in 0..t.length) t.substring(maxOf(0, s - 300), s) else t.takeLast(300)
         }.orEmpty()
         val app = applicationContext
         Thread({
-            val guessed = try {
-                val body = org.json.JSONObject().put("text", said.text).put("before", before)
-                val res = org.json.JSONObject(String(HubSync.post(app, "$hub/api/guess-start", body.toString().toByteArray(), metered, 5_000)))
+            fun ask(path: String, body: org.json.JSONObject): String? = try {
+                val res = org.json.JSONObject(String(HubSync.post(app, "$hub/$path", body.toString().toByteArray(), Net.metered(app), 5_000)))
                 res.optString("text").takeIf { !res.isNull("text") && it.isNotBlank() }
-            } catch (t: Throwable) { Log.w(TAG, "guess: $t"); null }
-            if (guessed != null) Log.i(TAG, "start was cut off, guessed it")
-            main.post { insert(guessed ?: said.text, if (guessed != null) Said(guessed, said.id, said.ts, true, said.text) else said) }
-        }, "guess-start").start()
+            } catch (t: Throwable) { Log.w(TAG, "$path: $t"); null }
+
+            var text = said.text
+            val guessed = if (!said.cut) null
+                else if (own) Brain.guessStart(app, text, before)
+                else ask("api/guess-start", org.json.JSONObject().put("text", text).put("before", before))
+            if (guessed != null) { Log.i(TAG, "start was cut off, guessed it"); text = guessed }
+            val tidied = if (!wantTidy) null
+                else if (own) Brain.tidy(app, text)
+                else ask("api/tidy", org.json.JSONObject().put("text", text))
+            if (tidied != null) { Log.i(TAG, "tidied ${text.length} -> ${tidied.length} chars"); text = tidied }
+            val out = if (guessed == null && tidied == null) said
+                else Said(text, said.id, said.ts, said.cut, said.heard, guess = guessed, tidied = tidied != null)
+            main.post { insert(out.text, out) }
+        }, "polish").start()
     }
 
     fun insert(text: String) = insert(text, null)
@@ -344,7 +356,7 @@ class UplinkService : AccessibilityService() {
 
     private fun beginWatch(said: Said, piece: String) {
         endWatch("next")
-        if (!Prefs.keepRecordings) return
+        if (!Prefs.archiving) return
         val node = focusedField() ?: return
         val t = fieldText(node)
         val span = EditWatch.locate(t, piece, node.textSelectionEnd) ?: EditWatch.locate(t, piece, -1) ?: return
@@ -373,7 +385,7 @@ class UplinkService : AccessibilityService() {
     }
 
     private fun copy(text: String) {
-        val clip = ClipData.newPlainText("Uplink", text)
+        val clip = ClipData.newPlainText("Nullspace", text)
         // Keeps the "copied" preview from flashing the text on screen.
         clip.description.extras = PersistableBundle().apply {
             putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)

@@ -39,15 +39,15 @@ object Net {
     }
 }
 
-/** What Uplink has used on mobile data this month, and the line it won't cross.
- *  Counted from the app's own traffic counters around each request, plus an allowance for
- *  Tailscale's per-packet overhead, so it errs on the high side. */
+/** What the app has used on mobile data this month, and the line it won't cross (yours to set,
+ *  10 MB unless you change it). Counted from the app's own traffic counters around each request,
+ *  plus an allowance for VPN per-packet overhead, so it errs on the high side. */
 object Budget {
-    const val LIMIT = 10_000_000L
+    val LIMIT: Long get() = Prefs.dataCapMb * 1_000_000L
     /** past this, only send things you made (no polling) */
-    const val SOFT = 8_000_000L
+    val SOFT: Long get() = LIMIT * 8 / 10
     /** past this, nothing at all on mobile data until Wi-Fi or next month */
-    const val HARD = 9_500_000L
+    val HARD: Long get() = LIMIT * 95 / 100
 
     private fun month() = YearMonth.now().toString()
 
@@ -62,10 +62,10 @@ object Budget {
         sp.edit().putString("budget_month", month()).putLong("budget_bytes", base + bytes).apply()
     }
 
-    fun text(): String = "%.1f MB of %d MB".format(used() / 1e6, LIMIT / 1_000_000)
+    fun text(): String = if (LIMIT == 0L) "Wi-Fi only" else "%.1f MB of %d MB".format(used() / 1e6, LIMIT / 1_000_000)
 }
 
-/** Keeps the phone's Store in step with the hub (POST /api/sync, gzip both ways).
+/** Keeps the phone's Store in step with your hub, when there is one (POST /api/sync, gzip both ways).
  *  Runs after every change, when the app opens, and from a periodic job: every 15 minutes
  *  on Wi-Fi, at most hourly on mobile data. Screenshots only upload on Wi-Fi. */
 object HubSync {
@@ -85,8 +85,9 @@ object HubSync {
     }
 
     fun soon(ctx: Context, wait: Int = 0, poll: Boolean = false) {
-        if (url() == null) { status.value = Status.Off; return }
         val app = ctx.applicationContext
+        // No hub: the phone files captures itself.
+        if (url() == null) { status.value = Status.Off; Filer.soon(app); return }
         queuedWait = maxOf(queuedWait, wait)
         if (queued) return
         queued = true
@@ -136,21 +137,25 @@ object HubSync {
         return true
     }
 
-    /** POST (or GET with body null), counting what it costs on mobile data. */
-    fun post(ctx: Context, url: String, body: ByteArray?, metered: Boolean, timeoutMs: Int = 30_000, ctype: String = "application/json"): ByteArray {
+    /** POST (or GET with body null), counting what it costs on mobile data. Every request the
+     *  app makes goes through here. gz: gzip a JSON body (the hub takes it; other servers don't). */
+    fun post(ctx: Context, url: String, body: ByteArray?, metered: Boolean, timeoutMs: Int = 30_000, ctype: String = "application/json",
+             headers: Map<String, String> = emptyMap(), gz: Boolean = true, who: String = "Hub"): ByteArray {
+        if (metered && Budget.used() >= Budget.HARD) error("Mobile data limit reached")
         val uid = Process.myUid()
         val before = TrafficStats.getUidRxBytes(uid) + TrafficStats.getUidTxBytes(uid)
         var wire = 0L
         try {
             val conn = URL(url).openConnection() as HttpURLConnection
-            conn.connectTimeout = 10_000
+            conn.connectTimeout = minOf(10_000, timeoutMs)
             conn.readTimeout = timeoutMs
             conn.setRequestProperty("Accept-Encoding", "gzip")
+            for ((k, v) in headers) conn.setRequestProperty(k, v)
             if (body != null) {
                 conn.requestMethod = "POST"
                 conn.doOutput = true
                 conn.setRequestProperty("Content-Type", ctype)
-                val payload = if (ctype == "application/json") gzip(body).also { conn.setRequestProperty("Content-Encoding", "gzip") } else body
+                val payload = if (gz && ctype == "application/json") gzip(body).also { conn.setRequestProperty("Content-Encoding", "gzip") } else body
                 conn.setFixedLengthStreamingMode(payload.size)
                 conn.outputStream.use { it.write(payload) }
                 wire += payload.size
@@ -160,8 +165,8 @@ object HubSync {
             wire += raw.size + 600  // headers both ways
             val out = if (conn.getHeaderField("Content-Encoding") == "gzip") GZIPInputStream(raw.inputStream()).readBytes() else raw
             if (code != 200) {
-                val msg = try { JSONObject(String(out)).optString("error") } catch (_: Exception) { "" }
-                error(if (msg.isNotEmpty()) msg else "Hub said $code")
+                val msg = try { JSONObject(String(out)).let { j -> j.optJSONObject("error")?.optString("message") ?: j.optString("error") } } catch (_: Exception) { "" }
+                error("$who said $code" + if (msg.isNotEmpty()) ": ${msg.take(120)}" else "")
             }
             return out
         } finally {

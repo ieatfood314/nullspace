@@ -89,7 +89,7 @@ object Capture {
         Store.put("capture", uid, JSONObject()
             .put("type", "voice").put("status", "new").put("created_at", System.currentTimeMillis() / 1000)
             .put("text", text).put("device", "phone").put("announce", true))
-        Notice.show(app, if (Net.online(app)) "Sending" else "Saved, sends when online")
+        Notice.show(app, when { HubSync.url() == null -> "Saved"; Net.online(app) -> "Sending"; else -> "Saved, sends when online" })
         HubSync.soon(app, wait = 20)
     }
 

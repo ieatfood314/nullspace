@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Uplink"
+rootProject.name = "Nullspace"
 include(":app")

@@ -25,6 +25,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
@@ -32,7 +37,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.LifecycleEventObserver
 
-private val Accent = Color(0xFF3D9BFF)
 private val Dim = Color(0xFF8A8A8A)
 private val Line = Color(0xFF1F1F1F)
 private val Inter = FontFamily(Font(R.font.inter_regular), Font(R.font.inter_medium, FontWeight.Medium))
@@ -55,6 +59,9 @@ class SettingsActivity : ComponentActivity() {
         }
     }
     private var refresh by mutableIntStateOf(0)
+    /** the accent you pick here, so the screen changes as you pick it */
+    private var accentArgb by mutableIntStateOf(Prefs.accent)
+    private val Accent: Color get() = Color(accentArgb)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -126,21 +133,33 @@ class SettingsActivity : ComponentActivity() {
                 }
             }
             if (a11y) KeyLegend()
-            HubRow(open == "hub") { toggle("hub") }
+            AiRow(open == "ai") { toggle("ai") }
+            if (Brain.on() || HubSync.url() != null) {
+                var tidy by remember { mutableStateOf(Prefs.tidy) }
+                SettingRow("Tidy dictation", if (tidy) "On" else "Off", null, action = if (tidy) "Turn off" else "Turn on") {
+                    tidy = !tidy
+                    Prefs.tidy = tidy
+                }
+            }
             SettingRow("Notifications", if (has(Manifest.permission.POST_NOTIFICATIONS)) "Allowed" else null, "Allow") {
                 askPerms.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
             }
             val fine = has(Manifest.permission.ACCESS_FINE_LOCATION)
             SettingRow("Location", if (Reminders.locationOk(this@SettingsActivity)) "All the time" else null,
                 if (fine) "Allow all the time" else "Allow") { askLocation() }
-            SettingRow("Mobile data", Budget.text(), null) {}
+            AccentRow(open == "accent") { toggle("accent") }
+            DataRow(open == "data") { toggle("data") }
+            HubRow(open == "hub") { toggle("hub") }
             SyncRow(open == "sync") { toggle("sync") }
             WordsRow(open == "words") { toggle("words") }
             var keep by remember { mutableStateOf(Prefs.keepRecordings) }
-            SettingRow("Training data", if (keep) "On" else "Off", null, action = if (keep) "Turn off" else "Turn on") {
-                keep = !keep
-                Prefs.keepRecordings = keep
+            if (keep || Sync.url() != null) {
+                SettingRow("Keep recordings", if (keep) "On" else "Off", null, action = if (keep) "Turn off" else "Turn on") {
+                    keep = !keep
+                    Prefs.keepRecordings = keep
+                }
             }
+            if (BuildConfig.DONATE_URL.isNotEmpty()) ShareRow()
 
             Spacer(Modifier.height(32.dp))
             var text by remember { mutableStateOf("") }
@@ -241,7 +260,7 @@ class SettingsActivity : ComponentActivity() {
     private fun KeyLegend() {
         Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             for ((a, b) in listOf("Hold" to "Dictate", "Press" to "Capture the screen",
-                "Press, then hold" to "Voice note", "Double press" to "Open Uplink")) {
+                "Press, then hold" to "Voice note", "Double press" to "Open Nullspace")) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                     Text(a, color = Dim, fontFamily = Inter, fontSize = 14.sp, modifier = Modifier.width(140.dp))
                     Text(b, color = Color.White, fontFamily = Inter, fontSize = 14.sp)
@@ -251,7 +270,141 @@ class SettingsActivity : ComponentActivity() {
         Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
     }
 
-    // ---- uplink hub ----
+    // ---- your own AI ----
+
+    @Composable
+    private fun AiRow(expanded: Boolean, onToggle: () -> Unit) {
+        var tick by remember { mutableIntStateOf(0) }
+        var checking by remember { mutableStateOf(false) }
+        var err by remember { mutableStateOf("") }
+        @Suppress("UNUSED_EXPRESSION") tick
+        val status = when {
+            checking -> "Checking"
+            err.isNotEmpty() -> err
+            Brain.on() -> Brain.name()
+            else -> null
+        }
+        SettingRow("AI", status, "Set up", action = if (expanded) "Done" else if (Brain.on()) "Change" else "Set up",
+            divider = !expanded, onClick = onToggle)
+        if (!expanded) return
+        var preset by remember { mutableStateOf(Brain.preset().key) }
+        var key by remember { mutableStateOf(Prefs.llmKey) }
+        var url by remember { mutableStateOf(Prefs.llmUrl) }
+        var model by remember { mutableStateOf(Prefs.llmModel) }
+        val groq = preset == Brain.GROQ.key
+        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (p in listOf(Brain.GROQ, Brain.OTHER)) {
+                val on = p.key == preset
+                Box(
+                    Modifier.weight(1f).border(1.dp, if (on) Accent else Line, RoundedCornerShape(12.dp))
+                        .clickable { preset = p.key }.padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(p.name, color = if (on) Accent else Dim, fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 16.sp)
+                }
+            }
+        }
+        if (!groq) InputLine(url, { url = it }, "Chat completions URL", null, enabled = false) {}
+        InputLine(key, { key = it }, if (groq) "Groq API key" else "API key, if it needs one", null, enabled = false, secret = true) {}
+        InputLine(model, { model = it }, if (groq) Brain.GROQ.model else "Model", null, enabled = false) {}
+        val dirty = preset != Brain.preset().key || key.trim() != Prefs.llmKey || url.trim() != Prefs.llmUrl || model.trim() != Prefs.llmModel
+        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (groq) Text("Get a key", color = Accent, fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 16.sp,
+                modifier = Modifier.clickable { web(Brain.GROQ.keysPage!!) })
+            Spacer(Modifier.weight(1f))
+            Text("Save", color = if (dirty && !checking) Accent else Dim, fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 16.sp,
+                modifier = Modifier.clickable(enabled = dirty && !checking) {
+                    Prefs.llmPreset = preset
+                    Prefs.llmKey = key.trim()
+                    Prefs.llmUrl = url.trim()
+                    Prefs.llmModel = model.trim()
+                    err = ""
+                    if (!Brain.on()) { tick++; return@clickable }
+                    checking = true
+                    val app = applicationContext
+                    Thread {
+                        val e = Brain.check(app)
+                        runOnUiThread {
+                            checking = false
+                            err = e.orEmpty()
+                            model = Prefs.llmModel
+                            tick++
+                            if (e == null) HubSync.soon(app)
+                        }
+                    }.start()
+                })
+        }
+        Text("Files your captures and tidies dictation. Only text is sent.", color = Dim, fontFamily = Inter, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+    }
+
+    private fun web(url: String) {
+        try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) } catch (_: Exception) {}
+    }
+
+    // ---- accent ----
+
+    @Composable
+    private fun AccentRow(expanded: Boolean, onToggle: () -> Unit) {
+        SettingRow("Accent", "#%06X".format(accentArgb and 0xFFFFFF), null, action = if (expanded) "Done" else "Change",
+            divider = !expanded, onClick = onToggle)
+        if (!expanded) return
+        fun pick(c: Int) { Prefs.accent = c; accentArgb = Prefs.accent }
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            for (c in Prefs.ACCENTS) {
+                val on = c == accentArgb
+                Box(
+                    Modifier.size(36.dp).clickable { pick(c) }.border(2.dp, if (on) Color.White else Color.Transparent, CircleShape)
+                        .padding(5.dp).background(Color(c), CircleShape),
+                )
+            }
+        }
+        var hex by remember { mutableStateOf("") }
+        val parsed = hex.trim().removePrefix("#").takeIf { Regex("[0-9a-fA-F]{6}").matches(it) }?.toLong(16)?.toInt()
+        InputLine(hex, { hex = it }, "Any color, like #3D9BFF", "Use", enabled = parsed != null) {
+            pick(parsed!! or 0xFF000000.toInt()); hex = ""
+        }
+        Spacer(Modifier.height(16.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+    }
+
+    // ---- mobile data ----
+
+    @Composable
+    private fun DataRow(expanded: Boolean, onToggle: () -> Unit) {
+        var cap by remember { mutableIntStateOf(Prefs.dataCapMb) }
+        @Suppress("UNUSED_EXPRESSION") cap
+        SettingRow("Mobile data", Budget.text(), null, action = if (expanded) "Done" else "Change", divider = !expanded, onClick = onToggle)
+        if (!expanded) return
+        var mb by remember { mutableStateOf(Prefs.dataCapMb.toString()) }
+        val n = mb.trim().toIntOrNull()?.takeIf { it in 0..100_000 }
+        InputLine(mb, { v -> mb = v.filter { it.isDigit() } }, "MB a month", "Save", enabled = n != null && n != Prefs.dataCapMb,
+            keyboard = KeyboardType.Number) {
+            Prefs.dataCapMb = n!!; cap = n
+        }
+        Text("A month's limit. 0 keeps it to Wi-Fi.", color = Dim, fontFamily = Inter, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+    }
+
+    // ---- sharing, opt in ----
+
+    @Composable
+    private fun ShareRow() {
+        var on by remember { mutableStateOf(Prefs.shareTraining) }
+        SettingRow("Share training data", if (on) "On" else "Off", null, action = if (on) "Turn off" else "Turn on", divider = false) {
+            on = !on
+            Prefs.shareTraining = on
+            if (on) Archive.shareSoon(this) else Archive.dropShared(this)
+        }
+        Text("Sends your dictation audio and the fixes you make to the project, on Wi-Fi, to train better speech models. Off unless you turn it on.",
+            color = Dim, fontFamily = Inter, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+    }
+
+    // ---- your own hub ----
 
     @Composable
     private fun HubRow(expanded: Boolean, onToggle: () -> Unit) {
@@ -259,7 +412,7 @@ class SettingsActivity : ComponentActivity() {
         var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
         LaunchedEffect(st) { while (true) { now = System.currentTimeMillis(); kotlinx.coroutines.delay(30_000) } }
         val status = when (st) {
-            HubSync.Status.Off -> if (HubSync.url() == null) null else "Not yet"
+            HubSync.Status.Off -> if (HubSync.url() == null) "Off" else "Not yet"
             HubSync.Status.Syncing -> "Syncing"
             HubSync.Status.Failed -> HubSync.lastError.ifEmpty { "Can't reach hub" }
             HubSync.Status.Synced -> ago(now - HubSync.lastOk)
@@ -268,10 +421,11 @@ class SettingsActivity : ComponentActivity() {
             divider = !expanded, onClick = onToggle)
         if (!expanded) return
         var url by remember { mutableStateOf(Prefs.hubUrl) }
-        InputLine(url, { url = it }, "Hub address, like http://server:8448", "Save", enabled = url.trim() != Prefs.hubUrl) {
+        InputLine(url, { url = it }, "Hub address, like http://server:4645", "Save", enabled = url.trim() != Prefs.hubUrl) {
             Prefs.hubUrl = url.trim()
             if (url.isBlank()) HubSync.status.value = HubSync.Status.Off else HubSync.soon(this)
         }
+        Text("Optional. Your own server, to share your list with your computers.", color = Dim, fontFamily = Inter, fontSize = 13.sp)
         Spacer(Modifier.height(16.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
     }
@@ -293,7 +447,7 @@ class SettingsActivity : ComponentActivity() {
             divider = !expanded, onClick = onToggle)
         if (!expanded) return
         var url by remember { mutableStateOf(Prefs.syncUrl) }
-        InputLine(url, { url = it }, "Hub address", "Save", enabled = url.trim() != Prefs.syncUrl) {
+        InputLine(url, { url = it }, "Squelch hub address", "Save", enabled = url.trim() != Prefs.syncUrl) {
             Prefs.syncUrl = url.trim()
             if (url.isBlank()) Sync.status.value = Sync.Status.Off else Sync.soon(this)
         }
@@ -399,7 +553,8 @@ class SettingsActivity : ComponentActivity() {
 
     /** a one-line field with an optional action in the accent on its right */
     @Composable
-    private fun InputLine(value: String, onChange: (String) -> Unit, hint: String, action: String?, enabled: Boolean, onAction: () -> Unit) {
+    private fun InputLine(value: String, onChange: (String) -> Unit, hint: String, action: String?, enabled: Boolean,
+                          secret: Boolean = false, keyboard: KeyboardType = KeyboardType.Text, onAction: () -> Unit) {
         Row(
             Modifier.fillMaxWidth().padding(vertical = 6.dp).border(1.dp, Line, RoundedCornerShape(12.dp))
                 .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -407,6 +562,8 @@ class SettingsActivity : ComponentActivity() {
         ) {
             BasicTextField(
                 value = value, onValueChange = onChange, singleLine = true,
+                visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+                keyboardOptions = KeyboardOptions(keyboardType = if (secret) KeyboardType.Password else keyboard),
                 textStyle = TextStyle(color = Color.White, fontFamily = Inter, fontSize = 16.sp),
                 cursorBrush = SolidColor(Accent),
                 modifier = Modifier.weight(1f),

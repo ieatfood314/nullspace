@@ -11,7 +11,10 @@ import android.util.Log
 
 /** One finished dictation. heard is the transcript; cut means you were already talking when
  *  the mic opened, so its start may be missing. id names it in the training archive. */
-class Said(val text: String, val id: String, val ts: Double, val cut: Boolean, val heard: String = text)
+/** A finished dictation. heard is what the model transcribed; text is what goes in, which may
+ *  have a guessed start (guess) and be tidied of repeats and false starts (tidied). */
+class Said(val text: String, val id: String, val ts: Double, val cut: Boolean, val heard: String = text,
+           val guess: String? = null, val tidied: Boolean = false)
 
 /** One dictation at a time: listen while the key is held, transcribe, hand the text to a sink.
  *
@@ -80,7 +83,7 @@ object Dictation {
         if (phase.value != Phase.Idle) { Log.i(TAG, "busy (${phase.value}), not starting"); return }
         val app = ctx.applicationContext
         stayAwake(app)
-        if (mic && !Engine.installed(app)) { Notice.show(app, "Open Uplink settings to download the speech model"); return }
+        if (mic && !Engine.installed(app)) { Notice.show(app, "Open Nullspace settings to download the speech model"); return }
         Engine.warm(app)
         // Pick up dictionary changes from your other devices while you talk.
         if (mic) Sync.soon(app, minGapMs = 60_000)
@@ -221,7 +224,7 @@ object Dictation {
                 try {
                     Analytics.record(app, text, heldMs / 1000f, Stats.lastWaitMs / 1000f, Models.selected(app).key)
                 } catch (t: Throwable) { Log.e(TAG, "stats", t) }
-                if (text.isNotEmpty() && Prefs.keepRecordings) {
+                if (text.isNotEmpty() && Prefs.archiving) {
                     val pcm = synchronized(lock) { buf.copyOf(size) }
                     Archive.save(app, said, pcm, Models.selected(app).key)
                 }

@@ -33,7 +33,9 @@ class EditWatch(val said: Said, val pkg: String, private val t0: String, private
             .put("text", t0.substring(a, b).trim()).put("edited", region.trim())
             .put("heard", said.heard).put("cut", said.cut)
             .put("before", t0.substring(maxOf(0, a - 300), a))
-        if (said.text != said.heard) o.put("guess", said.text)
+        if (said.guess != null) o.put("guess", said.guess)
+        // tidied: text differs from heard by the LLM's cuts, not by anything you did
+        if (said.tidied) o.put("tidied", true)
         return o
     }
 

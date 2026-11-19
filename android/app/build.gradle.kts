@@ -25,12 +25,15 @@ if (!sherpaAar.exists() || sha256(sherpaAar) != sherpaSha256) {
     check(sha256(sherpaAar) == sherpaSha256) { "sherpa-onnx AAR checksum mismatch" }
 }
 
-// Release signing and this install's defaults live outside the repo, in ~/.config/uplink/:
+// Release signing and this install's defaults live outside the repo, in ~/.config/nullspace/
+// (or ~/.config/uplink/, from before the rename). Without them you get a debug-signed build with
+// no hub, which is what most people want.
 //   keystore.properties  storeFile/storePassword/keyAlias/keyPassword
-//   android.properties   hub=http://... and squelch_hub=https://..., baked in as first-run defaults
+//   android.properties   hub=, squelch_hub= (first-run defaults) and donate_url= (opt-in sharing)
 fun props(name: String) = Properties().apply {
-    val file = file(System.getProperty("user.home") + "/.config/uplink/" + name)
-    if (file.exists()) file.inputStream().use { load(it) }
+    val home = System.getProperty("user.home")
+    val file = listOf("$home/.config/nullspace/$name", "$home/.config/uplink/$name").map { file(it) }.firstOrNull { it.exists() }
+    file?.inputStream()?.use { load(it) }
 }
 val keystoreProps = props("keystore.properties")
 val installProps = props("android.properties")
@@ -63,6 +66,9 @@ android {
         // android/test.sh runs app/src/androidTest on an emulator, with both hubs off
         testInstrumentationRunner = "ca.heeney.uplink.OfflineRunner"
         buildConfigField("String", "SQUELCH_HUB", "\"${installProps.getProperty("squelch_hub", "")}\"")
+        // where "Share training data" sends to, when someone turns it on (it's off by default,
+        // and the setting is hidden in builds without one)
+        buildConfigField("String", "DONATE_URL", "\"${installProps.getProperty("donate_url", "")}\"")
         ndk {
             abiFilters += "arm64-v8a"
             // -Pemu for testing on an x86_64 emulator
@@ -123,6 +129,8 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     testImplementation("junit:junit:4.13.2")
+    // the real org.json, so the filer's unit tests can parse (android.jar only has stubs)
+    testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core-ktx:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

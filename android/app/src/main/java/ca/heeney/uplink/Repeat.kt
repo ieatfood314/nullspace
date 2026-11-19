@@ -9,7 +9,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 /** A task's `repeat`: an iCalendar RRULE, of which we act on FREQ, INTERVAL, BYDAY, COUNT and
- *  UNTIL. The walk is the same as occurrences() in server/uplink.py and web/app.js; keep the
+ *  UNTIL. The walk is the same as occurrences() in server/nullspace.py and web/app.js; keep the
  *  three in step. The hub and the page move a task on when it's marked done; the phone only
  *  needs the times, to remind at each one. `times` are the task's times of day ("07:30"): each day
  *  the rule gives, it comes up at every one of them, and COUNT counts each. */

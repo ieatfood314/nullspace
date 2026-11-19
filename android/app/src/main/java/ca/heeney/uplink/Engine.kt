@@ -12,7 +12,7 @@ import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 
-const val TAG = "Uplink"
+const val TAG = "Nullspace"
 
 /** The selected model (Parakeet v2 by default) on the CPU through sherpa-onnx. It
  *  stays loaded once it's up, so a dictation only pays for decoding. */

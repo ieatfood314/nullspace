@@ -1,0 +1,16 @@
+# The optional Nullspace hub as a systemd user unit. Edit the path if you cloned it elsewhere,
+# then: cp systemd/nullspace.service ~/.config/systemd/user/ && systemctl --user enable --now nullspace
+[Unit]
+Description=Nullspace hub
+After=network-online.target
+
+[Service]
+EnvironmentFile=-%h/.config/nullspace/hub.env
+EnvironmentFile=-%h/.config/uplink/hub.env
+ExecStart=/usr/bin/python3 %h/repos/nullspace/server/nullspace.py
+Restart=always
+RestartSec=5
+Nice=5
+
+[Install]
+WantedBy=default.target

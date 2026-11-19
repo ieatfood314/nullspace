@@ -12,31 +12,67 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /** Training data for speech models: each dictation's audio and transcript, and what you did to
- *  the text afterwards. Kept on the phone until it reaches the Squelch hub over Wi-Fi, which
- *  files it in the same archive as the desktop's. */
+ *  the text afterwards. Two queues, both kept on the phone until they go out over Wi-Fi:
+ *  - mine: to your own Squelch hub, which files it with the desktop's (Prefs.keepRecordings)
+ *  - shared: to the project, only if you turned on "Share training data" (Prefs.shareTraining,
+ *    off by default). Same format, so one receiver can take either. */
 object Archive {
     private const val MAX_CLIPS = 300
     private const val MAX_BYTES = 60_000_000L
 
-    private fun dir(ctx: Context) = File(ctx.filesDir, "archive")
-    private fun edits(ctx: Context) = File(ctx.filesDir, "corrections.jsonl")
+    class Queue(val dirName: String, val editsName: String) {
+        fun dir(ctx: Context) = File(ctx.filesDir, dirName)
+        fun edits(ctx: Context) = File(ctx.filesDir, editsName)
+    }
+    private val MINE = Queue("archive", "corrections.jsonl")
+    private val SHARED = Queue("shared", "shared-corrections.jsonl")
+
+    private fun queues(): List<Queue> = listOfNotNull(MINE.takeIf { Prefs.keepRecordings }, SHARED.takeIf { Prefs.shareTraining })
 
     fun save(ctx: Context, said: Said, pcm: FloatArray, model: String) {
+        val qs = queues()
+        if (qs.isEmpty()) return
         Thread({
             try {
-                val d = dir(ctx).apply { mkdirs() }
-                File(d, "${said.id}.wav").writeBytes(wav(pcm))
-                File(d, "${said.id}.json").writeText(JSONObject()
+                val wav = wav(pcm)
+                val meta = JSONObject()
                     .put("id", said.id).put("ts", said.ts).put("engine", model)
-                    .put("audio_s", pcm.size / 16000.0).put("text", said.heard).put("cut", said.cut).toString())
-                trim(d)
+                    .put("audio_s", pcm.size / 16000.0).put("text", said.heard).put("cut", said.cut).toString()
+                for (q in qs) {
+                    val d = q.dir(ctx).apply { mkdirs() }
+                    File(d, "${said.id}.wav").writeBytes(wav)
+                    File(d, "${said.id}.json").writeText(meta)
+                    trim(d)
+                }
+                if (SHARED in qs) shareSoon(ctx)
             } catch (t: Throwable) { Log.w(TAG, "archive: $t") }
         }, "archive").start()
     }
 
     @Synchronized fun edited(ctx: Context, rec: JSONObject) {
-        if (!Prefs.keepRecordings) return
-        try { edits(ctx).appendText(rec.toString() + "\n") } catch (t: Throwable) { Log.w(TAG, "archive: $t") }
+        for (q in queues()) try {
+            // shared: never the text that was already in the box, which may be someone else's
+            val r = if (q === SHARED) JSONObject(rec.toString()).apply { remove("before") } else rec
+            q.edits(ctx).appendText(r.toString() + "\n")
+        } catch (t: Throwable) { Log.w(TAG, "archive: $t") }
+    }
+
+    /** Sharing turned off: what was waiting to go is deleted, not sent. */
+    @Synchronized fun dropShared(ctx: Context) {
+        SHARED.dir(ctx).deleteRecursively()
+        SHARED.edits(ctx).delete()
+    }
+
+    private val sharing = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Send what's waiting to be shared, on Wi-Fi only, in the background. */
+    fun shareSoon(ctx: Context) {
+        if (!Prefs.shareTraining || Net.metered(ctx) || !Net.online(ctx) || !sharing.compareAndSet(false, true)) return
+        val app = ctx.applicationContext
+        Thread({
+            try { send(app, SHARED, BuildConfig.DONATE_URL.trimEnd('/')) } catch (t: Throwable) { Log.w(TAG, "share: $t") }
+            finally { sharing.set(false) }
+        }, "share").start()
     }
 
     /** Oldest clips go first once there are too many, or too much. */
@@ -61,10 +97,16 @@ object Archive {
         return b.array()
     }
 
-    /** Send what's waiting to the hub. Called from the Words sync, which only runs on Wi-Fi. */
+    /** Send what's waiting to your Squelch hub. Called from the Words sync, which only runs on Wi-Fi. */
     fun upload(ctx: Context, url: String) {
+        send(ctx, MINE, url)
+        shareSoon(ctx)
+    }
+
+    private fun send(ctx: Context, q: Queue, url: String) {
+        if (url.isEmpty()) return
         val dev = Sync.deviceId(ctx)
-        val d = dir(ctx)
+        val d = q.dir(ctx)
         for (meta in d.listFiles { f -> f.name.endsWith(".json") }?.sortedBy { it.name } ?: emptyList()) {
             if (Net.metered(ctx)) return
             val wav = File(d, meta.name.removeSuffix(".json") + ".wav")
@@ -77,7 +119,7 @@ object Archive {
                 else -> return
             }
         }
-        val f = edits(ctx)
+        val f = q.edits(ctx)
         val lines = synchronized(this) { if (f.exists()) f.readLines().filter { it.isNotBlank() } else emptyList() }
         if (lines.isEmpty()) return
         val items = JSONArray()

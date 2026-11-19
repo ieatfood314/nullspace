@@ -1,9 +1,9 @@
-/* Uplink: one page for tasks, notes, captures and places.
+/* Nullspace: one page for tasks, notes, captures and places.
  *
  * The page keeps every record in memory and talks to one endpoint, sync, which takes the
  * records changed here and returns everything changed since the last rev it saw. In a browser
  * that's the hub's POST /api/sync. In the phone app it's the UplinkNative bridge, which
- * answers from the phone's own copy and syncs with the hub in the background. */
+ * answers from the phone's own copy (and syncs with your hub in the background, if you have one). */
 "use strict";
 
 const N = window.UplinkNative || null;
@@ -142,7 +142,7 @@ function whenText(ts) {
 
 /* ---- repeats ----
  * `repeat` is an iCalendar RRULE. Marking a repeating task done moves it to its next time.
- * This is the same walk as roll() in server/uplink.py and Reminders.kt; keep them in step.
+ * This is the same walk as roll() in server/nullspace.py and Reminders.kt; keep them in step.
  * `times` ("07:30", "18:00") are a task's times of day: each day the rule gives, it comes up at
  * every one of them, and COUNT counts each. Minute and hour repeats ignore them. */
 
@@ -764,7 +764,7 @@ function editPlace(id) {
             rseq++; d.lat = r.lat; d.lon = r.lon; d.address = r.name;
             out.innerHTML = ""; f.q.value = ""; show();
           };
-        } catch (e) { if (mine === seq) out.innerHTML = `<p class="x">Search needs the hub</p>`; }
+        } catch (e) { if (mine === seq) out.innerHTML = `<p class="x">${navigator.onLine ? "Search failed" : "You're offline"}</p>`; }
       }, 700);
     });
     const del = f.querySelector('[data-act="delete"]');
@@ -866,7 +866,7 @@ document.addEventListener("click", async (e) => {
   if (redo) {
     redo.textContent = "Filing";
     try { await hub("api/reprocess/" + redo.dataset.redo, "POST"); await sync(); toast("Filed again"); }
-    catch (err) { redo.textContent = "Redo"; toast("Redo needs the hub"); }
+    catch (err) { redo.textContent = "Redo"; toast("Couldn't file it again"); }
     return;
   }
   const delcap = t.closest("[data-delcap]");
@@ -885,7 +885,19 @@ window.uplinkBack = () => {
   return false;
 };
 
+/* The accent you picked in the phone's settings, and black or white text to go on it. */
+window.uplinkAccent = (hex) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!m) return;
+  const n = parseInt(m[1], 16);
+  const lum = (0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  const root = document.documentElement.style;
+  root.setProperty("--accent", "#" + m[1]);
+  root.setProperty("--on-accent", lum > 0.45 ? "#000" : "#fff");
+};
+
 if (N) {
+  if (N.accent) window.uplinkAccent(N.accent());
   const s = $("#settings");
   s.hidden = false;
   s.onclick = () => N.openSettings();

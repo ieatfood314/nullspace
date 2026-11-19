@@ -219,7 +219,7 @@ object Reminders {
             .apply { if (sub != null) setContentText(sub) }
             .setContentIntent(open)
             .setAutoCancel(true)
-            .setColor(0xFF3D9BFF.toInt())
+            .setColor(Prefs.accent)
             .addAction(android.app.Notification.Action.Builder(null, "Done", done).build())
             .build()
         ctx.getSystemService(NotificationManager::class.java).notify(id, n)

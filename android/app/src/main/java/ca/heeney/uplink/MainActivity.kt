@@ -94,6 +94,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // the accent may have changed in settings
+        web.evaluateJavascript("window.uplinkAccent && uplinkAccent(${JSONObject.quote(Prefs.accentHex())})", null)
         HubSync.soon(this)
     }
 
@@ -114,7 +116,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Settings until the basics are done: the key, the mic, the hub. */
+    /** Settings until the basics are done: the key, the mic, the AI key. */
     private fun firstRun() {
         if (Prefs.sp().getBoolean("setup_seen", false)) return
         Prefs.sp().edit().putBoolean("setup_seen", true).apply()
@@ -135,9 +137,9 @@ class MainActivity : ComponentActivity() {
     inner class Bridge {
         @JavascriptInterface fun sync(body: String): String = Store.pageSync(this@MainActivity, body)
 
-        /** A call that only the hub can answer (address search, redo). */
+        /** Address search and Redo: from your hub when there is one, else done on the phone. */
         @JavascriptInterface fun hub(path: String, method: String, body: String): String {
-            val url = HubSync.url() ?: return JSONObject().put("error", "Set the hub address in settings").toString()
+            val url = HubSync.url() ?: return Geo.answer(this@MainActivity, path, method)
             return try {
                 val p = path.trimStart('/')
                 val out = HubSync.post(this@MainActivity, "$url/$p", if (method == "GET") null else body.toByteArray(), Net.metered(this@MainActivity))
@@ -158,6 +160,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        /** the accent color, as #RRGGBB */
+        @JavascriptInterface fun accent(): String = Prefs.accentHex()
 
         @JavascriptInterface fun openSettings() {
             main.post { startActivity(Intent(this@MainActivity, SettingsActivity::class.java)) }

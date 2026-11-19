@@ -1,3 +1,3 @@
 <resources>
-    <string name="a11y_description">Uplink reads one key. Hold it to dictate into the field you\'re in, press it to capture the screen, press then hold for a voice note. Speech is turned into text on the phone and never leaves it.</string>
+    <string name="a11y_description">Nullspace reads one key. Hold it to dictate into the field you\'re in, press it to capture the screen, press then hold for a voice note. Speech is turned into text on the phone, and the audio never leaves it unless you turn on sharing.</string>
 </resources>

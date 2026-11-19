@@ -83,7 +83,7 @@ class ShotCard(private val svc: UplinkService, private val shot: Capture.Pending
 
     fun keyUp(held: Long) {
         if (held >= UplinkService.HOLD_MS) {
-            if (!Engine.installed(svc)) { Notice.show(svc, "Open Uplink settings to download the speech model"); rearm(); return }
+            if (!Engine.installed(svc)) { Notice.show(svc, "Open Nullspace settings to download the speech model"); rearm(); return }
             if (keyTalk) Dictation.finish(svc) else rearm()
             return
         }
@@ -180,7 +180,7 @@ class ShotCard(private val svc: UplinkService, private val shot: Capture.Pending
                 override fun getOutline(view: View, o: Outline) { o.setRoundRect(0, 0, view.width, view.height, 12 * d) }
             }
             clipToOutline = true
-            contentDescription = "Open Uplink"
+            contentDescription = "Open Nullspace"
             // Not mid-sentence: that would lose what you're saying.
             setOnClickListener { if (!talking) { keep(); svc.openApp() } }
         }
@@ -280,6 +280,7 @@ private class MicButton(ctx: Context) : View(ctx) {
         }
         fill.color = Color.BLACK
         c.drawCircle(cx, cy, r, fill)
+        ring.color = PillView.ACCENT
         c.drawCircle(cx, cy, r, ring)
         val bw = 3 * d
         val gap = 3.5f * d

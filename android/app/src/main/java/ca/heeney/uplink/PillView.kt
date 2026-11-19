@@ -74,6 +74,7 @@ class PillView(ctx: Context) : View(ctx) {
         const val BARS = 9
         /** dB-ish: 0.001 (quiet room) to 0.3 (loud) maps to 0..1 */
         fun norm(r: Float) = ((ln(maxOf(r, 1e-4f)) - ln(0.001f)) / (ln(0.3f) - ln(0.001f))).coerceIn(0f, 1f)
-        val ACCENT = 0xFF6F93B8.toInt()
+        /** the accent you picked in settings */
+        val ACCENT: Int get() = Prefs.accent
     }
 }
