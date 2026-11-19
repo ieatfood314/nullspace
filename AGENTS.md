@@ -14,7 +14,7 @@ Nullspace has users besides Aidan, so experiments must not reach them.
 - **No forgotten changes.** Before you end a session, run `git status` in your worktree and in `~/repos/uplink`. Commit what you made (on your branch, or `main` if Aidan asked for it), or list it under "Parked work" below with what it is and why it's waiting. Uncommitted edits in someone's checkout are invisible to every other session.
 
 ### Parked work
-Nothing yet.
+- **Site: volume keys and the power-button menu.** `site/index.html` already describes them (the note under "One key does it all"), but it isn't published yet, because `stable` doesn't have them: they arrive in the first testing build after v1.0.42. When you promote that build to `stable`, also run `python3 site/publish.py`, then delete this entry.
 
 ## Where things run
 - **Repo:** `~/repos/uplink` on nas (T3 project "Nullspace", path unchanged so existing worktrees and threads keep working). GitHub: `ieatfood314/nullspace` (the old `ieatfood314/uplink` URL redirects there).
