@@ -26,7 +26,7 @@ conflicts=('squelch')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/desktop-v$pkgver.tar.gz"
         "squelch-$_squelch.tar.gz::https://github.com/ieatfood314/squelch/archive/refs/tags/v$_squelch.tar.gz"
         "whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#commit=0c7be696371069e0baa2515ed7aa08d5a5473aa6")
-sha256sums=('27d107e25bd9d03d94b60721379e1433a06281a0d713d68ebd0e193f070a5ebb'
+sha256sums=('13547f439b2db7c4b576a66c0ee3f6968a66e9941da5ac86b30072821a536937'
             'dd1a363307251026cf528c8e5e90fb62c6b4ef103997e76e6778b49228568980'
             'SKIP')
 options=('!debug')
