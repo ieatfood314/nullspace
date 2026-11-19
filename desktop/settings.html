@@ -1,0 +1,504 @@
+<!doctype html>
+<!-- Nullspace for the desktop: Settings. The phone's Settings screen (SettingsActivity.kt),
+     row for row where the two share a setting, laid out for a window. nullspace-desktop loads
+     it next to the page's files (fonts/) and answers it over QWebChannel as `ns`. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings</title>
+<style>
+@font-face { font-family: "Inter"; src: local("Inter"), url("fonts/inter-regular.ttf") format("truetype"); font-weight: 400; }
+@font-face { font-family: "Inter"; src: local("Inter Medium"), url("fonts/inter-medium.otf") format("opentype"); font-weight: 500; }
+
+:root {
+  --bg: #000000;
+  --fg: #ffffff;
+  --dim: #8a8a8a;
+  --faint: #4a4a4a;
+  --line: #1f1f1f;
+  --accent: #3d9bff;
+  --on-accent: #000;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); }
+body { font: 400 16px/1.45 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button, input, textarea { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+[hidden] { display: none !important; }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 28px 48px 80px; }
+header { margin-bottom: 36px; }
+.back { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 0 4px -12px; color: var(--fg); border-radius: 50%; }
+.back:hover { background: #111; }
+h1 { font: 400 52px/1 Inter, sans-serif; letter-spacing: .02em; margin: 0; }   /* the tasks page's title */
+
+.cols { display: grid; grid-template-columns: minmax(0, 620px) minmax(280px, 360px); gap: 88px; justify-content: center; }
+aside { position: sticky; top: 28px; align-self: start; }
+
+/* a row: label, (i), status in grey, action in the accent */
+.row { display: flex; align-items: center; min-height: 56px; padding: 4px 0; }
+.row.tap { cursor: pointer; }
+.row .label { font-size: 18px; white-space: nowrap; }
+.row .info { flex: none; display: grid; place-items: center; width: 40px; height: 40px; margin-left: 2px; color: var(--dim); border-radius: 50%; }
+.row .info.on, .row .info:hover { color: var(--fg); }
+.row .gap { width: 16px; flex: none; }
+.row .status { flex: 1; min-width: 0; text-align: right; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .act { flex: none; margin-left: 16px; color: var(--accent); font-weight: 500; }
+.row.tap:hover .act { text-decoration: underline; text-underline-offset: 4px; }
+.help { color: var(--dim); font-size: 14px; line-height: 20px; margin: -2px 0 16px; max-width: 520px; }
+.rule { height: 1px; background: var(--line); }
+.inner { padding: 4px 0 16px; }
+.note { color: var(--dim); font-size: 13px; margin: 4px 0 0; }
+
+/* the key's gestures, under Shortcut key */
+.legend { display: grid; grid-template-columns: 160px 1fr; gap: 6px 0; padding: 0 0 16px; font-size: 14px; }
+.legend dt { color: var(--dim); }
+.legend dd { margin: 0; }
+
+/* a one-line field with its action in the accent on the right */
+.line { display: flex; align-items: center; gap: 12px; margin: 6px 0; padding: 0 14px; height: 48px; border: 1px solid var(--line); border-radius: 12px; }
+.line:focus-within { border-color: var(--faint); }
+.line input { flex: 1; min-width: 0; height: 100%; background: none; border: 0; outline: none; }
+.line input::placeholder { color: var(--dim); }
+.line button { color: var(--accent); font-weight: 500; }
+.line button:disabled { color: var(--dim); cursor: default; }
+
+/* lists inside a row: models, mics, words */
+.pick { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 0; text-align: left; }
+.pick:disabled { cursor: default; }
+.pick .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.pick.on .dot { background: var(--accent); }
+.pick .name { flex: 1; min-width: 0; }
+.pick .sub { display: block; color: var(--dim); font-size: 13px; }
+.pick .right { color: var(--dim); font-size: 14px; white-space: nowrap; }
+.pick:not(:disabled):hover .name { text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--faint); }
+.pick .rm { color: var(--accent); font-weight: 500; font-size: 14px; }
+
+.two { display: flex; gap: 8px; padding: 6px 0; }
+.two button { flex: 1; height: 46px; border: 1px solid var(--line); border-radius: 12px; color: var(--dim); font-weight: 500; }
+.two button.on { border-color: var(--accent); color: var(--accent); }
+
+.swatches { display: flex; justify-content: space-between; max-width: 380px; padding: 8px 0; }
+.swatches button { width: 40px; height: 40px; padding: 5px; border-radius: 50%; border: 2px solid transparent; }
+.swatches button.on { border-color: var(--fg); }
+.swatches span { display: block; width: 100%; height: 100%; border-radius: 50%; }
+
+.textlinks { display: flex; justify-content: space-between; padding: 10px 0; font-weight: 500; }
+.textlinks button { color: var(--accent); }
+.textlinks button:disabled { color: var(--dim); cursor: default; }
+
+/* the side: try it, analytics */
+.try { width: 100%; min-height: 140px; padding: 16px; resize: vertical; background: none; border: 1px solid var(--line); border-radius: 16px; font-size: 18px; outline: none; }
+.try::placeholder { color: var(--dim); }
+.try:focus { border-color: var(--accent); }
+.wait { color: var(--dim); font-size: 13px; margin-top: 10px; }
+h2 { font-weight: 500; font-size: 22px; margin: 44px 0 18px; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 16px; }
+.tile b { display: block; font: 500 30px/1.1 Inter, sans-serif; font-variant-numeric: tabular-nums; }
+.tile span { color: var(--dim); font-size: 13px; }
+.recent { color: var(--dim); font-size: 13px; margin: 20px 0 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+th { color: var(--dim); font-weight: 400; text-align: right; padding: 6px 0; }
+td { text-align: right; padding: 6px 0; }
+th:first-child, td:first-child { text-align: left; }
+
+@media (max-width: 980px) {
+  .wrap { padding: 24px 24px 64px; max-width: 668px; }
+  .cols { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  aside { position: static; margin-top: 32px; }
+  h1 { font-size: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <button class="back" id="back" aria-label="Back">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2Z"/></svg>
+    </button>
+    <h1>Settings</h1>
+  </header>
+  <div class="cols">
+    <main id="rows"></main>
+    <aside id="side" hidden>
+      <textarea class="try" id="try" placeholder="Try it here" aria-label="Try dictation here"></textarea>
+      <div class="wait" id="wait"></div>
+      <div id="stats"></div>
+    </aside>
+  </div>
+</div>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+let ns = null;          // nullspace-desktop, over QWebChannel
+let S = null;           // the last state it sent
+let open = "";          // the row that's expanded
+let helpFor = "";       // the row whose help line shows
+const drafts = {};      // what's typed in a field, by its id, kept across redraws
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "class") el.className = v;
+    else if (k === "style") el.style.cssText = v;
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) el.append(c.nodeType ? c : String(c));
+  return el;
+}
+
+function call(name, arg) {
+  if (ns) ns.call(name, arg === undefined ? "" : JSON.stringify(arg), () => {});
+}
+function toggle(key) { open = open === key ? "" : key; draw(); }
+
+const INFO = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M11 7h2v2h-2V7Zm0 4h2v6h-2v-6Zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>';
+
+/* label on the left; a status in grey when it's done, else the action in the accent.
+   With help, an (i) after the label shows a line saying what the row is for. */
+function row(label, status, fix, opts = {}) {
+  const { action, help, onClick, divider = true } = opts;
+  const tap = action ?? (status == null ? fix : null);
+  const showHelp = help && helpFor === label;
+  const out = [];
+  const r = h("div", { class: "row" + (tap ? " tap" : ""), role: tap ? "button" : null, tabindex: tap ? "0" : null },
+    h("span", { class: "label" }, label),
+    help ? h("button", { class: "info" + (showHelp ? " on" : ""), "aria-label": (showHelp ? "Hide what " : "What ") + label + " does",
+      onclick: (e) => { e.stopPropagation(); helpFor = showHelp ? "" : label; draw(); } }) : h("span", { class: "gap" }),
+    h("span", { class: "status" }, status ?? ""),
+    tap ? h("span", { class: "act" }, tap) : null);
+  if (help) r.querySelector(".info").innerHTML = INFO;
+  if (tap && onClick) {
+    r.addEventListener("click", onClick);
+    r.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } });
+  }
+  out.push(r);
+  if (showHelp) out.push(h("div", { class: "help" }, help));
+  if (divider) out.push(h("div", { class: "rule" }));
+  return out;
+}
+
+/* a one-line field; enabled(value) says whether its action can run */
+function line(id, value, hint, action, enabled, onAction, opts = {}) {
+  const v = drafts[id] ?? value ?? "";
+  const btn = action ? h("button", { type: "button" }, action) : null;
+  const input = h("input", { id, value: v, placeholder: hint, type: opts.secret ? "password" : "text",
+    spellcheck: "false", autocomplete: "off", "aria-label": hint });
+  input.value = v;
+  const update = () => { if (btn) btn.disabled = !enabled(input.value); };
+  input.addEventListener("input", () => { drafts[id] = input.value; update(); });
+  const run = () => { if (btn && !btn.disabled) { onAction(input.value); delete drafts[id]; } };
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
+  if (btn) btn.addEventListener("click", run);
+  update();
+  return h("div", { class: "line" }, input, btn);
+}
+
+function onOff(label, on, help, set) {
+  return row(label, on ? "On" : "Off", null, { action: on ? "Turn off" : "Turn on", help, onClick: () => set(!on) });
+}
+
+/* ---------------- the rows ---------------- */
+
+function drawRows() {
+  const d = S.dictation;
+  const out = [];
+  if (d) {
+    out.push(row("Keyboard access", { ok: "On", restart: "Log out to finish", waiting: "Waiting" }[d.access] ?? null, "Turn on",
+      { help: "Lets Nullspace notice the shortcut key and type what you say into any app.", onClick: () => call("access") }));
+    out.push(micRow(d));
+    out.push(modelRow(d));
+    out.push(row("Shortcut key", d.learning ? "Press a key" : (d.keyNote || d.key), null,
+      { action: d.learning ? "Cancel" : "Change", divider: false,
+        help: "The key that runs Nullspace. Click Change, then press the one you want.", onClick: () => call("learn") }));
+    out.push(h("dl", { class: "legend" },
+      [["Hold", "Dictate"], ["Press", "Capture the screen"], ["Press, then hold", "Voice note"], ["Double press", "Open Nullspace"]]
+        .flatMap(([a, b]) => [h("dt", {}, a), h("dd", {}, b)])), h("div", { class: "rule" }));
+    out.push(insertRow(d));
+    out.push(onOff("Remove filler words", d.filters.defiller, "Drops um, uh and the like from what you dictate.",
+      (v) => call("filters", { defiller: v })));
+    out.push(numbersRow(d));
+  } else {
+    out.push(row("Dictation", "Not installed", null, { help: "Dictation comes with the nullspace package. Reinstall it." }));
+  }
+  out.push(aiRow());
+  out.push(onOff("Reminders", S.reminders, "Shows your reminders on this computer. The phone still rings.",
+    (v) => call("reminders", v)));
+  out.push(accentRow());
+  out.push(hubRow());
+  if (d) {
+    out.push(syncRow(d));
+    out.push(wordsRow(d));
+    if (d.archive || d.sync) out.push(keepRow(d));
+    out.push(onOff("Start with computer", d.autostart, "Starts dictation and Nullspace when you log in.",
+      (v) => call("autostart", v)));
+  }
+  return out;
+}
+
+function micRow(d) {
+  const cur = d.mics.find(([n]) => n === d.mic);
+  const out = row("Microphone", d.mic ? (cur ? cur[1] : "Missing") : "Default", null,
+    { action: open === "mic" ? "Done" : "Change", divider: open !== "mic", help: "The one dictation and voice notes listen to.",
+      onClick: () => toggle("mic") });
+  if (open !== "mic") return out;
+  const list = [["", "Default"], ...d.mics];
+  out.push(h("div", { class: "inner" }, list.map(([name, desc]) =>
+    h("button", { class: "pick" + (name === d.mic ? " on" : ""), onclick: () => call("mic", name) },
+      h("span", { class: "dot" }), h("span", { class: "name" }, desc)))), h("div", { class: "rule" }));
+  return out;
+}
+
+function modelRow(d) {
+  const st = d.engineStatus;
+  const status = d.downloading ? "Downloading" : !d.model ? null : st === "Ready" ? d.model : st;
+  const show = open === "model" || !d.model;
+  const out = row("Speech model", status ?? "Pick one", null,
+    { action: !d.model ? null : open === "model" ? "Done" : "Change", divider: !show,
+      help: "Turns your voice into text, on this computer. Your audio stays here.", onClick: () => toggle("model") });
+  if (!show) return out;
+  const items = d.models.map((m) => {
+    const busy = d.downloading === m.name;
+    const right = busy ? "Downloading" : m.inUse ? "In use" : m.here ? "Ready" : m.size;
+    return h("button", { class: "pick" + (m.inUse ? " on" : ""), disabled: m.inUse || (!m.here && (!!d.downloading || !m.id)),
+      onclick: () => call("model", m) },
+      h("span", { class: "dot" }),
+      h("span", { class: "name" }, m.name, h("span", { class: "sub" }, m.engine === "parakeet" ? "Fast, uses the graphics card" : "More languages")),
+      h("span", { class: "right" }, right));
+  });
+  const inner = h("div", { class: "inner" }, items);
+  if (d.dlError) inner.append(h("p", { class: "note" }, d.dlError));
+  if (d.engine === "parakeet") {
+    inner.append(line("headroom", String(d.headroom), "Graphics memory to leave free, GB", "Save",
+      (v) => /^\d+(\.\d+)?$/.test(v.trim()) && parseFloat(v) !== d.headroom, (v) => call("headroom", parseFloat(v))));
+    inner.append(h("p", { class: "note" }, "Graphics memory left free for games and other apps, in GB." +
+      (d.longest ? " Longest dictation now " + d.longest + "." : "")));
+  }
+  out.push(inner, h("div", { class: "rule" }));
+  return out;
+}
+
+const INSERT = { paste: "Paste", type: "Type keys", clipboard: "Clipboard only" };
+function insertRow(d) {
+  const out = row("Put text in by", INSERT[d.insert] + (d.live && d.insert !== "clipboard" ? ", as you speak" : ""), null,
+    { action: open === "insert" ? "Done" : "Change", divider: open !== "insert",
+      help: "How dictation puts text into the app you're in. Paste is fastest. Type keys works where pasting doesn't.",
+      onClick: () => toggle("insert") });
+  if (open !== "insert") return out;
+  out.push(h("div", { class: "inner" },
+    h("div", { class: "two" }, Object.entries(INSERT).map(([k, t]) =>
+      h("button", { class: d.insert === k ? "on" : "", onclick: () => call("insert", k) }, t))),
+    d.insert !== "clipboard" ? row("Type as you speak", d.live ? "On" : "Off", null,
+      { action: d.live ? "Turn off" : "Turn on", divider: false, onClick: () => call("live", !d.live) }) : null),
+    h("div", { class: "rule" }));
+  return out;
+}
+
+function numbersRow(d) {
+  const f = d.filters;
+  const now = f.numbers_all ? "all" : f.numbers ? "over" : "off";
+  const names = { off: "Off", over: "Over ten", all: "All" };
+  const out = row("Numbers as digits", names[now], null,
+    { action: open === "numbers" ? "Done" : "Change", divider: open !== "numbers",
+      help: "Writes numbers you say as digits: 42 instead of forty-two.", onClick: () => toggle("numbers") });
+  if (open !== "numbers") return out;
+  const set = { off: { numbers: false, numbers_all: false }, over: { numbers: true, numbers_all: false }, all: { numbers: true, numbers_all: true } };
+  out.push(h("div", { class: "inner" }, h("div", { class: "two" }, Object.entries(names).map(([k, t]) =>
+    h("button", { class: now === k ? "on" : "", onclick: () => call("filters", set[k]) }, t)))), h("div", { class: "rule" }));
+  return out;
+}
+
+function aiRow() {
+  const a = S.ai;
+  const status = a.checking ? "Checking" : a.error ? a.error : a.on ? a.name : null;
+  const out = row("AI provider", status, "Set up",
+    { action: open === "ai" ? "Done" : a.on ? "Change" : "Set up", divider: open !== "ai",
+      help: "Optional. Your own AI key files your captures and fixes dictation that was cut off. Only text is sent.",
+      onClick: () => toggle("ai") });
+  if (open !== "ai") return out;
+  const preset = drafts["ai-preset"] ?? a.preset;
+  const groq = preset === "groq";
+  const inner = h("div", { class: "inner" });
+  inner.append(h("div", { class: "two" }, [["groq", "Groq"], ["other", "Other"]].map(([k, t]) =>
+    h("button", { class: preset === k ? "on" : "", onclick: () => { drafts["ai-preset"] = k; draw(); } }, t))));
+  const never = () => false;
+  if (!groq) inner.append(line("ai-url", a.url, "Chat completions URL", null, never, null));
+  inner.append(line("ai-key", "", a.hasKey ? "Key saved" : groq ? "Groq API key" : "API key, if it needs one", null, never, null, { secret: true }));
+  inner.append(line("ai-model", a.model, groq ? "llama-3.3-70b-versatile" : "Model", null, never, null));
+  const save = h("button", { disabled: a.checking }, "Save");
+  save.onclick = () => {
+    const v = { preset, url: drafts["ai-url"] ?? a.url, model: drafts["ai-model"] ?? a.model };
+    if (drafts["ai-key"] !== undefined) v.key = drafts["ai-key"];
+    for (const k of ["ai-preset", "ai-url", "ai-key", "ai-model"]) delete drafts[k];
+    call("ai", v);
+  };
+  inner.append(h("div", { class: "textlinks" },
+    groq ? h("button", { onclick: () => call("web", "https://console.groq.com/keys") }, "Get a key") : h("span"),
+    save));
+  out.push(inner, h("div", { class: "rule" }));
+  return out;
+}
+
+function accentRow() {
+  const out = row("Accent color", S.accent.toUpperCase(), null,
+    { action: open === "accent" ? "Done" : "Change", divider: open !== "accent", help: "The color of buttons and highlights.",
+      onClick: () => toggle("accent") });
+  if (open !== "accent") return out;
+  const pick = (c) => { S.accent = c; paint(c); call("accent", c); draw(); };
+  out.push(h("div", { class: "inner" },
+    h("div", { class: "swatches" }, S.accents.map((c) =>
+      h("button", { class: c.toUpperCase() === S.accent.toUpperCase() ? "on" : "", "aria-label": c, onclick: () => pick(c) },
+        h("span", { style: "background:" + c })))),
+    line("hex", "", "Any color, like #3D9BFF", "Use", (v) => /^#?[0-9a-f]{6}$/i.test(v.trim()),
+      (v) => pick("#" + v.trim().replace(/^#/, "").toUpperCase()))), h("div", { class: "rule" }));
+  return out;
+}
+
+function hubRow() {
+  const out = row("Hub", S.hubStatus, null,
+    { action: open === "hub" ? "Done" : "Change", divider: open !== "hub",
+      help: "Where your list lives. This computer, or your own server shared with your phone and other computers.",
+      onClick: () => toggle("hub") });
+  if (open !== "hub") return out;
+  out.push(h("div", { class: "inner" },
+    line("hub", S.hub, "Hub address, like http://server:4645", "Save", (v) => v.trim() !== S.hub, (v) => call("hub", v.trim())),
+    h("p", { class: "note" }, "Leave it empty to keep your list on this computer.")), h("div", { class: "rule" }));
+  return out;
+}
+
+function syncRow(d) {
+  const out = row("Words sync", d.syncStatus, null,
+    { action: open === "sync" ? "Done" : d.sync ? "Change" : "Set up", divider: open !== "sync",
+      help: "Shares your custom words and stats with Squelch on your other devices.", onClick: () => toggle("sync") });
+  if (open !== "sync") return out;
+  out.push(h("div", { class: "inner" },
+    line("sync", d.sync, "Squelch hub address", "Save", (v) => v.trim() !== d.sync, (v) => call("sync", v.trim()))),
+    h("div", { class: "rule" }));
+  return out;
+}
+
+function wordsRow(d) {
+  const out = row("Custom words", d.pending.length ? `${d.words.length}, ${d.pending.length} to check` : String(d.words.length), null,
+    { action: open === "words" ? "Done" : "Edit", divider: open !== "words",
+      help: "Names and words dictation gets wrong. Add how it should be spelled and what it hears instead.",
+      onClick: () => toggle("words") });
+  if (open !== "words") return out;
+  const inner = h("div", { class: "inner" });
+  for (const [term, heard] of d.pending) {
+    inner.append(h("div", { class: "pick" },
+      h("span", { class: "name" }, term, h("span", { class: "sub" }, "Heard as " + heard + "?")),
+      h("button", { class: "rm", onclick: () => call("mishearing", { term, heard, accept: true }) }, "Add"),
+      h("button", { class: "rm", style: "color:var(--dim)", onclick: () => call("mishearing", { term, heard, accept: false }) }, "Ignore")));
+  }
+  inner.append(line("w-term", "", "Word, spelled right", null, () => false, null));
+  inner.append(line("w-heard", "", "Heard as, comma separated", "Add", () => true, (v) => {
+    const term = (drafts["w-term"] || "").trim();
+    if (!term) { $("#w-term").focus(); return; }
+    delete drafts["w-term"];
+    call("add_word", { term, heard: v.split(",") });
+  }));
+  for (const w of [...d.words].reverse()) {
+    inner.append(h("div", { class: "pick" },
+      h("span", { class: "name" }, w.term, w.heard.length ? h("span", { class: "sub" }, w.heard.join(", ")) : null),
+      h("button", { class: "rm", onclick: () => call("remove_word", w.term) }, "Remove")));
+  }
+  out.push(inner, h("div", { class: "rule" }));
+  return out;
+}
+
+function keepRow(d) {
+  const out = row("Keep recordings", d.archive ? "On" : "Off", null,
+    { action: open === "keep" ? "Done" : d.archive ? "Change" : "Turn on", divider: open !== "keep",
+      help: "Saves your dictation audio and fixes to a folder, to train speech models.", onClick: () => toggle("keep") });
+  if (open !== "keep") return out;
+  out.push(h("div", { class: "inner" },
+    line("archive", d.archive, "Folder, like /mnt/nas/squelch", "Save", (v) => v.trim() !== d.archive, (v) => call("archive", v.trim())),
+    h("p", { class: "note" }, "Leave it empty to stop.")), h("div", { class: "rule" }));
+  return out;
+}
+
+/* ---------------- the side ---------------- */
+
+function drawSide() {
+  const d = S.dictation;
+  $("#side").hidden = !d;
+  if (!d) return;
+  $("#wait").textContent = d.lastWait != null ? d.lastWait.toFixed(2) + " s" : "";
+  const s = d.stats;
+  const box = $("#stats");
+  box.replaceChildren();
+  if (!s || !s.utterances) return;
+  const n = (x) => Math.round(x).toLocaleString();
+  box.append(h("h2", {}, "Analytics"),
+    h("div", { class: "tiles" },
+      [[n(s.words), "words"], [n(s.wpm), "WPM"], [s.avg_lat.toFixed(2) + " s", "avg wait"], [n(s.utterances), "dictations"]]
+        .map(([v, c]) => h("div", { class: "tile" }, h("b", {}, v), h("span", {}, c)))),
+    h("p", { class: "recent" }, s.recent_n
+      ? `Last hour ${n(s.recent_wpm)} WPM, ${n(s.recent_words)} words. Last 10 waited ${s.recent_lat.toFixed(2)} s.`
+      : "Nothing in the last hour"),
+    h("table", {},
+      h("tr", {}, ["Day", "Words", "Dictations", "Minutes"].map((t) => h("th", {}, t))),
+      s.days.map(([day, w, u, m]) => h("tr", {},
+        h("td", {}, new Date(day + "T12:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })),
+        h("td", {}, n(w)), h("td", {}, n(u)), h("td", {}, m.toFixed(1))))));
+}
+
+/* ---------------- drawing ---------------- */
+
+function paint(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!m) return;
+  const v = parseInt(m[1], 16);
+  const lum = (0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255)) / 255;
+  document.documentElement.style.setProperty("--accent", "#" + m[1]);
+  document.documentElement.style.setProperty("--on-accent", lum > 0.45 ? "#000" : "#fff");
+}
+
+function draw() {
+  if (!S) return;
+  // keep the field you're typing in, and where the cursor is
+  const a = document.activeElement;
+  const focus = a && a.id && a.tagName === "INPUT" ? [a.id, a.selectionStart, a.selectionEnd] : null;
+  const focusRow = a && a.classList && a.classList.contains("row") ? a.querySelector(".label").textContent : null;
+  $("#rows").replaceChildren(...drawRows().flat(3));
+  drawSide();
+  if (focus) {
+    const el = document.getElementById(focus[0]);
+    if (el) { el.focus(); try { el.setSelectionRange(focus[1], focus[2]); } catch (_) {} }
+  } else if (focusRow) {
+    for (const r of document.querySelectorAll(".row")) if (r.querySelector(".label").textContent === focusRow) r.focus();
+  }
+}
+
+let last = "";
+function got(json) {
+  if (json === last) return;
+  last = json;
+  S = JSON.parse(json);
+  paint(S.accent);
+  draw();
+}
+
+$("#back").onclick = () => call("back");
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && e.target.tagName !== "TEXTAREA") {
+    if (open) { open = ""; draw(); } else call("back");
+  }
+});
+window.nsShown = () => { open = ""; helpFor = ""; draw(); window.scrollTo(0, 0); };
+
+new QWebChannel(qt.webChannelTransport, (ch) => {
+  ns = ch.objects.ns;
+  ns.state.connect(got);
+  ns.refresh();
+  setInterval(() => { if (!document.hidden) ns.refresh(); }, 4000);
+});
+</script>
+</body>
+</html>

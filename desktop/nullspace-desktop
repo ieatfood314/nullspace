@@ -13,11 +13,13 @@ the key and does the speech; this app does everything else:
 squelch-ptt tells it about presses over the socket below ("capture", "open",
 "note-start {json}", "note-end {json}"). Captures go to a hub, which files
 them like the phone's: the one in Settings, or a hub on this computer (the
-nullspace-hub user unit) when none is set. The window is the hub's page.
+nullspace-hub user unit) when none is set. The window is the hub's page, and
+Settings (settings.html, one screen like the phone's, dictation included).
 """
 import ctypes
 import json
 import os
+import re
 import secrets
 import shutil
 import socket
@@ -27,22 +29,22 @@ import tempfile
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
 from PyQt6 import sip
-from PyQt6.QtCore import (QBuffer, QByteArray, QIODevice, QObject, QSize, Qt,
-                          QTimer, QUrl, pyqtSignal)
+from PyQt6.QtCore import (QBuffer, QByteArray, QFile, QIODevice, QObject, QSize, Qt,
+                          QTimer, QUrl, pyqtSignal, pyqtSlot)
 from PyQt6.QtGui import (QAction, QColor, QDesktopServices, QGuiApplication,
                          QIcon, QImage, QPainter, QPixmap)
 from PyQt6.QtNetwork import QLocalServer
-from PyQt6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QDialog,
-                             QHBoxLayout, QLabel, QLineEdit, QMenu,
-                             QPushButton, QRadioButton, QSystemTrayIcon,
-                             QVBoxLayout, QWidget)
+from PyQt6.QtWidgets import (QApplication, QLabel, QMenu, QStackedLayout,
+                             QSystemTrayIcon, QVBoxLayout, QWidget)
 
 try:
-    from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
+    from PyQt6.QtWebChannel import QWebChannel
+    from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineScript
     from PyQt6.QtWebEngineWidgets import QWebEngineView
 except ImportError:  # no QtWebEngine: open the page in the browser instead
     QWebEngineView = None
@@ -62,8 +64,6 @@ HUB_UNIT = "nullspace-hub"
 DEVICE = "desktop-" + socket.gethostname()[:24]
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODELS = "llama-3.3-70b-versatile,llama-3.1-8b-instant"
-GROQ_KEYS = "https://console.groq.com/keys"
 
 # The phone's accent swatches (Prefs.ACCENTS), so both can match.
 ACCENTS = ["#3D9BFF", "#D71921", "#FF6A3D", "#F2C230", "#3DDC84", "#8B7CFF", "#FFFFFF"]
@@ -156,6 +156,8 @@ class Hub(QObject):
         self.wake = threading.Event()
         self.url = None
         self.wait = 0                # seconds the next sync asks the hub to wait for filing
+        self.last_ok = 0.0           # when the hub last answered (Settings shows it)
+        self.failed = ""             # why it didn't, in a few words, until it does again
         threading.Thread(target=self.run, daemon=True).start()
 
     def put(self, kind, uid, data, shot=None, wait=0):
@@ -199,9 +201,11 @@ class Hub(QObject):
                     self.recs, self.rev, self.url = {}, 0, url
             try:
                 self.sync_once()
+                self.last_ok, self.failed = time.time(), ""
                 self.status.emit("")
                 fails = 0
             except Exception as e:       # whatever it was, the thread must live on
+                self.failed = "Can't reach hub"
                 self.status.emit("Offline")
                 log("sync:", e)
                 fails += 1
@@ -494,32 +498,67 @@ if QWebEngineView is not None:
 
 
 class Window(QWidget):
-    def __init__(self, on_settings):
+    """The hub's page, and Settings (settings.html) in its place when the gear is pressed."""
+    def __init__(self, on_settings, bridge):
         super().__init__()
         self.on_settings = on_settings
+        self.bridge = bridge
         self.setWindowTitle("Nullspace")
         self.setWindowIcon(icon())
-        self.resize(1000, 820)
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
-        profile = QWebEngineProfile("nullspace", self)
-        profile.setPersistentStoragePath(str(WEB_DATA))
-        profile.setCachePath(str(WEB_DATA / "cache"))
+        self.resize(1100, 820)
+        self.stack = QStackedLayout(self)
+        self.stack.setContentsMargins(0, 0, 0, 0)
+        self.profile = QWebEngineProfile("nullspace", self)
+        self.profile.setPersistentStoragePath(str(WEB_DATA))
+        self.profile.setCachePath(str(WEB_DATA / "cache"))
         self.view = QWebEngineView(self)
-        self.view.setPage(Page(profile, self.view, self.on_link))
+        self.view.setPage(Page(self.profile, self.view, self.on_link))
         self.view.page().setBackgroundColor(QColor("#000000"))
         self.view.loadFinished.connect(self.loaded)
-        lay.addWidget(self.view)
+        self.stack.addWidget(self.view)
+        self.sview = None
         self.url = None
 
-    def open(self):
+    def settings_view(self):
+        if self.sview is None:
+            v = QWebEngineView(self)
+            page = QWebEnginePage(self.profile, v)
+            page.setBackgroundColor(QColor("#000000"))
+            channel = QWebChannel(page)
+            channel.registerObject("ns", self.bridge)
+            page.setWebChannel(channel)
+            f = QFile(":/qtwebchannel/qwebchannel.js")   # Qt's own copy, so the page needs no server
+            f.open(QIODevice.OpenModeFlag.ReadOnly)
+            script = QWebEngineScript()
+            script.setSourceCode(bytes(f.readAll()).decode())
+            script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+            script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+            page.scripts().insert(script)
+            v.setPage(page)
+            v.setHtml(SETTINGS_HTML.read_text(), QUrl.fromLocalFile(str(WEB_DIR) + "/"))
+            self.stack.addWidget(v)
+            self.sview = v
+        return self.sview
+
+    def open(self, settings=False):
         url = hub_url()
         if url != self.url or not self.view.url().isValid():
             self.url = url
             self.view.load(QUrl(url + "/"))
+        if settings:
+            v = self.settings_view()
+            self.stack.setCurrentWidget(v)
+            self.bridge.refresh()
+            v.page().runJavaScript("window.nsShown && nsShown()")
+            v.setFocus()
         self.show()
         self.raise_()
         self.activateWindow()
+
+    def show_tasks(self):
+        self.bridge.stop_learning()
+        self.stack.setCurrentWidget(self.view)
+        self.view.setFocus()
 
     def on_link(self, what):
         if what == "settings":
@@ -549,6 +588,7 @@ class Window(QWidget):
 
     def closeEvent(self, e):
         e.ignore()
+        self.bridge.stop_learning()
         self.hide()
 
 
@@ -557,177 +597,497 @@ def open_page():
 
 
 # ---------------- settings ----------------
+# One screen, like the phone's: settings.html in the window, talking to this
+# side over QWebChannel. Dictation's settings are Squelch's own files, read and
+# written with squelch-tray's helpers, so the two can't drift apart.
 
-def write_ai_key(key):
+def first_existing(paths):
+    return next((p for p in paths if p.exists()), paths[-1])
+
+
+SETTINGS_HTML = first_existing([HERE / "settings.html", Path("/usr/lib/nullspace/desktop/settings.html")])
+WEB_DIR = first_existing([HERE.parent / "web", Path("/usr/lib/nullspace/web")])
+GROQ_QUICK = "qwen/qwen3.8-27b"      # the phone's quick model: tidying and guessing a cut-off start
+GROQ_PICK = ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "moonshotai/kimi-k2-instruct",
+             "openai/gpt-oss-20b", "llama-3.1-8b-instant"]   # the phone's Brain.GROQ_MODELS
+AUTOSTART = ["nullspace-desktop.service"]   # with Squelch's units (squelch-tray's SERVICES)
+
+_squelch = None
+
+
+def squelch():
+    """squelch-tray loaded as a module, for its settings helpers; None without Squelch."""
+    global _squelch
+    if _squelch is None:
+        _squelch = False
+        path = os.environ.get("NULLSPACE_SQUELCH_TRAY") or shutil.which("squelch-tray")
+        if path:
+            try:
+                from importlib.machinery import SourceFileLoader
+                import importlib.util as iu
+                loader = SourceFileLoader("squelch_tray", path)
+                mod = iu.module_from_spec(iu.spec_from_loader("squelch_tray", loader))
+                loader.exec_module(mod)
+                _squelch = mod
+            except Exception as e:
+                log("can't load squelch-tray:", e)
+    return _squelch or None
+
+
+def ai_key():
+    try:
+        return LLM_KEY.read_text().strip()
+    except OSError:
+        return ""
+
+
+def ai_key_set():
+    return ai_key() != ""
+
+
+def ai_conf():
+    a = config().get("ai")
+    a = a if isinstance(a, dict) else {}
+    return {"preset": "other" if a.get("preset") == "other" else "groq",
+            "url": str(a.get("url") or ""), "model": str(a.get("model") or "")}
+
+
+def ai_url(a):
+    if a["preset"] == "groq":
+        return GROQ_URL
+    u = a["url"].strip()
+    return u if not u or "://" in u else "https://" + u
+
+
+def ai_on(a):
+    return bool(ai_url(a)) and (ai_key_set() or a["preset"] == "other")
+
+
+def ai_name(a):
+    if a["preset"] == "groq":
+        return "Groq"
+    try:
+        return urllib.parse.urlparse(ai_url(a)).hostname or "Your server"
+    except ValueError:
+        return "Your server"
+
+
+def ai_check(a):
+    """None if the key works, else a few words on what's wrong. Picks a Groq model
+    the key can use, as the phone does."""
+    if not ai_on(a):
+        return "Add a key"
+    base = re.sub(r"/chat/completions/?$", "", ai_url(a))
+    headers = {"User-Agent": "Nullspace-desktop"}
+    if ai_key():
+        headers["Authorization"] = "Bearer " + ai_key()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(base + "/models", headers=headers), timeout=15) as r:
+            have = [m.get("id") for m in json.loads(r.read() or b"{}").get("data") or [] if isinstance(m, dict)]
+    except urllib.error.HTTPError as e:
+        return "Key didn't work" if e.code in (401, 403) else f"Error {e.code}"
+    except (OSError, ValueError):
+        return "Can't reach it"
+    if a["preset"] == "groq" and have and (a["model"] or GROQ_PICK[0]) not in have:
+        a["model"] = next((m for m in GROQ_PICK if m in have), have[0])
+    return None
+
+
+def write_ai(a):
+    """The hub on this computer files with it (hub.env), and dictation guesses
+    cut-off starts with it (Squelch's llm-fast.json, unless that's someone else's)."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    key = ai_key()
+    url = ai_url(a)
+    groq = a["preset"] == "groq"
+    model = a["model"] or (GROQ_PICK[0] if groq else "")
+    sq = squelch()
+    fast = Path(sq.CONFIG_DIR) / "llm-fast.json" if sq else None   # squelch-ptt's LLM_FAST_FILE
+    ours = False
+    if fast is not None:
+        cur = load_json(fast, {})
+        ours = not fast.exists() or os.path.expanduser(str(cur.get("key_file", ""))) == str(LLM_KEY)
+    if not ai_on(a) or not model:
+        HUB_ENV.unlink(missing_ok=True)
+        if fast is not None and ours:
+            fast.unlink(missing_ok=True)
+        return
+    lines = [f"NULLSPACE_LLM_URL={url}", f"NULLSPACE_LLM_MODELS={model}"]
+    if key:
+        lines.append(f"NULLSPACE_LLM_KEY_FILE={LLM_KEY}")
+    if groq:
+        lines += [f"NULLSPACE_FAST_LLM_URL={GROQ_URL}", f"NULLSPACE_FAST_LLM_MODEL={GROQ_QUICK}",
+                  f"NULLSPACE_FAST_LLM_KEY_FILE={LLM_KEY}"]
+    HUB_ENV.write_text("\n".join(lines) + "\n")
+    if fast is not None and ours and key:
+        save_json(fast, {"url": re.sub(r"/chat/completions/?$", "", url), "key_file": str(LLM_KEY),
+                         "model": GROQ_QUICK if groq else model})
+
+
+def save_ai_key(key):
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     if key:
         fd = os.open(LLM_KEY, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
             f.write(key + "\n")
-        HUB_ENV.write_text(f"NULLSPACE_LLM_URL={GROQ_URL}\nNULLSPACE_LLM_MODELS={GROQ_MODELS}\n"
-                           f"NULLSPACE_LLM_KEY_FILE={LLM_KEY}\n")
     else:
         LLM_KEY.unlink(missing_ok=True)
-        HUB_ENV.unlink(missing_ok=True)
 
 
-def ai_key_set():
-    return LLM_KEY.exists() and LLM_KEY.read_text().strip() != ""
+def ago(t):
+    s = time.time() - t
+    if s < 60:
+        return "Synced just now"
+    if s < 3600:
+        return f"Synced {int(s // 60)} min ago"
+    if s < 86400:
+        return f"Synced {int(s // 3600)} h ago"
+    return f"Synced {int(s // 86400)} d ago"
 
 
-class Settings(QDialog):
-    def __init__(self, on_saved):
-        super().__init__(None)
-        self.on_saved = on_saved
-        self.setWindowTitle("Nullspace settings")
-        self.setWindowIcon(icon())
-        self.setMinimumWidth(420)
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(24, 22, 24, 22)
-        lay.setSpacing(10)
-
-        lay.addWidget(self.head("Hub"))
-        self.here = QRadioButton("This computer")
-        self.there = QRadioButton("Another computer")
-        g = QButtonGroup(self)
-        g.addButton(self.here)
-        g.addButton(self.there)
-        self.addr = QLineEdit(placeholderText="http://your-hub:4645")
-        lay.addWidget(self.here)
-        lay.addWidget(self.there)
-        lay.addWidget(self.addr)
-        self.there.toggled.connect(self.refresh)
-
-        self.ai_head = self.head("AI key")
-        lay.addWidget(self.ai_head)
-        row = QHBoxLayout()
-        self.key = QLineEdit(placeholderText="gsk_…", echoMode=QLineEdit.EchoMode.Password)
-        get = QPushButton("Get a key")
-        get.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(GROQ_KEYS)))
-        row.addWidget(self.key, 1)
-        row.addWidget(get)
-        self.ai_row = QWidget()
-        self.ai_row.setLayout(row)
-        row.setContentsMargins(0, 0, 0, 0)
-        lay.addWidget(self.ai_row)
-
-        lay.addWidget(self.head("Accent"))
-        sw = QHBoxLayout()
-        sw.setSpacing(8)
-        self.swatches = []
-        for c in ACCENTS:
-            b = QPushButton(objectName="swatch", checkable=True)
-            b.setFixedSize(28, 28)
-            b.setProperty("hex", c)
-            b.setStyleSheet(f"QPushButton#swatch {{ background: {c}; }}")
-            b.clicked.connect(lambda _=False, c=c: self.pick(c))
-            sw.addWidget(b)
-            self.swatches.append(b)
-        self.hex = QLineEdit(maxLength=7)
-        self.hex.setFixedWidth(84)
-        self.hex.textEdited.connect(lambda t: self.pick(t, typed=True))
-        sw.addStretch(1)
-        sw.addWidget(self.hex)
-        lay.addLayout(sw)
-
-        self.remind = QCheckBox("Reminders on this computer")
-        lay.addSpacing(6)
-        lay.addWidget(self.remind)
-
-        lay.addSpacing(10)
-        bottom = QHBoxLayout()
-        dict_btn = QPushButton("Dictation")
-        dict_btn.clicked.connect(open_dictation)
-        save = QPushButton("Save", objectName="primary", default=True)
-        save.clicked.connect(self.save)
-        bottom.addWidget(dict_btn)
-        bottom.addStretch(1)
-        bottom.addWidget(save)
-        lay.addLayout(bottom)
-
-    @staticmethod
-    def head(text):
-        h = QLabel(text, objectName="head")
-        return h
-
-    def load(self):
-        c = config()
-        (self.there if c["hub"].strip() else self.here).setChecked(True)
-        self.addr.setText(c["hub"])
-        self.key.clear()
-        self.key.setPlaceholderText("Saved" if ai_key_set() else "gsk_…")
-        self.pick(c["accent"])
-        self.remind.setChecked(bool(c["reminders"]))
-        self.refresh()
-
-    def refresh(self):
-        there = self.there.isChecked()
-        self.addr.setVisible(there)
-        self.ai_head.setVisible(not there)
-        self.ai_row.setVisible(not there)
-        self.adjustSize()
-
-    def pick(self, c, typed=False):
-        c = c.strip().upper()
-        if not c.startswith("#"):
-            c = "#" + c
-        if len(c) != 7 or not QColor(c).isValid():
-            return
-        self.accent = c
-        for b in self.swatches:
-            b.setChecked(b.property("hex").upper() == c)
-        if not typed:
-            self.hex.setText(c)
-        self.setStyleSheet(style(c))
-
-    def save(self):
-        c = config()
-        c["hub"] = self.addr.text().strip() if self.there.isChecked() else ""
-        c["accent"] = getattr(self, "accent", c["accent"])
-        c["reminders"] = self.remind.isChecked()
-        save_json(CONFIG, c)
-        key = self.key.text().strip()
-        if not c["hub"] and key:
-            write_ai_key(key)
-            systemctl("restart", HUB_UNIT)
-        ensure_local_hub()
-        self.on_saved()
-        self.close()
-
-
-def open_dictation():
-    """The dictation settings (Squelch's engine), in the tray that's running if there is one."""
+def first_line(path):
     try:
-        subprocess.Popen(["squelch-tray", "--settings"], start_new_session=True,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with open(path) as f:
+            return f.readline().strip()
     except OSError:
-        notify("Dictation isn't installed", "Reinstall the nullspace package.")
+        return ""
+
+
+def write_line(path, text):
+    if text:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).write_text(text + "\n")
+    else:
+        Path(path).unlink(missing_ok=True)
+
+
+def model_name(sq, engine, label):
+    label = label.removeprefix("ggml-").removesuffix(".bin")
+    return f"{sq.ENGINE_NAMES.get(engine, engine.title())} {label}"
+
+
+class Bridge(QObject):
+    """What settings.html sees as `ns`. refresh() gathers everything off the Qt
+    thread and sends it back as one JSON state; call() changes one thing."""
+    state = pyqtSignal(str)
+    again = pyqtSignal()
+
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+        self.busy = {}       # slow jobs running: "access", "download" (its name), "check"
+        self.notes = {}      # their short results: "key", "download", "ai"
+        self.capture = None  # squelch-tray's KeyCapture while learning the key
+        self.lock = threading.Lock()
+        self.running = self.queued = False
+        self.mics = (0.0, [])
+        self.stats = (None, None)
+        self.again.connect(self.refresh)
+
+    # --- reading ---
+    @pyqtSlot()
+    def refresh(self):
+        sq = squelch()       # loaded here, on the Qt thread, before any worker uses it
+        with self.lock:
+            if self.running:
+                self.queued = True
+                return
+            self.running = True
+
+        def work():
+            try:
+                s = self.collect(sq)
+            except Exception as e:       # a broken file mustn't leave the page empty
+                log("settings:", e)
+                s = self.collect(None)
+            self.state.emit(json.dumps(s))
+            with self.lock:
+                self.running = False
+                queued, self.queued = self.queued, False
+            if queued:
+                self.again.emit()
+        threading.Thread(target=work, daemon=True).start()
+
+    def collect(self, sq):
+        c = config()
+        a = ai_conf()
+        hub = self.app.hub
+        if hub.failed:
+            hub_status = hub.failed if c["hub"].strip() else "Starting"
+        elif not c["hub"].strip():
+            hub_status = "This computer"
+        else:
+            hub_status = ago(hub.last_ok) if hub.last_ok else "Not yet"
+        s = {"accent": c["accent"], "accents": ACCENTS, "hub": c["hub"], "hubStatus": hub_status,
+             "reminders": bool(c["reminders"]),
+             "ai": {**a, "on": ai_on(a), "name": ai_name(a), "hasKey": ai_key_set(),
+                    "checking": "check" in self.busy, "error": self.notes.get("ai", "")},
+             "dictation": None}
+        if sq is None:
+            return s
+        engine = sq.read_engine()
+        chosen = sq.read_engine_models()
+        models = []
+        for _id, eng, label, path, size in sq.model_catalog():
+            models.append({"id": _id, "engine": eng, "path": path, "name": model_name(sq, eng, label),
+                           "size": size, "here": os.path.exists(path)})
+        listed = {m["path"] for m in models}
+        for eng in ("parakeet", "whisper"):
+            for name, mb, path in sq.list_model_files(eng):
+                if path not in listed:
+                    models.append({"id": None, "engine": eng, "path": path, "name": model_name(sq, eng, name),
+                                   "size": f"{mb:.0f} MB", "here": True})
+        for m in models:
+            m["inUse"] = m["engine"] == engine and chosen.get(engine) == m["path"]
+        current = next((m for m in models if m["inUse"]), None)
+        now = time.time()
+        if now - self.mics[0] > 20:
+            self.mics = (now, sq.list_mics())
+        words = sq.load_dict()
+        state = load_json(Path(sq.CONFIG_DIR) / "sync-state.json", {})
+        sync = first_line(Path(sq.CONFIG_DIR) / "sync")
+        units = [u for u, _t in sq.SERVICES] + AUTOSTART
+        s["dictation"] = {
+            "access": "waiting" if "access" in self.busy else sq.keyboard_access(),
+            "mic": sq.read_mic(), "mics": self.mics[1],
+            "engine": engine, "engineStatus": sq.engine_status(),
+            "model": current["name"] if current else "", "models": models,
+            "downloading": self.busy.get("download"), "dlError": self.notes.get("download", ""),
+            "headroom": sq.read_headroom_gb(), "longest": sq.longest_dictation() if engine == "parakeet" else "",
+            "key": sq.trigger_label(), "learning": self.capture is not None and self.capture.active,
+            "keyNote": self.notes.get("key", ""),
+            "insert": sq.read_insertion(), "live": sq.read_live(), "filters": sq.read_filters(),
+            "sync": sync, "syncStatus": (ago(state["synced"]) if sync and state.get("synced") else
+                                         "Not yet" if sync else "Off"),
+            "words": [{"term": w["term"], "heard": w["also_match"]} for w in words],
+            "pending": sq.pending_mishearings(words),
+            "archive": first_line(Path(sq.CONFIG_DIR) / "archive"),
+            "autostart": all(en for _a, en in sq.service_states(units).values()),
+        }
+        s["dictation"].update(self.read_stats(sq))
+        return s
+
+    def read_stats(self, sq):
+        d = Path(sq.CONFIG_DIR)
+        stamp = []
+        for p in [d / "stats.jsonl", *sorted((d / "stats.d").glob("*.jsonl"))]:
+            try:
+                stamp.append((p.name, p.stat().st_mtime))
+            except OSError:
+                pass
+        if self.stats[0] != stamp:
+            rows = sq.load_stats()
+            me = os.uname().nodename.split(".")[0]
+            mine = [r for r in rows if r.get("outcome") == "ok" and r.get("device") == me]
+            out = {"stats": sq.summarize_stats(rows) if rows else None,
+                   "lastWait": float(mine[-1].get("transcribe_s", 0)) if mine else None}
+            self.stats = (stamp, out)
+        return self.stats[1]
+
+    # --- changing ---
+    @pyqtSlot(str, str, result=str)
+    def call(self, name, arg):
+        try:
+            v = json.loads(arg) if arg else None
+        except ValueError:
+            v = None
+        fn = getattr(self, "do_" + name, None)
+        if fn is None:
+            return "no such setting"
+        try:
+            fn(v)
+        except Exception as e:
+            log("settings:", name, e)
+            return str(e)
+        self.refresh()
+        return ""
+
+    def job(self, key, fn, label=True):
+        """Run fn off the Qt thread with self.busy[key] set; a fresh state when it's done."""
+        self.busy[key] = label
+
+        def work():
+            try:
+                fn()
+            except Exception as e:
+                log("settings:", key, e)
+            finally:
+                self.busy.pop(key, None)
+                self.again.emit()
+        threading.Thread(target=work, daemon=True).start()
+
+    def set_config(self, **kv):
+        c = config()
+        c.update(kv)
+        save_json(CONFIG, c)
+        self.app.saved()
+
+    def do_back(self, _v):
+        self.app.window.show_tasks()
+
+    def do_web(self, v):
+        if str(v).startswith("https://"):
+            QDesktopServices.openUrl(QUrl(str(v)))
+
+    def do_accent(self, v):
+        c = str(v or "").strip().upper()
+        c = c if c.startswith("#") else "#" + c
+        if len(c) == 7 and QColor(c).isValid():
+            self.set_config(accent=c)
+
+    def do_reminders(self, v):
+        self.set_config(reminders=bool(v))
+
+    def do_hub(self, v):
+        self.set_config(hub=str(v or "").strip())
+        self.app.hub.failed = ""
+        ensure_local_hub()
+
+    def do_ai(self, v):
+        a = ai_conf()
+        a.update({k: str(v.get(k) or "").strip() for k in ("preset", "url", "model") if k in v})
+        a["preset"] = "other" if a["preset"] == "other" else "groq"
+        if "key" in v:
+            save_ai_key(str(v["key"] or "").strip())
+        self.notes.pop("ai", None)
+
+        def check():
+            err = ai_check(a) if ai_on(a) else None
+            c = config()
+            c["ai"] = a
+            save_json(CONFIG, c)
+            write_ai(a)
+            if err:
+                self.notes["ai"] = err
+            if not config()["hub"].strip():
+                systemctl("restart", HUB_UNIT)
+        self.job("check", check)
+
+    def do_access(self, _v):
+        self.job("access", lambda: squelch().grant_keyboard_access())
+
+    def do_mic(self, v):
+        squelch().write_mic(str(v or ""))
+
+    def do_model(self, v):
+        sq = squelch()
+        path, engine = v["path"], v["engine"]
+
+        def use():
+            models = sq.read_engine_models()
+            models[engine] = path
+            sq.write_engine_models(models)
+            sq.write_engine(engine)
+        if os.path.exists(path):
+            use()
+            return
+        if self.busy.get("download") or not v.get("id"):
+            return
+        self.notes.pop("download", None)
+
+        def fetch():
+            r = subprocess.run([sq.setup_models_cmd(), v["id"]], capture_output=True, text=True, timeout=3600)
+            if r.returncode == 0 and os.path.exists(path):
+                use()
+            else:
+                err = (r.stderr.strip().splitlines() or ["error"])[-1]
+                self.notes["download"] = "Download failed: " + err[:80]
+        self.job("download", fetch, v.get("name") or "model")
+
+    def do_headroom(self, v):
+        squelch().write_headroom_gb(max(0.0, min(16.0, float(v))))
+
+    def do_learn(self, _v):
+        sq = squelch()
+        if self.capture is not None and self.capture.active:
+            self.capture.stop()
+            return
+        self.notes.pop("key", None)
+
+        def got(code):
+            if code == sq.ESC:
+                self.again.emit()
+                return
+
+            def apply():   # the row shows the new key; only trouble needs words
+                ok, msg = sq.apply_hotkey(code)
+                if not ok or msg.startswith("Saved"):
+                    self.notes["key"] = msg
+            self.job("key", apply)
+        self.capture = sq.KeyCapture(got)
+        self.capture.start()
+
+    def stop_learning(self):
+        if self.capture is not None:
+            self.capture.stop()
+
+    def do_insert(self, v):
+        squelch().write_insertion(mode=str(v))
+
+    def do_live(self, v):
+        squelch().write_insertion(live=bool(v))
+
+    def do_filters(self, v):
+        sq = squelch()
+        f = sq.read_filters()
+        f.update({k: bool(v[k]) for k in ("defiller", "numbers", "numbers_all") if k in v})
+        sq.write_filters(f)
+
+    def do_sync(self, v):
+        sq = squelch()
+        write_line(Path(sq.CONFIG_DIR) / "sync", str(v or "").strip())
+        if v:
+            systemctl("start", "--no-block", "squelch-sync.service")
+
+    def do_archive(self, v):
+        write_line(Path(squelch().CONFIG_DIR) / "archive", str(v or "").strip())
+
+    def do_add_word(self, v):
+        sq = squelch()
+        term = str(v.get("term") or "").strip()
+        heard = [h.strip() for h in v.get("heard") or [] if h.strip()]
+        if not term:
+            return
+
+        def change(entries):
+            e = sq.find_entry(entries, term)
+            if e is None:
+                entries.append({"term": term, "also_match": heard})
+            else:
+                e["also_match"] += [h for h in heard if h.lower() not in {x.lower() for x in e["also_match"]}]
+        sq.update_dict(change)
+
+    def do_remove_word(self, v):
+        sq = squelch()
+
+        def change(entries):
+            entries[:] = [e for e in entries if e["term"].lower() != str(v).lower()]
+        sq.update_dict(change)
+
+    def do_mishearing(self, v):
+        squelch().resolve_mishearing(v["term"], v["heard"], bool(v["accept"]))
+
+    def do_autostart(self, v):
+        sq = squelch()
+        on = bool(v)
+
+        def run():   # turning it off leaves what's running alone, so dictation keeps working now
+            for u in [u for u, _t in sq.SERVICES] + AUTOSTART:
+                if on and u not in AUTOSTART:
+                    sq.set_service_enabled(u, True, is_self=u == "squelch-tray.service")
+                else:
+                    systemctl("enable" if on else "disable", u)
+        self.job("autostart", run)
 
 
 def style(accent):
-    on = "#000000" if QColor(accent).lightnessF() > 0.6 else "#FFFFFF"
     return f"""
     * {{ font-family: Inter; }}
-    QDialog, QMenu {{ background: #000000; color: #FFFFFF; font-size: 14px; }}
+    QMenu {{ background: #000000; color: #FFFFFF; font-size: 14px; }}
     QLabel {{ color: #FFFFFF; }}
-    QLabel#head {{ color: #7d8a99; font-size: 12px; padding-top: 8px; }}
     QLabel#line {{ color: #7d8a99; font-family: Inter; font-size: 13px; padding: 0 2px; }}
     QLabel#line[live="true"] {{ color: #FFFFFF; }}
     QLabel#shot {{ border: 1px solid #1d2731; border-radius: 6px; }}
-    QLineEdit {{ background: #000000; color: #FFFFFF; border: 1px solid #1d2731;
-                 border-radius: 8px; padding: 7px 10px; selection-background-color: {accent}; }}
-    QLineEdit:focus {{ border-color: {accent}; }}
-    QPushButton {{ background: #000000; color: #FFFFFF; border: 1px solid #1d2731;
-                   border-radius: 8px; padding: 7px 14px; }}
-    QPushButton:focus {{ border-color: #6f93b8; }}
-    QPushButton#primary {{ background: {accent}; color: {on}; border-color: {accent}; }}
-    QPushButton#swatch {{ border-radius: 14px; border: 2px solid #000000; padding: 0; }}
-    QPushButton#swatch:checked {{ border: 2px solid #FFFFFF; }}
-    QRadioButton, QCheckBox {{ color: #FFFFFF; spacing: 10px; padding: 3px 0; }}
-    QRadioButton::indicator:checked, QCheckBox::indicator:checked {{ background: {accent}; border: 1px solid {accent}; }}
-    QRadioButton::indicator, QCheckBox::indicator {{ width: 14px; height: 14px; border: 1px solid #4a5666; background: #000000; }}
-    QRadioButton::indicator {{ border-radius: 8px; }}
-    QCheckBox::indicator {{ border-radius: 4px; }}
     QMenu::item {{ padding: 6px 18px; }}
     QMenu::item:selected {{ background: #31475F; }}
     QMenu::separator {{ height: 1px; background: #1d2731; margin: 4px 8px; }}
@@ -768,9 +1128,9 @@ class App(QObject):
         super().__init__()
         self.qapp = qapp
         self.hub = Hub()
-        self.window = Window(lambda: self.open_settings()) if QWebEngineView else None
+        self.bridge = Bridge(self)
+        self.window = Window(lambda: self.open_settings(), self.bridge) if QWebEngineView else None
         self.card = Card(self.commit_shot)
-        self.settings = Settings(self.saved)
         self.fired = load_json(STATE / "fired.json", {})
         self.started = time.time()
         self.taking = False
@@ -779,7 +1139,7 @@ class App(QObject):
         self.tray.setToolTip("Nullspace")
         menu = QMenu()
         for text, fn in (("Open Nullspace", self.open), ("Capture screen", lambda: QTimer.singleShot(400, self.capture)),
-                         (None, None), ("Dictation", open_dictation), ("Settings", self.open_settings),
+                         (None, None), ("Settings", self.open_settings),
                          (None, None), ("Quit", qapp.quit)):
             if text is None:
                 menu.addSeparator()
@@ -823,11 +1183,12 @@ class App(QObject):
 
     def saved(self):
         self.restyle()
-        if self.window is not None:
-            self.window.url = None
-            if self.window.isVisible():
-                self.window.open()
-            self.window.paint_accent()
+        w = self.window
+        if w is not None:
+            if w.url is not None and w.url != hub_url():   # a new hub: its page
+                w.url = hub_url()
+                w.view.load(QUrl(w.url + "/"))
+            w.paint_accent()
         self.hub.wake.set()
 
     def on_tray(self, reason):
@@ -838,10 +1199,10 @@ class App(QObject):
         self.window.open() if self.window else open_page()
 
     def open_settings(self):
-        self.settings.load()
-        self.settings.show()
-        self.settings.raise_()
-        self.settings.activateWindow()
+        if self.window is None:
+            notify("Settings need QtWebEngine", "Install python-pyqt6-webengine.")
+            return
+        self.window.open(settings=True)
 
     # --- squelch-ptt's messages ---
     def on_connection(self):
@@ -982,11 +1343,12 @@ def main():
     app = App(qapp)
     if "--background" not in args:
         QTimer.singleShot(0, {"settings": app.open_settings, "capture": app.capture}.get(msg, app.open))
-    if not systemctl("is-active", "--quiet", "squelch-ptt") and shutil.which("squelch-tray"):
-        if not (STATE / "asked-setup").exists():
-            STATE.mkdir(parents=True, exist_ok=True)
-            (STATE / "asked-setup").touch()
-            open_dictation()
+    # First run with dictation not set up yet: Settings has what's missing at the top.
+    sq = squelch()
+    if sq is not None and not (STATE / "asked-setup").exists() and not sq.setup_done():
+        STATE.mkdir(parents=True, exist_ok=True)
+        (STATE / "asked-setup").touch()
+        QTimer.singleShot(0, app.open_settings)
     sys.exit(qapp.exec())
 
 

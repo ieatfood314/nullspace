@@ -45,6 +45,7 @@ package() {
 
   cd "$srcdir/$pkgname-desktop-v$pkgver"
   install -Dm755 desktop/nullspace-desktop -t "$pkgdir/usr/bin/"
+  install -Dm644 desktop/settings.html -t "$pkgdir/usr/lib/nullspace/desktop/"
   install -Dm755 server/nullspace.py -t "$pkgdir/usr/lib/nullspace/server/"
   install -d "$pkgdir/usr/lib/nullspace/web"
   cp -r web/. "$pkgdir/usr/lib/nullspace/web/"

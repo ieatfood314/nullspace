@@ -221,19 +221,19 @@ On Arch:
 yay -S nullspace
 ```
 
-Then open **Nullspace** from the app menu. The first time, dictation setup
-opens too: give it keyboard access, download the speech model and pick
-your key (Menu by default). After that, everything is in the tray icon:
+Then open **Nullspace** from the app menu. The first time, Settings opens
+too: turn on keyboard access, pick a speech model and your key (Menu by
+default). Settings is the gear in the window, or the tray icon's menu, and
+works like the phone's, dictation included:
 
-- **Settings → Hub:** "This computer" keeps your list here, with a hub of
-  its own (paste a Groq key under **AI key**, as on the phone). To share
-  one list with your phone, run the hub on one machine and pick "Another
-  computer" on the rest, with its address, plus **Settings → Hub** on the
-  phone.
-- **Dictation** opens the dictation settings: the speech model, the key, your
-  own words, typing as you speak.
-- **Reminders on this computer** shows your reminders as notifications,
-  with a **Done** button.
+- **Hub:** empty keeps your list on this computer, with a hub of its own
+  (set up **AI provider** with a Groq key, as on the phone). To share one
+  list with your phone, run the hub on one machine and put its address in
+  **Hub** on the rest, and on the phone.
+- **Speech model, Shortcut key, Custom words** and the rest of dictation
+  are the same rows as the phone's.
+- **Reminders** shows your reminders as notifications, with a **Done**
+  button.
 
 The text of a screen capture is read through accessibility. For Chromium
 and Electron apps (VS Code, Obsidian, Discord) start them with
