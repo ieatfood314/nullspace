@@ -80,8 +80,9 @@ object Dictation {
 
     /** Start listening. sink gets the cleaned-up transcript (never empty), or onSaid gets it
      *  with what's known about it when given. mic = false is for debug-build wav runs, which
-     *  feed() the audio themselves. */
-    fun start(ctx: Context, sink: (String) -> Unit, mic: Boolean = true, onSaid: ((Said) -> Unit)? = null) {
+     *  feed() the audio themselves. keyDownAt (elapsedRealtime) is when the key went down, for a
+     *  key that only starts the mic once it's held; a release before HOLD_MS from it is a tap. */
+    fun start(ctx: Context, sink: (String) -> Unit, mic: Boolean = true, onSaid: ((Said) -> Unit)? = null, keyDownAt: Long? = null) {
         if (phase.value != Phase.Idle) { Log.i(TAG, "busy (${phase.value}), not starting"); return }
         val app = ctx.applicationContext
         if (mic && app.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -99,7 +100,7 @@ object Dictation {
             size = 0; frames = 0; floor = 1f; speechFrames = 0; heardSpeech = false; quietFrames = 0
             commitAt = 0; committed.setLength(0); aheadBusy = false; aheadAt = 0; session++
         }
-        startedAt = SystemClock.elapsedRealtime()
+        startedAt = keyDownAt ?: SystemClock.elapsedRealtime()
         phase.value = Phase.Listening
         if (!mic) return
         tick(app)

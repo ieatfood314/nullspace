@@ -33,7 +33,7 @@ class UplinkService : AccessibilityService() {
     override fun onDestroy() {
         unlisten?.invoke()
         card?.keep()
-        menu?.close()
+        closeMenu()
         hidePill()
         if (instance === this) instance = null
         super.onDestroy()
@@ -112,7 +112,7 @@ class UplinkService : AccessibilityService() {
     private fun down() {
         main.removeCallbacks(single)
         downAt = android.os.SystemClock.uptimeMillis()
-        menu?.close()
+        closeMenu()
         card?.takeIf { it.open }?.let { toCard = true; it.keyDown(); return }
         card = null
         if (Dictation.listening) Dictation.cancel()
@@ -162,19 +162,25 @@ class UplinkService : AccessibilityService() {
     //   hold volume down      dictate into the field you're in, a voice note when there's none,
     //                         or a voice note about the screenshot while its card is up
     // Phones with no spare key only have these. A press can't be handed back to Android once
-    // it's taken, so a short one sets the volume itself. The mic waits until the press is long
-    // enough to be a hold, so changing the volume doesn't flash the mic dot. In a call, with the
-    // screen off, or before the model is downloaded, they're just volume keys.
+    // it's taken, so a short one sets the volume itself. The mic only starts once the press is a
+    // hold (the tick says so), so changing the volume never turns it on. On the lock screen, in a
+    // call, with the screen off, or before the model is downloaded, they're just volume keys, and
+    // so is the second key while one is held.
 
-    /** this press went straight through to Android */
-    private var volPassing = false
+    /** the volume key that's down and ours, 0 when none is */
+    private var volKey = 0
     /** this hold of volume up has taken its screenshot */
     private var volCaptured = false
+    /** this hold of volume down is listening */
+    private var volTalking = false
     private val volListen = Runnable {
         val typing = focusedField() != null
         Log.i(TAG, "volume down held: ${if (typing) "dictation" else "voice note"}")
-        if (typing) Dictation.start(this, ::insert, onSaid = ::insertSaid)
-        else Dictation.start(this, { text -> Capture.voiceNote(this, text) })
+        // The hold counts from the key going down, not from the mic.
+        val since = android.os.SystemClock.elapsedRealtime() - (android.os.SystemClock.uptimeMillis() - downAt)
+        if (typing) Dictation.start(this, ::insert, onSaid = ::insertSaid, keyDownAt = since)
+        else Dictation.start(this, { text -> Capture.voiceNote(this, text) }, keyDownAt = since)
+        volTalking = Dictation.listening
     }
     private val volCapture = Runnable { volCaptured = true; captureNow() }
 
@@ -182,35 +188,45 @@ class UplinkService : AccessibilityService() {
         val up = ev.keyCode == KeyEvent.KEYCODE_VOLUME_UP
         when (ev.action) {
             KeyEvent.ACTION_DOWN -> {
-                if (ev.repeatCount > 0) return !volPassing
-                volPassing = !volumeIsOurs()
-                if (volPassing) return false
+                if (ev.repeatCount > 0) return ev.keyCode == volKey
+                if (volKey != 0 || !volumeIsOurs()) return false
+                volKey = ev.keyCode
                 downAt = android.os.SystemClock.uptimeMillis()
-                menu?.close()
-                if (Dictation.listening && card?.open != true) Dictation.cancel()
+                closeMenu()
                 endWatch("next")
+                // Volume down talks about an open card, and either key ends a note it's taking.
                 val c = card?.takeIf { it.open }
-                if (c != null && !up) { toCard = true; c.keyDown(); return true }
+                if (c != null && (!up || Dictation.phase.value != Dictation.Phase.Idle)) { toCard = true; c.keyDown(); return true }
                 c?.keep()
                 card = null
-                if (up) { volCaptured = false; main.postDelayed(volCapture, HOLD_MS) }
-                else main.postDelayed(volListen, VOL_LISTEN_MS)
+                if (Dictation.listening) Dictation.cancel()
+                volCaptured = false
+                volTalking = false
+                main.postDelayed(if (up) volCapture else volListen, HOLD_MS)
             }
             KeyEvent.ACTION_UP -> {
-                if (volPassing) return false
+                if (ev.keyCode != volKey) return false
+                volKey = 0
                 main.removeCallbacks(volListen)
                 main.removeCallbacks(volCapture)
                 val held = android.os.SystemClock.uptimeMillis() - downAt
                 when {
+                    // Android took the key back (both volume keys at once is its accessibility
+                    // shortcut): no volume step, no note.
+                    ev.isCanceled -> {
+                        Log.i(TAG, "volume key canceled")
+                        if (toCard) { toCard = false; card?.keyUp(0) }
+                        if (volTalking) Dictation.cancel()
+                    }
                     toCard -> {
                         toCard = false
                         // A hold talks about the screenshot; a press keeps it and is a volume press too.
                         card?.keyUp(held)
                         if (held < HOLD_MS) setVolume(up)
                     }
-                    up -> if (!volCaptured) setVolume(true)
-                    held >= HOLD_MS -> Dictation.finish(this)
-                    else -> { Dictation.cancel(); hidePill(); setVolume(false) }
+                    volCaptured -> {}
+                    volTalking -> Dictation.finish(this)
+                    else -> setVolume(up)
                 }
             }
         }
@@ -229,11 +245,17 @@ class UplinkService : AccessibilityService() {
     private fun volumeIsOurs(): Boolean {
         val power = getSystemService(android.os.PowerManager::class.java)
         val audio = getSystemService(android.media.AudioManager::class.java)
-        return power.isInteractive && audio.mode == android.media.AudioManager.MODE_NORMAL && Engine.installed(this)
+        val locked = getSystemService(android.app.KeyguardManager::class.java).isKeyguardLocked
+        return power.isInteractive && !locked && audio.mode == android.media.AudioManager.MODE_NORMAL && Engine.installed(this)
     }
 
     /** Take the screenshot now and show its card (volume up, the menu's Capture). */
     fun captureNow() {
+        // A press of the key still waiting to see if it's a double press: keep its screenshot now.
+        main.removeCallbacks(single)
+        shot?.let { Capture.commit(this, it) }
+        shot = null
+        presses = 0
         card?.takeIf { it.open }?.keep()
         val p = try { Capture.grab(this) } catch (t: Throwable) { Log.e(TAG, "grab", t); return }
         val c = ShotCard(this, p)
@@ -244,17 +266,24 @@ class UplinkService : AccessibilityService() {
     // ---- the menu, from AssistActivity ----
 
     private var menu: AssistMenu? = null
+    // Once the assistant activity is gone, so focus is back in the app and the field shows.
+    private val openMenu = Runnable {
+        val m = AssistMenu(this)
+        m.show(typing = focusedField() != null)
+        menu = m
+    }
 
     fun showMenu() {
-        menu?.close()
+        closeMenu()
         card?.takeIf { it.open }?.keep()
         if (Dictation.listening) Dictation.cancel()
-        // Once the assistant activity is gone, so focus is back in the app and the field shows.
-        main.postDelayed({
-            val m = AssistMenu(this)
-            m.show(typing = focusedField() != null)
-            menu = m
-        }, 250)
+        main.postDelayed(openMenu, 250)
+    }
+
+    private fun closeMenu() {
+        main.removeCallbacks(openMenu)
+        menu?.close()
+        menu = null
     }
 
     fun openApp() {
@@ -539,8 +568,6 @@ class UplinkService : AccessibilityService() {
         const val HOLD_MS = 350L
         /** how long after a press a second one still makes it a double */
         const val GAP_MS = 380L
-        /** how long a volume key is down before the mic starts (most presses are over by then) */
-        const val VOL_LISTEN_MS = 180L
         /** a dictation untouched this long is done with */
         const val EDIT_IDLE_MS = 120_000L
         const val EDIT_MAX_MS = 600_000L

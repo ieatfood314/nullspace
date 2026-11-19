@@ -140,8 +140,8 @@ hold does the rest:
 | Hold volume down | Dictation in a text field, a voice note anywhere else, or a voice note about the screenshot while its card shows |
 | Press either | Changes the volume, as usual |
 
-In a call, with the screen off, or before the speech model is downloaded,
-they're just volume keys.
+On the lock screen, in a call, with the screen off, or before the speech
+model is downloaded, they're just volume keys.
 
 ### Hold power for the menu
 
