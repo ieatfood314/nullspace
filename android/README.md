@@ -18,8 +18,9 @@ of RAM whichever app loads it.
   in about 0.65 s. Finished sentences are decoded while you're still
   talking.
 - **Typing:** through the accessibility service. Plain fields get the text
-  set at the cursor, so the clipboard is left alone. Rich web editors get it
-  pasted.
+  set at the cursor, so the clipboard is left alone. Web editors other than a
+  plain `<input>` (Obsidian, Gmail, a `<textarea>`) get it pasted, so their
+  markup survives and it lands where the editor's own cursor is.
 - **Cleanup:** filler words removed and your dictionary applied, the same as
   desktop Squelch.
 - **Tidy:** with an AI key (or a hub), a dictation of 8 words or more has its

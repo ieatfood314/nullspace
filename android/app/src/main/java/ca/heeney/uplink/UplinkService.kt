@@ -7,6 +7,7 @@ import android.content.ClipboardManager
 import android.graphics.PixelFormat
 import android.os.Bundle
 import android.os.PersistableBundle
+import android.text.InputType
 import android.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
@@ -278,27 +279,21 @@ class UplinkService : AccessibilityService() {
             Notice.show(this, "Copied")
             return
         }
-        val current = if (node.isShowingHintText || node.isPassword) "" else node.text?.toString().orEmpty()
+        val (current, exact) = readField(node)
         var s = node.textSelectionStart
         var e = node.textSelectionEnd
         if (s < 0 || e < 0 || s > current.length || e > current.length) { s = current.length; e = s }
         if (s > e) s = e.also { e = s }
         val before = current.substring(0, s)
         val after = current.substring(e)
-        var piece = text
-        if (before.isNotEmpty() && !before.last().isWhitespace()) piece = " $piece"
-        if (after.isNotEmpty() && !after.first().isWhitespace() && after.first() !in ".,!?;:") piece = "$piece "
+        val piece = spaced(text, current, s, e, exact)
 
         // Setting the text directly leaves the clipboard alone, so try that first. Some
         // fields (Compose, web) accept it and then ignore it, so wait to see it land
         // before moving the cursor, and paste instead if it never does.
         val canPaste = node.actionList.contains(AccessibilityAction.ACTION_PASTE)
         val wanted = before + piece + after
-        // Rich web editors (contenteditable: Gmail, Docs...) would lose their formatting to a
-        // whole-text replace, and report stale text; plain web inputs say chromeRole=textField.
-        val role = node.extras?.getString("AccessibilityNodeInfo.chromeRole")
-        val richWeb = role != null && role != "textField" && role != "searchBox" && role != "textFieldWithComboBox"
-        val setOk = !node.isPassword && !richWeb && !forcePaste && node.performAction(
+        val setOk = !node.isPassword && !richWeb(node) && !forcePaste && node.performAction(
             AccessibilityNodeInfo.ACTION_SET_TEXT,
             Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, wanted) },
         )
@@ -354,6 +349,42 @@ class UplinkService : AccessibilityService() {
     private fun fieldText(n: AccessibilityNodeInfo): String =
         if (n.isShowingHintText) "" else n.text?.toString().orEmpty()
 
+    /** A field's text for placing a dictation in it, and whether its cursor counts in it
+     *  exactly (see cursorSpots). */
+    private fun readField(n: AccessibilityNodeInfo): Pair<String, Boolean> {
+        if (n.isShowingHintText || n.isPassword) return "" to true
+        val t = n.text?.toString().orEmpty()
+        if (!richWeb(n)) return t to true
+        leafText(n)?.let { return it to true }
+        return t to !t.contains('\n')
+    }
+
+    /** A web editor that isn't a plain <input> (contenteditable: Obsidian, Gmail, Docs...). A
+     *  whole-text replace would flatten it to what's on screen, dropping the markup or formatting
+     *  it hides, so it gets pasted into. Chrome gives only <input>s an input type, and some
+     *  editors (Obsidian's) call themselves a textField too. */
+    private fun richWeb(n: AccessibilityNodeInfo): Boolean {
+        val role = n.extras?.getString("AccessibilityNodeInfo.chromeRole") ?: return false
+        return n.inputType == InputType.TYPE_NULL || role !in PLAIN_WEB_ROLES
+    }
+
+    /** Chrome counts a web editor's cursor in the text of the pieces inside it, while the text it
+     *  gives for the whole editor adds line breaks the cursor doesn't count, at each line's edge
+     *  and around Obsidian's links. So read the pieces. Null if there are none (see cursorSpots)
+     *  or too many. */
+    private fun leafText(root: AccessibilityNodeInfo): String? {
+        if (root.childCount == 0) return null
+        val out = StringBuilder()
+        var seen = 0
+        fun walk(n: AccessibilityNodeInfo): Boolean {
+            if (++seen > 3000) return false
+            if (n.childCount == 0) { n.text?.let { out.append(it) }; return true }
+            for (i in 0 until n.childCount) { val c = n.getChild(i) ?: continue; if (!walk(c)) return false }
+            return true
+        }
+        return if (walk(root)) out.toString() else null
+    }
+
     private fun beginWatch(said: Said, piece: String) {
         endWatch("next")
         if (!Prefs.archiving) return
@@ -399,6 +430,7 @@ class UplinkService : AccessibilityService() {
         /** Set by the key picker: the next key press goes here instead. */
         @Volatile var learner: ((KeyEvent) -> Unit)? = null
         @Volatile var forcePaste = false
+        private val PLAIN_WEB_ROLES = setOf("textField", "searchBox", "textFieldWithComboBox")
         /** a press held this long is a hold (same as Dictation's tap cut-off) */
         const val HOLD_MS = 350L
         /** how long after a press a second one still makes it a double */
@@ -407,4 +439,26 @@ class UplinkService : AccessibilityService() {
         const val EDIT_IDLE_MS = 120_000L
         const val EDIT_MAX_MS = 600_000L
     }
+}
+
+/** The dictation with the spaces it needs to sit between t[0, s) and t[e, end). Where the cursor
+ *  could be in a few places (see cursorSpots), a space too many beats words run together. */
+internal fun spaced(text: String, t: String, s: Int, e: Int, exact: Boolean): String {
+    var piece = text
+    if (cursorSpots(t, s, exact).any { it > 0 && !t[it - 1].isWhitespace() }) piece = " $piece"
+    if (cursorSpots(t, e, exact).any { it < t.length && !t[it].isWhitespace() && t[it] !in ".,!?;:" }) piece = "$piece "
+    return piece
+}
+
+/** Where cursor position x could be in a field's text: x, except in a web editor Chrome gives as
+ *  one piece of text (Obsidian's, for a note without links). That text has a line break at each
+ *  line's edge, which the cursor doesn't count, and one for each empty line, which it does, and
+ *  the two look the same. So the cursor is somewhere from x (every break counted) to past the
+ *  first x characters that aren't breaks (none counted). */
+internal fun cursorSpots(t: String, x: Int, exact: Boolean): List<Int> {
+    if (exact) return listOf(x)
+    var i = 0
+    var seen = 0
+    while (i < t.length && seen < x) { if (t[i] != '\n') seen++; i++ }
+    return listOf(x, i).distinct()
 }
