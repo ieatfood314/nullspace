@@ -1,7 +1,7 @@
 # Maintainer: Aidan Heeney <aidan.heeney@proton.me>
 # Built from the repo's desktop-vX.Y.Z tags (the phone app's are v1.0.<n>).
 pkgname=nullspace
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc='Tasks, notes, screen captures and voice notes from one key, with Squelch dictation'
 arch=('any')

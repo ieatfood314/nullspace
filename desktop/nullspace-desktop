@@ -299,6 +299,21 @@ def to_webp(png):
     return bytes(buf.data())
 
 
+def a11y_bus_check():
+    """Raise unless the accessibility bus takes connections: libatspi
+    aborts the whole process when it can't reach it. Same as Squelch's."""
+    from gi.repository import Gio, GLib
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    addr = bus.call_sync(
+        "org.a11y.Bus", "/org/a11y/bus", "org.a11y.Bus", "GetAddress",
+        None, GLib.VariantType("(s)"), Gio.DBusCallFlags.NONE, 1000,
+        None).unpack()[0]
+    Gio.DBusConnection.new_for_address_sync(
+        addr, Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT
+        | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+        None, None).close_sync(None)
+
+
 def screen_text(budget_s=1.5):
     """(app name, text) of the focused window, read over accessibility.
     Squelch already keeps accessibility switched on for its edit capture."""
@@ -310,6 +325,7 @@ def screen_text(budget_s=1.5):
         return "", ""
     deadline = time.time() + budget_s
     try:
+        a11y_bus_check()
         Atspi.init()
         desk = Atspi.get_desktop(0)
         win, app_name = None, ""
