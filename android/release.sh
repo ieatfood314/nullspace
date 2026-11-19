@@ -6,7 +6,7 @@
 #                                  full release (builds it first if it was never released)
 #
 # Most people only follow full releases; turn on "include pre-releases" in Obtainium to get
-# testing builds too. The version is <uplinkVersion>.<commit count>, so a promoted build keeps
+# testing builds too. The version is <nullspaceVersion>.<commit count>, so a promoted build keeps
 # its version and nobody downloads the same APK twice. Commit and push first; a dirty tree is
 # refused. See AGENTS.md, "Branches and releases".
 set -e
@@ -18,7 +18,7 @@ if [ "$1" = "--stable" ]; then channel=stable; branch=stable; shift; fi
 git fetch -q origin
 [ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$branch")" ] || {
     echo "Check out origin/$branch first: the release has to be the commit GitHub has on $branch." >&2; exit 1; }
-version="$(sed -n 's/^uplinkVersion=//p' gradle.properties).$(git rev-list --count HEAD)"
+version="$(sed -n 's/^nullspaceVersion=//p' gradle.properties).$(git rev-list --count HEAD)"
 
 if [ "$channel" = stable ] && gh release view "v$version" >/dev/null 2>&1; then
     gh release edit "v$version" --prerelease=false --latest --title "Nullspace $version"

@@ -82,7 +82,7 @@ checksum-checked on the first build.
 ```
 
 Signing and first-run defaults are read from `~/.config/nullspace/` (or
-`~/.config/uplink/`): `keystore.properties` (`storeFile`, `storePassword`,
+`~/.config/uplink/` from before the rename): `keystore.properties` (`storeFile`, `storePassword`,
 `keyAlias`, `keyPassword`) and `android.properties` (`hub=`, `squelch_hub=`,
 and `donate_url=`, where opt-in training data goes; without it the setting
 is hidden). Without them the release is signed with the debug key and has
@@ -90,4 +90,4 @@ no defaults. `-Phub=http://10.0.2.2:4645`
 points a build at a hub on the emulator's host.
 
 `./release.sh` builds the committed, pushed HEAD and publishes it as GitHub
-release `v<uplinkVersion>.<commit count>`.
+release `v<nullspaceVersion>.<commit count>`.

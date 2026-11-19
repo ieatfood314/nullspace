@@ -20,7 +20,7 @@
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="Nullspace"
-        android:theme="@style/Theme.Uplink"
+        android:theme="@style/Theme.Nullspace"
         android:usesCleartextTraffic="true"
         android:largeHeap="true">
 
@@ -66,7 +66,7 @@
         </activity>
 
         <!-- Reads the Essential key: hold to dictate, press to capture the screen, press then
-             hold for a voice note, double press to open Uplink. -->
+             hold for a voice note, double press to open Nullspace. -->
         <service
             android:name=".UplinkService"
             android:exported="false"

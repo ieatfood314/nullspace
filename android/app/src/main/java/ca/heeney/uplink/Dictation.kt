@@ -67,7 +67,7 @@ object Dictation {
         val pm = app.getSystemService(PowerManager::class.java) ?: return
         // ON_AFTER_RELEASE restarts the screen timeout when it's let go, so the screen
         // doesn't go dark the moment the text lands.
-        awake = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE, "uplink:dictation")
+        awake = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE, "nullspace:dictation")
             .apply { setReferenceCounted(false) }
         phase.listen { p ->
             val w = awake ?: return@listen

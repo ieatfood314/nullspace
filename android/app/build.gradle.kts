@@ -60,7 +60,7 @@ android {
         minSdk = 31
         targetSdk = 35
         versionCode = commitCount
-        versionName = "${project.property("uplinkVersion")}.$commitCount"
+        versionName = "${project.property("nullspaceVersion")}.$commitCount"
         // -Phub=http://10.0.2.2:4698 points a test build at a test hub
         buildConfigField("String", "HUB_URL", "\"${project.findProperty("hub") ?: installProps.getProperty("hub", "")}\"")
         // android/test.sh runs app/src/androidTest on an emulator, with both hubs off

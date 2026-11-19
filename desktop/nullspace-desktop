@@ -573,14 +573,14 @@ class Window(QWidget):
             return
         page.caught = False
         if ok:
-            self.view.page().runJavaScript("window.uplinkDesktop && uplinkDesktop()")
+            self.view.page().runJavaScript("window.nullspaceDesktop && nullspaceDesktop()")
             self.paint_accent()
         else:   # the hub may still be starting: try again while the window shows
             QTimer.singleShot(3000, lambda: self.isVisible() and self.view.reload())
 
     def paint_accent(self):
         hexc = config()["accent"]
-        self.view.page().runJavaScript(f"window.uplinkAccent && uplinkAccent({json.dumps(hexc)})")
+        self.view.page().runJavaScript(f"window.nullspaceAccent && nullspaceAccent({json.dumps(hexc)})")
 
     def toggle(self):
         if self.isVisible() and self.isActiveWindow():

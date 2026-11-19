@@ -2,13 +2,22 @@
  *
  * The page keeps every record in memory and talks to one endpoint, sync, which takes the
  * records changed here and returns everything changed since the last rev it saw. In a browser
- * that's the hub's POST /api/sync. In the phone app it's the UplinkNative bridge, which
+ * that's the hub's POST /api/sync. In the phone app it's the NullspaceNative bridge, which
  * answers from the phone's own copy (and syncs with your hub in the background, if you have one). */
 "use strict";
 
-const N = window.UplinkNative || null;
+const N = window.NullspaceNative || null;
 const $ = (s, el = document) => el.querySelector(s);
-const KEY = "uplink-db-v1";
+const KEY = "nullspace-db-v1";
+/* Before the rename these were kept under uplink-*; move them over once. */
+for (const n of ["db-v1", "ui"]) {
+  try {
+    const v = localStorage.getItem("uplink-" + n);
+    if (v === null) continue;
+    if (localStorage.getItem("nullspace-" + n) === null) localStorage.setItem("nullspace-" + n, v);
+    localStorage.removeItem("uplink-" + n);
+  } catch (_) {}
+}
 
 /* ---- store ---- */
 
@@ -72,7 +81,7 @@ async function sync(wait = 0) {
 
 let hubSeq = 0;
 const hubWait = {};
-window.uplinkHubDone = (id, raw) => { const f = hubWait[id]; delete hubWait[id]; if (f) f(raw); };
+window.nullspaceHubDone = (id, raw) => { const f = hubWait[id]; delete hubWait[id]; if (f) f(raw); };
 
 async function hub(path, method = "GET", body) {
   if (N) {
@@ -294,8 +303,8 @@ function repeatText(s, times) {
 
 // ui.list is "upcoming", "categories", "lists" or a list's uid.
 const ui = { tab: "tasks", list: "upcoming", showDone: false };
-try { Object.assign(ui, JSON.parse(localStorage.getItem("uplink-ui") || "{}")); ui.showDone = false; } catch (_) {}
-const saveUi = () => localStorage.setItem("uplink-ui", JSON.stringify({ tab: ui.tab, list: ui.list }));
+try { Object.assign(ui, JSON.parse(localStorage.getItem("nullspace-ui") || "{}")); ui.showDone = false; } catch (_) {}
+const saveUi = () => localStorage.setItem("nullspace-ui", JSON.stringify({ tab: ui.tab, list: ui.list }));
 const inList = () => !["upcoming", "categories", "lists"].includes(ui.list);
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -879,14 +888,14 @@ document.addEventListener("click", async (e) => {
 });
 
 /* The phone's back key: close the sheet, else step out of a list. Returns true if it did something. */
-window.uplinkBack = () => {
+window.nullspaceBack = () => {
   if (sheet.open) { sheet.close(); return true; }
   if (ui.tab === "tasks" && inList()) { ui.list = "lists"; ui.showDone = false; saveUi(); window.scrollTo(0, 0); render(); return true; }
   return false;
 };
 
 /* The accent you picked in the phone's settings, and black or white text to go on it. */
-window.uplinkAccent = (hex) => {
+window.nullspaceAccent = (hex) => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   if (!m) return;
   const n = parseInt(m[1], 16);
@@ -897,7 +906,7 @@ window.uplinkAccent = (hex) => {
 };
 
 /* The desktop app's window calls this once the page has loaded: the gear opens the app's settings. */
-window.uplinkDesktop = () => {
+window.nullspaceDesktop = () => {
   const s = $("#settings");
   s.hidden = false;
   s.setAttribute("aria-label", "Settings");
@@ -905,12 +914,12 @@ window.uplinkDesktop = () => {
 };
 
 if (N) {
-  if (N.accent) window.uplinkAccent(N.accent());
+  if (N.accent) window.nullspaceAccent(N.accent());
   const s = $("#settings");
   s.hidden = false;
   s.onclick = () => N.openSettings();
   // The phone app calls this when its own copy changed (a capture filed, a sync landed).
-  window.uplinkChanged = () => sync();
+  window.nullspaceChanged = () => sync();
 }
 
 document.addEventListener("visibilitychange", () => { if (!document.hidden) sync(); });

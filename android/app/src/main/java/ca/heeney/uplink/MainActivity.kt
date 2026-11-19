@@ -25,7 +25,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.util.concurrent.Executors
 
-/** The page from ../web, bundled, talking to the phone's Store through UplinkNative. */
+/** The page from ../web, bundled, talking to the phone's Store through NullspaceNative. */
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
     private val main = Handler(Looper.getMainLooper())
@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
             setGeolocationEnabled(true)
             allowFileAccess = false
         }
-        web.addJavascriptInterface(Bridge(), "UplinkNative")
+        web.addJavascriptInterface(Bridge(), "NullspaceNative")
         web.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, req: WebResourceRequest): WebResourceResponse? =
                 loader.shouldInterceptRequest(req.url)
@@ -90,12 +90,12 @@ class MainActivity : ComponentActivity() {
         firstRun()
     }
 
-    private val poke = Runnable { web.evaluateJavascript("window.uplinkChanged && uplinkChanged()", null) }
+    private val poke = Runnable { web.evaluateJavascript("window.nullspaceChanged && nullspaceChanged()", null) }
 
     override fun onResume() {
         super.onResume()
         // the accent may have changed in settings
-        web.evaluateJavascript("window.uplinkAccent && uplinkAccent(${JSONObject.quote(Prefs.accentHex())})", null)
+        web.evaluateJavascript("window.nullspaceAccent && nullspaceAccent(${JSONObject.quote(Prefs.accentHex())})", null)
         HubSync.soon(this)
     }
 
@@ -111,7 +111,7 @@ class MainActivity : ComponentActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        web.evaluateJavascript("(function(){if(window.uplinkBack)return uplinkBack()?1:0;var d=document.getElementById('sheet');if(d&&d.open){d.close();return 1}return 0})()") { r ->
+        web.evaluateJavascript("(function(){if(window.nullspaceBack)return nullspaceBack()?1:0;var d=document.getElementById('sheet');if(d&&d.open){d.close();return 1}return 0})()") { r ->
             if (r != "1") @Suppress("DEPRECATION") super.onBackPressed()
         }
     }
@@ -150,13 +150,13 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        /** The same, answered later through uplinkHubDone(id, json), so the page doesn't freeze. */
+        /** The same, answered later through nullspaceHubDone(id, json), so the page doesn't freeze. */
         @JavascriptInterface fun hubAsync(id: String, path: String, method: String, body: String) {
             bridgeIo.execute {
                 val out = hub(path, method, body)
                 main.post {
                     if (isDestroyed) return@post
-                    web.evaluateJavascript("uplinkHubDone(${JSONObject.quote(id)}, ${JSONObject.quote(out)})", null)
+                    web.evaluateJavascript("nullspaceHubDone(${JSONObject.quote(id)}, ${JSONObject.quote(out)})", null)
                 }
             }
         }

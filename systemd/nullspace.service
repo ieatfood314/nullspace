@@ -6,7 +6,6 @@ After=network-online.target
 
 [Service]
 EnvironmentFile=-%h/.config/nullspace/hub.env
-EnvironmentFile=-%h/.config/uplink/hub.env
 ExecStart=/usr/bin/python3 %h/repos/nullspace/server/nullspace.py
 Restart=always
 RestartSec=5

@@ -66,7 +66,7 @@ object Sync {
     fun soon(ctx: Context, minGapMs: Long = 0) {
         if (url() == null) { status.value = Status.Off; return }
         if (SystemClock.uptimeMillis() - lastTry < minGapMs) return
-        // Words and analytics can wait for Wi-Fi: mobile data is kept for Uplink's own sync.
+        // Words and analytics can wait for Wi-Fi: mobile data is kept for Nullspace's own sync.
         if (Net.metered(ctx)) return
         if (!busy.compareAndSet(false, true)) { again = true; return }
         lastTry = SystemClock.uptimeMillis()
