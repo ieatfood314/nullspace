@@ -51,15 +51,15 @@ and allow your browser to install apps when Android asks.
 ### 2. Set it up
 
 Open Nullspace. Settings opens by itself the first time. Tap each row that
-has a blue action on the right:
+has a colored action on the right. The (i) next to a row says what it does:
 
 1. **Accessibility: Turn on.** Find Nullspace in the list, turn it on, and
    allow it. This is how it sees the key, types dictation into other apps
    and takes screenshots.
 2. **Microphone: Allow.**
-3. **Model: pick one.** "English" is the right choice for most people. It's
+3. **Speech model: pick one.** "English" is the right choice for most people. It's
    about 600 MB, downloaded once over Wi-Fi.
-4. **Key.** On Nothing and CMF phones it's the Essential key already. On
+4. **Shortcut key.** On Nothing and CMF phones it's the Essential key already. On
    other phones tap **Change** and press the key you want: a spare side
    button, or volume down if your phone has nothing else.
 5. **Notifications** and **Location: Allow.** Location is only used for
@@ -80,7 +80,7 @@ under a second, so that's the one to use.
 2. In the menu on the left, open **API Keys**.
 3. Tap **Create API Key**. Name it `Nullspace` and tap **Submit**.
 4. Copy the key. It starts with `gsk_`, and Groq only shows it once.
-5. In Nullspace: **Settings → AI → Set up**. Leave **Groq** picked, paste
+5. In Nullspace: **Settings → AI provider → Set up**. Leave **Groq** picked, paste
    the key into the key box and tap **Save**. The row says **Groq** when
    it works.
 

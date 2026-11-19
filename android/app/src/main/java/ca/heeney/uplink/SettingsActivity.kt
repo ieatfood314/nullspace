@@ -32,7 +32,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.ui.semantics.Role
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.LifecycleEventObserver
@@ -62,6 +67,8 @@ class SettingsActivity : ComponentActivity() {
     /** the accent you pick here, so the screen changes as you pick it */
     private var accentArgb by mutableIntStateOf(Prefs.accent)
     private val Accent: Color get() = Color(accentArgb)
+    /** the row whose help line is showing, by label; one at a time */
+    private var helpFor by mutableStateOf("")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,14 +124,19 @@ class SettingsActivity : ComponentActivity() {
             Modifier.fillMaxSize().background(Color.Black).systemBarsPadding().imePadding()
                 .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 32.dp),
         ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White,
+                modifier = Modifier.offset(x = (-12).dp, y = (-12).dp).size(48.dp)
+                    .clickable(role = Role.Button) { finish() }.padding(12.dp))
             Text("Settings", color = Color.White, fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 40.sp)
             Spacer(Modifier.height(32.dp))
 
             val a11y = a11yOn()
-            SettingRow("Accessibility", if (a11y) "On" else null, "Turn on") { open(Settings.ACTION_ACCESSIBILITY_SETTINGS) }
-            SettingRow("Microphone", if (micOn()) "Allowed" else null, "Allow") { askMic.launch(Manifest.permission.RECORD_AUDIO) }
+            SettingRow("Accessibility", if (a11y) "On" else null, "Turn on",
+                help = "Lets Nullspace notice the key and type what you say into any app.") { open(Settings.ACTION_ACCESSIBILITY_SETTINGS) }
+            SettingRow("Microphone", if (micOn()) "Allowed" else null, "Allow", help = "For dictation and voice notes.") { askMic.launch(Manifest.permission.RECORD_AUDIO) }
             ModelRow(engine, open == "model") { toggle("model") }
-            SettingRow("Key", if (learning) "Press a key" else keyName, null, action = if (learning || !a11y) null else "Change") {
+            SettingRow("Shortcut key", if (learning) "Press a key" else keyName, null, action = if (learning || !a11y) null else "Change",
+                help = "The button that runs Nullspace. Tap Change, then press the one you want.") {
                 learning = true
                 UplinkService.learner = { ev ->
                     Prefs.keyCode = ev.keyCode
@@ -136,17 +148,19 @@ class SettingsActivity : ComponentActivity() {
             AiRow(open == "ai") { toggle("ai") }
             if (Brain.on() || HubSync.url() != null) {
                 var tidy by remember { mutableStateOf(Prefs.tidy) }
-                SettingRow("Tidy dictation", if (tidy) "On" else "Off", null, action = if (tidy) "Turn off" else "Turn on") {
+                SettingRow("Tidy dictation", if (tidy) "On" else "Off", null, action = if (tidy) "Turn off" else "Turn on",
+                    help = "AI cuts repeats and false starts from what you dictate.") {
                     tidy = !tidy
                     Prefs.tidy = tidy
                 }
             }
-            SettingRow("Notifications", if (has(Manifest.permission.POST_NOTIFICATIONS)) "Allowed" else null, "Allow") {
+            SettingRow("Notifications", if (has(Manifest.permission.POST_NOTIFICATIONS)) "Allowed" else null, "Allow",
+                help = "For reminders.") {
                 askPerms.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
             }
             val fine = has(Manifest.permission.ACCESS_FINE_LOCATION)
             SettingRow("Location", if (Reminders.locationOk(this@SettingsActivity)) "All the time" else null,
-                if (fine) "Allow all the time" else "Allow") { askLocation() }
+                if (fine) "Allow all the time" else "Allow", help = "For reminders tied to a place, like home.") { askLocation() }
             AccentRow(open == "accent") { toggle("accent") }
             DataRow(open == "data") { toggle("data") }
             HubRow(open == "hub") { toggle("hub") }
@@ -154,7 +168,8 @@ class SettingsActivity : ComponentActivity() {
             WordsRow(open == "words") { toggle("words") }
             var keep by remember { mutableStateOf(Prefs.keepRecordings) }
             if (keep || Sync.url() != null) {
-                SettingRow("Keep recordings", if (keep) "On" else "Off", null, action = if (keep) "Turn off" else "Turn on") {
+                SettingRow("Keep recordings", if (keep) "On" else "Off", null, action = if (keep) "Turn off" else "Turn on",
+                    help = "Saves your dictation audio and fixes on your Squelch hub, to train speech models.") {
                     keep = !keep
                     Prefs.keepRecordings = keep
                 }
@@ -204,8 +219,8 @@ class SettingsActivity : ComponentActivity() {
         }
         // Nothing downloaded yet: the list stays open so you can pick one.
         val show = expanded || !installed
-        SettingRow("Model", status ?: "Pick one", null, action = if (!installed) null else if (expanded) "Done" else "Change",
-            divider = !show, onClick = onToggle)
+        SettingRow("Speech model", status ?: "Pick one", null, action = if (!installed) null else if (expanded) "Done" else "Change",
+            divider = !show, help = "Turns your voice into text, on the phone. Your audio stays here.", onClick = onToggle)
         if (!show) return
         var tick by remember { mutableIntStateOf(0) }
         @Suppress("UNUSED_EXPRESSION") tick
@@ -284,8 +299,9 @@ class SettingsActivity : ComponentActivity() {
             Brain.on() -> Brain.name()
             else -> null
         }
-        SettingRow("AI", status, "Set up", action = if (expanded) "Done" else if (Brain.on()) "Change" else "Set up",
-            divider = !expanded, onClick = onToggle)
+        SettingRow("AI provider", status, "Set up", action = if (expanded) "Done" else if (Brain.on()) "Change" else "Set up",
+            divider = !expanded, help = "Optional. Your own AI key files your captures and tidies dictation. Only text is sent.",
+            onClick = onToggle)
         if (!expanded) return
         var preset by remember { mutableStateOf(Brain.preset().key) }
         var key by remember { mutableStateOf(Prefs.llmKey) }
@@ -334,8 +350,7 @@ class SettingsActivity : ComponentActivity() {
                     }.start()
                 })
         }
-        Text("Files your captures and tidies dictation. Only text is sent.", color = Dim, fontFamily = Inter, fontSize = 13.sp)
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(6.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
     }
 
@@ -347,8 +362,8 @@ class SettingsActivity : ComponentActivity() {
 
     @Composable
     private fun AccentRow(expanded: Boolean, onToggle: () -> Unit) {
-        SettingRow("Accent", "#%06X".format(accentArgb and 0xFFFFFF), null, action = if (expanded) "Done" else "Change",
-            divider = !expanded, onClick = onToggle)
+        SettingRow("Accent color", "#%06X".format(accentArgb and 0xFFFFFF), null, action = if (expanded) "Done" else "Change",
+            divider = !expanded, help = "The color of buttons and highlights.", onClick = onToggle)
         if (!expanded) return
         fun pick(c: Int) { Prefs.accent = c; accentArgb = Prefs.accent }
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -375,7 +390,8 @@ class SettingsActivity : ComponentActivity() {
     private fun DataRow(expanded: Boolean, onToggle: () -> Unit) {
         var cap by remember { mutableIntStateOf(Prefs.dataCapMb) }
         @Suppress("UNUSED_EXPRESSION") cap
-        SettingRow("Mobile data", Budget.text(), null, action = if (expanded) "Done" else "Change", divider = !expanded, onClick = onToggle)
+        SettingRow("Mobile data", Budget.text(), null, action = if (expanded) "Done" else "Change", divider = !expanded,
+            help = "How much mobile data Nullspace may use a month. Wi-Fi doesn't count.", onClick = onToggle)
         if (!expanded) return
         var mb by remember { mutableStateOf(Prefs.dataCapMb.toString()) }
         val n = mb.trim().toIntOrNull()?.takeIf { it in 0..100_000 }
@@ -383,7 +399,7 @@ class SettingsActivity : ComponentActivity() {
             keyboard = KeyboardType.Number) {
             Prefs.dataCapMb = n!!; cap = n
         }
-        Text("A month's limit. 0 keeps it to Wi-Fi.", color = Dim, fontFamily = Inter, fontSize = 13.sp)
+        Text("0 keeps it to Wi-Fi.", color = Dim, fontFamily = Inter, fontSize = 13.sp)
         Spacer(Modifier.height(16.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
     }
@@ -418,15 +434,14 @@ class SettingsActivity : ComponentActivity() {
             HubSync.Status.Synced -> ago(now - HubSync.lastOk)
         }
         SettingRow("Hub", status, "Set up", action = if (expanded) "Done" else if (HubSync.url() == null) "Set up" else "Change",
-            divider = !expanded, onClick = onToggle)
+            divider = !expanded, help = "Optional. Your own server, to share your list with your computers.", onClick = onToggle)
         if (!expanded) return
         var url by remember { mutableStateOf(Prefs.hubUrl) }
         InputLine(url, { url = it }, "Hub address, like http://server:4645", "Save", enabled = url.trim() != Prefs.hubUrl) {
             Prefs.hubUrl = url.trim()
             if (url.isBlank()) HubSync.status.value = HubSync.Status.Off else HubSync.soon(this)
         }
-        Text("Optional. Your own server, to share your list with your computers.", color = Dim, fontFamily = Inter, fontSize = 13.sp)
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(10.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
     }
 
@@ -444,19 +459,15 @@ class SettingsActivity : ComponentActivity() {
             Sync.Status.Synced -> ago(now - Sync.lastOk)
         }
         SettingRow("Words sync", status, null, action = if (expanded) "Done" else if (Sync.url() == null) "Set up" else "Change",
-            divider = !expanded, onClick = onToggle)
+            divider = !expanded, help = "Shares your custom words and stats with Squelch on your computers. Wi-Fi only.", onClick = onToggle)
         if (!expanded) return
         var url by remember { mutableStateOf(Prefs.syncUrl) }
         InputLine(url, { url = it }, "Squelch hub address", "Save", enabled = url.trim() != Prefs.syncUrl) {
             Prefs.syncUrl = url.trim()
             if (url.isBlank()) Sync.status.value = Sync.Status.Off else Sync.soon(this)
         }
-        Text(
-            if (st == Sync.Status.Failed) Sync.lastError
-            else "Words and analytics, shared with Squelch on your computers. Wi-Fi only.",
-            color = Dim, fontFamily = Inter, fontSize = 13.sp,
-        )
-        Spacer(Modifier.height(16.dp))
+        if (st == Sync.Status.Failed) Text(Sync.lastError, color = Dim, fontFamily = Inter, fontSize = 13.sp)
+        Spacer(Modifier.height(if (st == Sync.Status.Failed) 16.dp else 10.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
     }
 
@@ -473,7 +484,9 @@ class SettingsActivity : ComponentActivity() {
     private fun WordsRow(expanded: Boolean, onToggle: () -> Unit) {
         val ver by Words.changed.state()
         val words = remember(ver, refresh) { Words.load(this) }
-        SettingRow("Words", "${words.size}", null, action = if (expanded) "Done" else "Edit", divider = !expanded, onClick = onToggle)
+        SettingRow("Custom words", "${words.size}", null, action = if (expanded) "Done" else "Edit", divider = !expanded,
+            help = "Names and words dictation gets wrong. Add how it should be spelled and what it hears instead.",
+            onClick = onToggle)
         if (!expanded) return
         var term by remember { mutableStateOf("") }
         var heard by remember { mutableStateOf("") }
@@ -511,7 +524,7 @@ class SettingsActivity : ComponentActivity() {
         Row(Modifier.fillMaxWidth()) {
             Tile("%,d".format(s.words), "words")
             Tile("%.0f".format(s.wpm), "WPM")
-            Tile("%.2f s".format(s.avgLat), "transcription")
+            Tile("%.2f s".format(s.avgLat), "avg wait")
             Tile("%,d".format(s.dictations), "dictations")
         }
         Spacer(Modifier.height(16.dp))
@@ -580,17 +593,25 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    /** label on the left; a status in grey when it's done, else the action in the accent */
+    /** label on the left; a status in grey when it's done, else the action in the accent.
+     *  With [help], an (i) after the label shows a line saying what the row is for. */
     @Composable
-    private fun SettingRow(label: String, status: String?, fix: String?, action: String? = null, divider: Boolean = true, onClick: () -> Unit) {
+    private fun SettingRow(label: String, status: String?, fix: String?, action: String? = null, divider: Boolean = true,
+                           help: String? = null, onClick: () -> Unit) {
         val tap = action ?: if (status == null) fix else null
+        val showHelp = help != null && helpFor == label
         Row(
             Modifier.fillMaxWidth().then(if (tap != null) Modifier.clickable(onClick = onClick) else Modifier)
-                .padding(vertical = 16.dp),
+                .padding(vertical = if (help != null) 4.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(label, color = Color.White, fontFamily = Inter, fontSize = 18.sp, maxLines = 1, softWrap = false)
-            Spacer(Modifier.width(16.dp))
+            if (help != null) {
+                Icon(Icons.Outlined.Info, if (showHelp) "Hide what $label does" else "What $label does",
+                    tint = if (showHelp) Color.White else Dim,
+                    modifier = Modifier.size(48.dp).clickable(role = Role.Button) { helpFor = if (showHelp) "" else label }
+                        .padding(14.dp))
+            } else Spacer(Modifier.width(16.dp))
             Text(status ?: "", color = Dim, fontFamily = Inter, fontSize = 16.sp, maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.weight(1f))
@@ -599,6 +620,8 @@ class SettingsActivity : ComponentActivity() {
                 Text(tap, color = Accent, fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 16.sp)
             }
         }
+        if (showHelp) Text(help!!, color = Dim, fontFamily = Inter, fontSize = 14.sp, lineHeight = 20.sp,
+            modifier = Modifier.padding(bottom = 16.dp))
         if (divider) Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
     }
 }
