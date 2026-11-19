@@ -182,8 +182,8 @@ The same key, on your desktop: hold it to dictate, press it to keep what's
 on screen, press then hold for a voice note, double press to open your
 list. It all lands in the same list as your phone's.
 
-Nullspace for Linux runs on KDE Plasma (Wayland) and uses
-[Squelch](https://github.com/ieatfood314/squelch) for the speech, which
+Nullspace for Linux runs on KDE Plasma (Wayland). Its speech engine
+(from [Squelch](https://github.com/ieatfood314/squelch)) is built in and
 runs on your graphics card, so a sentence types in a fraction of a second.
 On Arch:
 
@@ -191,7 +191,7 @@ On Arch:
 yay -S nullspace
 ```
 
-Then open **Nullspace** from the app menu. The first time, Squelch's setup
+Then open **Nullspace** from the app menu. The first time, dictation setup
 opens too: give it keyboard access, download the speech model and pick
 your key (Menu by default). After that, everything is in the tray icon:
 
@@ -200,7 +200,7 @@ your key (Menu by default). After that, everything is in the tray icon:
   one list with your phone, run the hub on one machine and pick "Another
   computer" on the rest, with its address, plus **Settings → Hub** on the
   phone.
-- **Dictation** opens Squelch's settings: the speech model, the key, your
+- **Dictation** opens the dictation settings: the speech model, the key, your
   own words, typing as you speak.
 - **Reminders on this computer** shows your reminders as notifications,
   with a **Done** button.
@@ -212,10 +212,9 @@ and Electron apps (VS Code, Obsidian, Discord) start them with
 ## Squelch
 
 [Squelch](https://github.com/ieatfood314/squelch) is the dictation for
-your Linux desktop, and it's also its own app: install just Squelch if all
-you want is to hold a key, talk, and have it type. With Nullspace
-installed, Squelch's tray icon steps aside and the key does Nullspace's
-gestures.
+your Linux desktop on its own: install just Squelch if all you want is to
+hold a key, talk, and have it type. Nullspace already includes it (the
+`nullspace` package replaces `squelch`), so install one or the other.
 
 Point **Settings → Words sync** on the phone at your Squelch hub, and the
 words you taught either one, and your dictation stats, are shared between

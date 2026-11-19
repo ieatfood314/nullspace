@@ -667,12 +667,12 @@ class Settings(QDialog):
 
 
 def open_dictation():
-    """Squelch's settings, in the tray that's running if there is one."""
+    """The dictation settings (Squelch's engine), in the tray that's running if there is one."""
     try:
         subprocess.Popen(["squelch-tray", "--settings"], start_new_session=True,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError:
-        notify("Squelch isn't installed", "Dictation and voice notes need it.")
+        notify("Dictation isn't installed", "Reinstall the nullspace package.")
 
 
 def style(accent):
