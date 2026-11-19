@@ -36,11 +36,20 @@ object Prefs {
     /** Nothing and CMF phones have the Essential key. Everything else starts on the volume keys,
      *  which still change the volume with a press (see UplinkService.volumeKey). */
     private val hasEssential: Boolean get() =
-        listOf(android.os.Build.MANUFACTURER, android.os.Build.BRAND).any { it.equals("nothing", true) || it.equals("cmf", true) }
+        listOf(android.os.Build.MANUFACTURER, android.os.Build.BRAND).any { it.contains("nothing", true) || it.contains("cmf", true) }
 
     var keyCode: Int
         get() = sp.getInt("key_code", if (hasEssential) KeyEvent.KEYCODE_UNKNOWN else KeyEvent.KEYCODE_VOLUME_DOWN)
         set(v) = sp.edit().putInt("key_code", v).apply()
+    /** A phone that sends the Essential key has one, whatever it calls itself: if no key was
+     *  picked yet, that's the key from now on. */
+    fun sawKey(ev: KeyEvent) {
+        if (ev.scanCode == ESSENTIAL_SCAN && keyCode != KeyEvent.KEYCODE_UNKNOWN && !sp.contains("key_code")) {
+            keyCode = KeyEvent.KEYCODE_UNKNOWN
+            scanCode = ESSENTIAL_SCAN
+        }
+    }
+
     var scanCode: Int
         get() = sp.getInt("scan_code", ESSENTIAL_SCAN)
         set(v) = sp.edit().putInt("scan_code", v).apply()

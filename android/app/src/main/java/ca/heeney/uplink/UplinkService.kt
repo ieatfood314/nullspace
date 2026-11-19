@@ -75,6 +75,7 @@ class UplinkService : AccessibilityService() {
             if (ev.action == KeyEvent.ACTION_UP) { learner = null; learn(ev) }
             return true
         }
+        Prefs.sawKey(ev)
         if (!Prefs.isTrigger(ev)) return false
         if (Prefs.volumeKey) return volumeKey(ev)
         when (ev.action) {
