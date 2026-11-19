@@ -150,7 +150,10 @@ class SettingsActivity : ComponentActivity() {
             val assistant = getSystemService(android.app.role.RoleManager::class.java)
                 ?.isRoleHeld(android.app.role.RoleManager.ROLE_ASSISTANT) == true
             SettingRow("Power button", if (assistant) "Hold for the menu" else null, "Set up",
-                action = if (assistant) "Change" else null) { open(Settings.ACTION_VOICE_INPUT_SETTINGS) }
+                action = if (assistant) "Change" else null,
+                help = "Pick Nullspace as your digital assistant. Then holding power opens a menu to dictate, record a voice note or capture the screen.") {
+                open(Settings.ACTION_VOICE_INPUT_SETTINGS)
+            }
             AiRow(open == "ai") { toggle("ai") }
             if (Brain.on() || HubSync.url() != null) {
                 var tidy by remember { mutableStateOf(Prefs.tidy) }
