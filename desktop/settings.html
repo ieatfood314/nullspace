@@ -18,6 +18,7 @@
   --faint: #4a4a4a;
   --line: #1f1f1f;
   --accent: #3d9bff;
+  --accent-text: #3d9bff;   /* the accent, lightened if it's too dark to read on black */
   --on-accent: #000;
   color-scheme: dark;
 }
@@ -26,7 +27,7 @@ html, body { margin: 0; background: var(--bg); color: var(--fg); }
 body { font: 400 16px/1.45 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 button, input, textarea { font: inherit; color: inherit; }
 button { background: none; border: 0; padding: 0; cursor: pointer; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; border-radius: 6px; }
 [hidden] { display: none !important; }
 
 .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 48px 80px; }
@@ -46,7 +47,7 @@ aside { position: sticky; top: 28px; align-self: start; }
 .row .info.on, .row .info:hover { color: var(--fg); }
 .row .gap { width: 16px; flex: none; }
 .row .status { flex: 1; min-width: 0; text-align: right; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.row .act { flex: none; margin-left: 16px; color: var(--accent); font-weight: 500; }
+.row .act { flex: none; margin-left: 16px; color: var(--accent-text); font-weight: 500; }
 .row.tap:hover .act { text-decoration: underline; text-underline-offset: 4px; }
 .help { color: var(--dim); font-size: 14px; line-height: 20px; margin: -2px 0 16px; max-width: 520px; }
 .rule { height: 1px; background: var(--line); }
@@ -63,7 +64,7 @@ aside { position: sticky; top: 28px; align-self: start; }
 .line:focus-within { border-color: var(--faint); }
 .line input { flex: 1; min-width: 0; height: 100%; background: none; border: 0; outline: none; }
 .line input::placeholder { color: var(--dim); }
-.line button { color: var(--accent); font-weight: 500; }
+.line button { color: var(--accent-text); font-weight: 500; }
 .line button:disabled { color: var(--dim); cursor: default; }
 
 /* lists inside a row: models, mics, words */
@@ -75,11 +76,11 @@ aside { position: sticky; top: 28px; align-self: start; }
 .pick .sub { display: block; color: var(--dim); font-size: 13px; }
 .pick .right { color: var(--dim); font-size: 14px; white-space: nowrap; }
 .pick:not(:disabled):hover .name { text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--faint); }
-.pick .rm { color: var(--accent); font-weight: 500; font-size: 14px; }
+.pick .rm { color: var(--accent-text); font-weight: 500; font-size: 14px; }
 
 .two { display: flex; gap: 8px; padding: 6px 0; }
 .two button { flex: 1; height: 46px; border: 1px solid var(--line); border-radius: 12px; color: var(--dim); font-weight: 500; }
-.two button.on { border-color: var(--accent); color: var(--accent); }
+.two button.on { border-color: var(--accent); color: var(--accent-text); }
 
 .swatches { display: flex; justify-content: space-between; max-width: 380px; padding: 8px 0; }
 .swatches button { width: 40px; height: 40px; padding: 5px; border-radius: 50%; border: 2px solid transparent; }
@@ -87,7 +88,7 @@ aside { position: sticky; top: 28px; align-self: start; }
 .swatches span { display: block; width: 100%; height: 100%; border-radius: 50%; }
 
 .textlinks { display: flex; justify-content: space-between; padding: 10px 0; font-weight: 500; }
-.textlinks button { color: var(--accent); }
+.textlinks button { color: var(--accent-text); }
 .textlinks button:disabled { color: var(--dim); cursor: default; }
 
 /* the side: try it, analytics */
@@ -459,9 +460,20 @@ function paint(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   if (!m) return;
   const v = parseInt(m[1], 16);
-  const lum = (0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255)) / 255;
-  document.documentElement.style.setProperty("--accent", "#" + m[1]);
-  document.documentElement.style.setProperty("--on-accent", lum > 0.45 ? "#000" : "#fff");
+  const rgb = [v >> 16, (v >> 8) & 255, v & 255];
+  const lum = (c) => c.map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; })
+    .reduce((t, x, i) => t + x * [0.2126, 0.7152, 0.0722][i], 0);
+  // An accent too dark to read on black (steel blue) is mixed toward white for text, far
+  // enough to stand out from the grey statuses next to it. Brighter accents stay as picked.
+  const contrast = (c) => (lum(c) + 0.05) / 0.05;
+  let text = rgb;
+  if (contrast(rgb) < 3) {
+    for (let k = 0; k <= 1 && contrast(text) < 7; k += 0.05) text = rgb.map((x) => Math.round(x + (255 - x) * k));
+  }
+  const root = document.documentElement.style;
+  root.setProperty("--accent", "#" + m[1]);
+  root.setProperty("--accent-text", "rgb(" + text.join(",") + ")");
+  root.setProperty("--on-accent", lum(rgb) > 0.18 ? "#000" : "#fff");
 }
 
 function draw() {
