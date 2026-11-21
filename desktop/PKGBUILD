@@ -4,9 +4,9 @@
 # Squelch release, bump _squelch and keep depends and the whisper.cpp commit in
 # step with Squelch's PKGBUILD.
 pkgname=nullspace
-pkgver=1.2.0
+pkgver=1.2.1
 pkgrel=1
-_squelch=0.13.0
+_squelch=0.13.1
 pkgdesc='Tasks, notes, screen captures, voice notes and dictation from one key'
 arch=('x86_64')
 url='https://github.com/ieatfood314/nullspace'
