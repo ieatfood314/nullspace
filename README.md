@@ -24,8 +24,9 @@ Essential key, and it runs on any Android phone, Nothing or not.
   open speech models, so your voice never leaves it. About 0.6 s for a
   sentence on a mid-range phone.
 - **It cleans up your rambling.** Repeated words, false starts and "on
-  Tuesday, no, Wednesday" are cut, and your own words are kept. Turn it off
-  if you like it raw.
+  Tuesday, no, Wednesday" are cut, and your own words are kept. Choose your
+  language, including Canadian English for spellings like colour and favour,
+  and add custom corrections in any language. Turn tidying off if you like it raw.
 - **Real sync.** Run the optional hub on any computer, and your phone,
   laptop and desktop share one list.
 - **On your desktop too.** The same key and the same gestures on Linux,

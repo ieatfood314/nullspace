@@ -406,6 +406,9 @@ class UplinkService : AccessibilityService() {
                 else if (own) Brain.tidy(app, text)
                 else ask("api/tidy", org.json.JSONObject().put("text", text))
             if (tidied != null) { Log.i(TAG, "tidied ${text.length} -> ${tidied.length} chars"); text = tidied }
+            // The LLM may reintroduce US forms. If it changed nothing, keep the
+            // already-cleaned text instead of running dictionary chains twice.
+            if ((guessed != null && guessed != said.text) || tidied != null) text = Cleanup.spelling(app, text)
             val out = if (guessed == null && tidied == null) said
                 else Said(text, said.id, said.ts, said.cut, said.heard, guess = guessed, tidied = tidied != null)
             main.post { if (settled.compareAndSet(false, true)) insert(out.text, out) }

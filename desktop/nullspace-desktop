@@ -1040,6 +1040,8 @@ class Bridge(QObject):
         sq = squelch()
         f = sq.read_filters()
         f.update({k: bool(v[k]) for k in ("defiller", "numbers", "numbers_all") if k in v})
+        if "language" in v:
+            f["language"] = sq.normalize_language(v["language"])
         sq.write_filters(f)
 
     def do_sync(self, v):

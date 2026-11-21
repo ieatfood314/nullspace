@@ -163,6 +163,7 @@ class SettingsActivity : ComponentActivity() {
                     Prefs.tidy = tidy
                 }
             }
+            LanguageRow(open == "language") { toggle("language") }
             SettingRow("Notifications", if (has(Manifest.permission.POST_NOTIFICATIONS)) "Allowed" else null, "Allow",
                 help = "For reminders.") {
                 askPerms.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
@@ -294,6 +295,39 @@ class SettingsActivity : ComponentActivity() {
                 }
             }
         }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+    }
+
+    // ---- dictation language and regional spelling ----
+
+    @Composable
+    private fun LanguageRow(expanded: Boolean, onToggle: () -> Unit) {
+        var tick by remember { mutableIntStateOf(0) }
+        @Suppress("UNUSED_EXPRESSION") tick
+        SettingRow("Language", Languages.name(Prefs.language), null,
+            action = if (expanded) "Done" else "Change", divider = !expanded,
+            help = "Parakeet detects speech automatically. Canadian English writes favour and colour. Custom words can fix spelling in any language.",
+            onClick = onToggle)
+        if (!expanded) return
+        for ((key, name) in listOf("auto" to "Automatic", "en-US" to "US English", "en-CA" to "Canadian English")) {
+            val on = Prefs.language == key
+            Row(
+                Modifier.fillMaxWidth().clickable { Prefs.language = key; tick++ }.padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(8.dp).background(if (on) Accent else Color.Transparent, RoundedCornerShape(4.dp)))
+                Spacer(Modifier.width(12.dp))
+                Text(name, color = Color.White, fontFamily = Inter, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                if (on) Text("In use", color = Dim, fontFamily = Inter, fontSize = 14.sp)
+            }
+        }
+        var other by remember { mutableStateOf("") }
+        val normalized = Languages.normalize(other)
+        InputLine(other, { other = it }, "Another language, like French or fr-CA", "Save",
+            enabled = normalized != null && normalized != Prefs.language) {
+            Prefs.language = normalized!!; other = ""; tick++
+        }
+        Spacer(Modifier.height(12.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
     }
 

@@ -94,6 +94,11 @@ object Prefs {
         get() = sp.getBoolean("tidy", true)
         set(v) = sp.edit().putBoolean("tidy", v).apply()
 
+    /** dictation language and regional spelling; Parakeet detects the spoken language itself */
+    var language: String
+        get() = sp.getString("language", "auto")!!.let { Languages.normalize(it) ?: "auto" }
+        set(v) = sp.edit().putString("language", Languages.normalize(v) ?: "auto").apply()
+
     const val DEFAULT_ACCENT = 0xFF3D9BFF.toInt()
     val ACCENTS = listOf(DEFAULT_ACCENT, 0xFFD71921.toInt(), 0xFFFF8A3D.toInt(), 0xFFF5C542.toInt(),
         0xFF3DDC97.toInt(), 0xFF8B7CFF.toInt(), 0xFFFF5FA2.toInt())

@@ -227,6 +227,7 @@ function drawRows() {
     out.push(onOff("Remove filler words", d.filters.defiller, "Drops um, uh and the like from what you dictate.",
       (v) => call("filters", { defiller: v })));
     out.push(numbersRow(d));
+    out.push(languageRow(d));
   } else {
     out.push(row("Dictation", "Not installed", null, { help: "Dictation comes with the nullspace package. Reinstall it." }));
   }
@@ -314,6 +315,69 @@ function numbersRow(d) {
   const set = { off: { numbers: false, numbers_all: false }, over: { numbers: true, numbers_all: false }, all: { numbers: true, numbers_all: true } };
   out.push(h("div", { class: "inner" }, h("div", { class: "two" }, Object.entries(names).map(([k, t]) =>
     h("button", { class: now === k ? "on" : "", onclick: () => call("filters", set[k]) }, t)))), h("div", { class: "rule" }));
+  return out;
+}
+
+const LANGUAGE_NAMES = {
+  en: "English", zh: "Chinese", de: "German", es: "Spanish", ru: "Russian", ko: "Korean", fr: "French",
+  ja: "Japanese", pt: "Portuguese", tr: "Turkish", pl: "Polish", ca: "Catalan", nl: "Dutch", ar: "Arabic",
+  sv: "Swedish", it: "Italian", id: "Indonesian", hi: "Hindi", fi: "Finnish", vi: "Vietnamese", he: "Hebrew",
+  uk: "Ukrainian", el: "Greek", ms: "Malay", cs: "Czech", ro: "Romanian", da: "Danish", hu: "Hungarian", ta: "Tamil",
+  no: "Norwegian", th: "Thai", ur: "Urdu", hr: "Croatian", bg: "Bulgarian", lt: "Lithuanian", la: "Latin",
+  mi: "Maori", ml: "Malayalam", cy: "Welsh", sk: "Slovak", te: "Telugu", fa: "Persian", lv: "Latvian",
+  bn: "Bengali", sr: "Serbian", az: "Azerbaijani", sl: "Slovenian", kn: "Kannada", et: "Estonian",
+  mk: "Macedonian", br: "Breton", eu: "Basque", is: "Icelandic", hy: "Armenian", ne: "Nepali", mn: "Mongolian",
+  bs: "Bosnian", kk: "Kazakh", sq: "Albanian", sw: "Swahili", gl: "Galician", mr: "Marathi", pa: "Punjabi",
+  si: "Sinhala", km: "Khmer", sn: "Shona", yo: "Yoruba", so: "Somali", af: "Afrikaans", oc: "Occitan",
+  ka: "Georgian", be: "Belarusian", tg: "Tajik", sd: "Sindhi", gu: "Gujarati", am: "Amharic", yi: "Yiddish",
+  lo: "Lao", uz: "Uzbek", fo: "Faroese", ht: "Haitian Creole", ps: "Pashto", tk: "Turkmen", nn: "Nynorsk",
+  mt: "Maltese", sa: "Sanskrit", lb: "Luxembourgish", my: "Burmese", bo: "Tibetan", tl: "Tagalog",
+  mg: "Malagasy", as: "Assamese", tt: "Tatar", haw: "Hawaiian", ln: "Lingala", ha: "Hausa", ba: "Bashkir",
+  jw: "Javanese", su: "Sundanese", yue: "Cantonese",
+};
+const LANGUAGE_BY_NAME = Object.fromEntries(Object.entries(LANGUAGE_NAMES).map(([k, v]) => [v.toLowerCase(), k]));
+Object.assign(LANGUAGE_BY_NAME, { myanmar: "my", "haitian-creole": "ht" });
+function canonicalLanguage(raw) {
+  const parts = raw.split("-");
+  const out = [parts[0].toLowerCase()];
+  let i = 1;
+  while (i < parts.length && i < 4 && parts[i].length === 3 && /^[A-Za-z]+$/.test(parts[i])) out.push(parts[i++].toLowerCase());
+  if (i < parts.length && parts[i].length === 4 && /^[A-Za-z]+$/.test(parts[i]))
+    out.push(parts[i][0].toUpperCase() + parts[i++].slice(1).toLowerCase());
+  if (i < parts.length && ((parts[i].length === 2 && /^[A-Za-z]+$/.test(parts[i])) ||
+      (parts[i].length === 3 && /^\d+$/.test(parts[i])))) out.push(parts[i++].toUpperCase());
+  return [...out, ...parts.slice(i).map((p) => p.toLowerCase())].join("-");
+}
+function normalizeLanguage(value) {
+  const raw = String(value || "").trim().replaceAll("_", "-");
+  const low = raw.toLowerCase();
+  const aliases = { auto: "auto", automatic: "auto", "detect automatically": "auto",
+    "us english": "en-US", "american english": "en-US", "canadian english": "en-CA" };
+  if (aliases[low]) return aliases[low];
+  const tag = LANGUAGE_BY_NAME[low] || raw;
+  if (!/^[A-Za-z]{2,3}(?:-[A-Za-z]{3}){0,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|\d{3}))?(?:-(?:[A-Za-z0-9]{5,8}|\d[A-Za-z0-9]{3}))*(?:-[0-9A-WY-Za-wy-z](?:-[A-Za-z0-9]{2,8})+)*(?:-[Xx](?:-[A-Za-z0-9]{1,8})+)?$/.test(tag)) return null;
+  return canonicalLanguage(tag);
+}
+function languageName(value) {
+  const tag = normalizeLanguage(value) || "auto";
+  if (tag === "auto") return "Automatic";
+  if (tag === "en-US") return "US English";
+  if (tag === "en-CA") return "Canadian English";
+  try { return new Intl.DisplayNames(["en"], { type: "language" }).of(tag); } catch (_) { return tag; }
+}
+function languageRow(d) {
+  const now = normalizeLanguage(d.filters.language || "auto");
+  const choices = { auto: "Automatic", "en-US": "US English", "en-CA": "Canadian English" };
+  const out = row("Language", languageName(now), null,
+    { action: open === "language" ? "Done" : "Change", divider: open !== "language",
+      help: "Whisper uses this language. Parakeet detects it automatically. Canadian English writes favour and colour. Custom words can fix spelling in any language.",
+      onClick: () => toggle("language") });
+  if (open !== "language") return out;
+  const inner = h("div", { class: "inner" }, h("div", { class: "two" }, Object.entries(choices).map(([k, t]) =>
+    h("button", { class: now === k ? "on" : "", onclick: () => call("filters", { language: k }) }, t))),
+    line("other-language", "", "Another language, like French or fr-CA", "Save",
+      (v) => normalizeLanguage(v) && normalizeLanguage(v) !== now, (v) => call("filters", { language: normalizeLanguage(v) })));
+  out.push(inner, h("div", { class: "rule" }));
   return out;
 }
 

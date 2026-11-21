@@ -21,8 +21,10 @@ of RAM whichever app loads it.
   set at the cursor, so the clipboard is left alone. Web editors other than a
   plain `<input>` (Obsidian, Gmail, a `<textarea>`) get it pasted, so their
   markup survives and it lands where the editor's own cursor is.
-- **Cleanup:** filler words removed and your dictionary applied, the same as
-  desktop Squelch.
+- **Language:** Parakeet detects speech automatically. Settings also accepts a
+  language name or BCP-47 tag for regional spelling and custom corrections.
+- **Cleanup:** filler words removed, optional Canadian-English spelling and
+  your dictionary applied, the same as desktop Squelch.
 - **Tidy:** with an AI key (or a hub), a dictation of 8 words or more has its
   repeats, false starts and self-corrections cut (`Brain.tidy`, 4 s at
   most). A check throws the answer away if it added words or cut too much,
