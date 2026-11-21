@@ -55,6 +55,9 @@ object Archive {
             val r = if (q === SHARED) JSONObject(rec.toString()).apply { remove("before") } else rec
             q.edits(ctx).appendText(r.toString() + "\n")
         } catch (t: Throwable) { Log.w(TAG, "archive: $t") }
+        if (!rec.optBoolean("unsure", false)) try {
+            Corrections.learn(ctx, rec.optString("text"), rec.optString("edited"))
+        } catch (t: Throwable) { Log.w(TAG, "correction learning: $t") }
     }
 
     /** Sharing turned off: what was waiting to go is deleted, not sent. */

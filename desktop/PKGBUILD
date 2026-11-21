@@ -4,9 +4,9 @@
 # Squelch release, bump _squelch and keep depends and the whisper.cpp commit in
 # step with Squelch's PKGBUILD.
 pkgname=nullspace
-pkgver=1.1.6
+pkgver=1.1.7
 pkgrel=1
-_squelch=0.12.2
+_squelch=0.13.0-ultra.0
 pkgdesc='Tasks, notes, screen captures, voice notes and dictation from one key'
 arch=('x86_64')
 url='https://github.com/ieatfood314/nullspace'
@@ -21,14 +21,13 @@ depends=('python' 'python-pyqt6' 'python-pyqt6-webengine' 'qt6-svg'
 makedepends=('git' 'cmake' 'vulkan-headers' 'spirv-headers')
 optdepends=('aspell-en: learn your vocabulary and mishearings'
             'kanata: stop the trigger key doing its own job too')
-provides=("squelch=$_squelch")
+provides=("squelch=0.13.0")
 conflicts=('squelch')
-source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/desktop-v$pkgver.tar.gz"
+source=("$pkgname-$pkgver-ultra.0.tar.gz::$url/archive/refs/tags/desktop-v$pkgver-ultra.0.tar.gz"
         "squelch-$_squelch.tar.gz::https://github.com/ieatfood314/squelch/archive/refs/tags/v$_squelch.tar.gz"
+        "experiment-dictionary.json::https://github.com/ieatfood314/nullspace/releases/download/v1.0.72-ultra.0/experiment-dictionary.json"
         "whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#commit=0c7be696371069e0baa2515ed7aa08d5a5473aa6")
-sha256sums=('5183e221733a97e86817cd52c38d5142c8ba4aca67249908037391a55d178ee6'
-            'a35e11387b0a88b37936131e8cc3f3e5d3c120a500089fa811aaa2e7f36aa90f'
-            'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 options=('!debug')
 
 build() {
@@ -42,8 +41,11 @@ package() {
   cd "$srcdir/squelch-$_squelch"
   packaging/install-engine "$pkgdir" "$srcdir/build" --no-launcher
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE.squelch"
+  install -Dm644 EXPERIMENT.md "$pkgdir/usr/share/doc/$pkgname/EXPERIMENT.md"
+  install -Dm644 "$srcdir/experiment-dictionary.json" \
+    "$pkgdir/usr/share/doc/$pkgname/experiment-dictionary.json"
 
-  cd "$srcdir/$pkgname-desktop-v$pkgver"
+  cd "$srcdir/$pkgname-desktop-v$pkgver-ultra.0"
   install -Dm755 desktop/nullspace-desktop -t "$pkgdir/usr/bin/"
   install -Dm644 desktop/settings.html -t "$pkgdir/usr/lib/nullspace/desktop/"
   install -Dm755 server/nullspace.py -t "$pkgdir/usr/lib/nullspace/server/"

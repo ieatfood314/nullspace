@@ -378,12 +378,13 @@ class UplinkService : AccessibilityService() {
         if ((!said.cut && !wantTidy) || (!own && hub == null) || !Brain.canCall(this, made = false)) {
             insert(said.text, said); return
         }
-        val before = if (!said.cut) "" else focusedField()?.let { n ->
+        val before = focusedField()?.let { n ->
             val t = if (n.isShowingHintText || n.isPassword) "" else n.text?.toString().orEmpty()
             val s = n.textSelectionStart
             if (s in 0..t.length) t.substring(maxOf(0, s - 300), s) else t.takeLast(300)
         }.orEmpty()
         val app = applicationContext
+        val vocabulary = if (wantTidy) Words.load(app).map { it.term }.distinct().joinToString(", ").take(1500) else ""
         val settled = java.util.concurrent.atomic.AtomicBoolean(false)
         main.postDelayed({
             if (settled.compareAndSet(false, true)) {
@@ -403,8 +404,9 @@ class UplinkService : AccessibilityService() {
                 else ask("api/guess-start", org.json.JSONObject().put("text", text).put("before", before))
             if (guessed != null) { Log.i(TAG, "start was cut off, guessed it"); text = guessed }
             val tidied = if (!wantTidy) null
-                else if (own) Brain.tidy(app, text)
-                else ask("api/tidy", org.json.JSONObject().put("text", text))
+                else if (own) Brain.tidy(app, text, before)
+                else ask("api/tidy", org.json.JSONObject().put("text", text)
+                    .put("before", before).put("vocabulary", vocabulary))
             if (tidied != null) { Log.i(TAG, "tidied ${text.length} -> ${tidied.length} chars"); text = tidied }
             val out = if (guessed == null && tidied == null) said
                 else Said(text, said.id, said.ts, said.cut, said.heard, guess = guessed, tidied = tidied != null)

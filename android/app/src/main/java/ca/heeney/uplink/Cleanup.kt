@@ -54,6 +54,43 @@ object Cleanup {
         return subs
     }
 
+    private val REPEAT_KEEP = setOf(
+        "very", "really", "never", "ever", "crazy", "so", "much", "many",
+        "long", "big", "good", "bad", "different", "that", "had", "did",
+        "right", "wrong", "same", "just", "only", "always", "sometimes",
+        "often", "literally", "basically", "totally", "completely",
+        "absolutely", "definitely",
+    )
+    private val PARTIAL_COMMON = REPEAT_KEEP + setOf(
+        "about", "after", "again", "against", "all", "almost", "also", "always", "among", "amount", "another",
+        "anyone", "around", "because", "become", "before", "behind", "being", "below", "between", "both",
+        "could", "does", "doing", "down", "during", "each", "every", "first", "found", "from", "further", "going",
+        "gonna", "gotta", "great", "have", "having", "here", "however", "just", "know", "like", "little", "look",
+        "make", "many", "more", "most", "much", "need", "never", "only", "other", "over", "really", "right", "said",
+        "same", "should", "since", "small", "still", "such", "take", "than", "that", "them", "then", "there",
+        "these", "thing", "think", "those", "through", "under", "until", "want", "well", "went", "were", "what",
+        "when", "where", "which", "while", "with", "within", "would", "yeah", "yes", "gonna", "wanna", "stuff",
+        "things", "okay", "ok", "word", "words", "say", "says", "tell", "told", "talk", "talking", "speak", "speaking",
+        "a", "an", "and", "as", "at", "but", "by", "for", "from", "if", "in", "into", "it", "its", "of", "on", "or", "our",
+        "that", "the", "their", "then", "there", "these", "this", "those", "to", "we", "what", "when", "where", "which", "who",
+        "why", "with", "without", "you", "your", "no", "not", "can", "may", "might", "must", "shall",
+    )
+    private val REPEAT = Regex("""(?<![\w-])([^\W_]+)(\s+)\1(?![\w-])""", RegexOption.IGNORE_CASE)
+    private val PARTIAL_REPEAT = Regex("""(?<![\w-])([^\W_]{3,})\s+(\1[^\W_]+)(?![\w-])""", RegexOption.IGNORE_CASE)
+    private val SELF_CORRECT = Regex("""(?<![\w-])[^\W_]+,\s*(?:no|sorry)(?![\w-]),\s*([^\W_]+)""", RegexOption.IGNORE_CASE)
+    private val MIXED_PUNCT = Regex("""(?<=[.!?]),(?=\s)""")
+
+    /** Only certain stutters and explicit one-word self-corrections, with no network call. */
+    fun tidyDisfluency(text: String): String {
+        var t = REPEAT.replace(text) { m ->
+            if (m.groupValues[1].lowercase() in REPEAT_KEEP) m.value else m.groupValues[1]
+        }
+        t = PARTIAL_REPEAT.replace(t) { m ->
+            if (m.groupValues[1].lowercase() in PARTIAL_COMMON) m.value else m.groupValues[2]
+        }
+        return SELF_CORRECT.replace(t, "$1")
+    }
+
     // Parakeet's tokenizer glues a leading apostrophe onto what comes before
     // it: right for "don't", wrong for "want,'cause". After , ; : ! ? an
     // apostrophe then a letter or digit starts a clipped word ('cause, 'em,
@@ -67,6 +104,8 @@ object Cleanup {
         var t = raw.trim()
         if (t.isEmpty()) return ""
         t = spaceClippedWords(t)
+        t = MIXED_PUNCT.replace(t, "")
+        t = tidyDisfluency(t)
         t = defiller(t)
         for ((rx, term) in dictionary(ctx)) t = rx.replace(t, Regex.escapeReplacement(term))
         return t

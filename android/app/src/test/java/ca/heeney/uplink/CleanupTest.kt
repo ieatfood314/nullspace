@@ -16,4 +16,13 @@ class CleanupTest {
         for (t in listOf("don't stop", "the U.S.'s rules", "he said 'hi,' then left", "it's"))
             assertEquals(t, Cleanup.spaceClippedWords(t))
     }
+
+    @Test fun clearDisfluencyIsLocal() {
+        assertEquals("the equilibrium constant", Cleanup.tidyDisfluency("the equ equilibrium constant"))
+        assertEquals("never ever crazy crazy", Cleanup.tidyDisfluency("never ever crazy crazy"))
+        assertEquals("the thesis", Cleanup.tidyDisfluency("the thesis"))
+        assertEquals("can you not notify me", Cleanup.tidyDisfluency("can you not notify me"))
+        assertEquals("on Wednesday", Cleanup.tidyDisfluency("on Tuesday, no, Wednesday"))
+        assertEquals("iron three", Cleanup.tidyDisfluency("copper, sorry, iron three"))
+    }
 }
