@@ -27,7 +27,10 @@ source=("$pkgname-$pkgver-ultra.0.tar.gz::$url/archive/refs/tags/desktop-v$pkgve
         "squelch-$_squelch.tar.gz::https://github.com/ieatfood314/squelch/archive/refs/tags/v$_squelch.tar.gz"
         "experiment-dictionary.json::https://github.com/ieatfood314/nullspace/releases/download/v1.0.72-ultra.0/experiment-dictionary.json"
         "whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#commit=0c7be696371069e0baa2515ed7aa08d5a5473aa6")
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('486143103effc972d554bf6b0da8c0d26d16ffeff9122d0c0a5515f945f185f5'
+            '900ba42b6b77bf3598389cce42db6a22b66e78cd02bd3a17e12b6fa38c4ef2c5'
+            'f3ec1553172e099b6ea73651511978072d12db2304f1cde5de9bc5e1b72aa59e'
+            'SKIP')
 options=('!debug')
 
 build() {
