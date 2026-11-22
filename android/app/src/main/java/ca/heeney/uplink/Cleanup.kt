@@ -108,6 +108,6 @@ object Cleanup {
         t = tidyDisfluency(t)
         t = defiller(t)
         for ((rx, term) in dictionary(ctx)) t = rx.replace(t, Regex.escapeReplacement(term))
-        return t
+        return Disfluency.tidy(ctx, t)
     }
 }

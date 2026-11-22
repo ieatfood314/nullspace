@@ -23,11 +23,13 @@ class Model(
     fun url(file: String) = "https://huggingface.co/$repo/resolve/main/$file"
 
     private fun pick(prefix: String) =
-        files.keys.filter { it.startsWith(prefix) && it.endsWith(".onnx") }
+        files.keys.filter { (it.startsWith(prefix) || it.contains("-$prefix")) && it.endsWith(".onnx") }
             .minByOrNull { if ("int8" in it) 0 else 1 }
     val encoder get() = pick("encoder")
     val decoder get() = pick("decoder")
     val joiner get() = pick("joiner")
+    val tokens get() = files.keys.first { it.endsWith("tokens.txt") }
+    val whisper get() = "whisper" in repo
     /** NeMo models (Parakeet) need saying so; others are told apart by sherpa-onnx itself. */
     val modelType get() = if (Regex("nemo|parakeet", RegexOption.IGNORE_CASE).containsMatchIn(repo)) "nemo_transducer" else ""
 
@@ -35,6 +37,15 @@ class Model(
 }
 
 object Models {
+    val WHISPER_TURBO = Model(
+        "whisper-large-v3-turbo-int8", "Whisper Turbo (accuracy experiment)", "About 1 GB. The strongest model in the desktop benchmark.",
+        "csukuangfj/sherpa-onnx-whisper-turbo",
+        linkedMapOf(
+            "turbo-encoder.int8.onnx" to 674_716_297L,
+            "turbo-decoder.int8.onnx" to 361_080_764L,
+            "turbo-tokens.txt" to 816_730L,
+        ),
+    )
     val ENGLISH = Model(
         "parakeet-tdt-0.6b-v2-int8", "English", "Parakeet v2. The most accurate in English.",
         "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
@@ -65,7 +76,7 @@ object Models {
             "tokens.txt" to 9_953L,
         ),
     )
-    val BUILT_IN = listOf(ENGLISH, MULTILINGUAL, FAST)
+    val BUILT_IN = listOf(WHISPER_TURBO, ENGLISH, MULTILINGUAL, FAST)
 
     private const val MANIFEST = "squelch-model.json"
 
@@ -86,8 +97,10 @@ object Models {
     } catch (_: Exception) { null }
 
     fun selected(ctx: Context): Model {
+        // Accuracy-first ultra builds choose Turbo until the user explicitly picks another model.
+        if (!Prefs.modelOverride) return WHISPER_TURBO
         val k = Prefs.model
-        return all(ctx).firstOrNull { it.key == k } ?: ENGLISH
+        return all(ctx).firstOrNull { it.key == k } ?: WHISPER_TURBO
     }
 
     fun keyFor(repo: String) = "hf-" + repo.replace('/', '-').replace(Regex("[^A-Za-z0-9._-]"), "")

@@ -8,6 +8,7 @@ import com.k2fsa.sherpa.onnx.OfflineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OfflineTransducerModelConfig
+import com.k2fsa.sherpa.onnx.OfflineWhisperModelConfig
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -49,6 +50,7 @@ object Engine {
     fun select(ctx: Context, m: Model) {
         val app = ctx.applicationContext
         Prefs.model = m.key
+        Prefs.modelOverride = true
         state.value = if (m.installed(app)) State.Loading else State.Missing
         worker.execute { loadNow(app) }
     }
@@ -64,12 +66,18 @@ object Engine {
             val config = OfflineRecognizerConfig(
                 featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80),
                 modelConfig = OfflineModelConfig(
-                    transducer = OfflineTransducerModelConfig(
+                    transducer = if (m.whisper) OfflineTransducerModelConfig() else OfflineTransducerModelConfig(
                         encoder = File(d, m.encoder!!).path,
                         decoder = File(d, m.decoder!!).path,
                         joiner = File(d, m.joiner!!).path,
                     ),
-                    tokens = File(d, "tokens.txt").path,
+                    whisper = if (m.whisper) OfflineWhisperModelConfig(
+                        encoder = File(d, m.encoder!!).path,
+                        decoder = File(d, m.decoder!!).path,
+                        language = "en",
+                        task = "transcribe",
+                    ) else OfflineWhisperModelConfig(),
+                    tokens = File(d, m.tokens).path,
                     modelType = m.modelType,
                     numThreads = threads,
                     provider = "cpu",

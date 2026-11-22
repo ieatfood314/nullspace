@@ -30,6 +30,7 @@ object Download {
         Thread({
             try {
                 val m = model(app)
+                if (Net.metered(app) && m.bytes > 100 * 1024 * 1024) error("Wi-Fi needed for this model")
                 val dir = m.dir(app).apply { mkdirs() }
                 var done = 0L
                 for ((name, size) in m.files) {

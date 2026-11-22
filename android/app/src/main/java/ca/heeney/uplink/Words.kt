@@ -49,6 +49,31 @@ object Words {
         changed.value = changed.value + 1
     }
 
+    internal fun mergeEntries(existing: List<Entry>, incoming: List<Entry>): List<Entry> {
+        val out = existing.toMutableList()
+        for (entry in incoming) {
+            val term = entry.term.trim()
+            if (term.isEmpty()) continue
+            val heard = entry.heard.map { it.trim() }.filter { it.isNotEmpty() && !it.equals(term, true) }
+            val index = out.indexOfFirst { it.term.equals(term, true) }
+            if (index < 0) out += Entry(term, heard.distinctBy { it.lowercase() })
+            else out[index] = Entry(out[index].term, (out[index].heard + heard).distinctBy { it.lowercase() })
+        }
+        return out
+    }
+
+    /** Merge the reviewed accuracy-build dictionary once, preserving the user's own entries. */
+    @Synchronized fun installExperimentDictionary(ctx: Context) {
+        if (Prefs.experimentDictionaryVersion >= 1) return
+        val incoming = try {
+            parse(JSONObject(ctx.assets.open("experiment-dictionary.json").bufferedReader().use { it.readText() })
+                .optJSONArray("entries"))
+        } catch (_: Exception) { return }
+        save(ctx, mergeEntries(load(ctx), incoming))
+        Prefs.experimentDictionaryVersion = 1
+        Sync.soon(ctx)
+    }
+
     /** Add a word, or more ways of mishearing one you have. */
     @Synchronized fun add(ctx: Context, term: String, heard: List<String>) {
         val t = term.trim()

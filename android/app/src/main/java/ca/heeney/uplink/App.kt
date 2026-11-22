@@ -13,6 +13,7 @@ class App : Application() {
         Prefs.init(this)
         Store.init(this)
         Sync.init(this)
+        Words.installExperimentDictionary(this)
         Engine.warm(this)
         Sync.soon(this)
         Reminders.channel(this)
@@ -55,8 +56,14 @@ object Prefs {
         set(v) = sp.edit().putInt("scan_code", v).apply()
 
     var model: String
-        get() = sp.getString("model", Models.ENGLISH.key)!!
+        get() = sp.getString("model", Models.WHISPER_TURBO.key)!!
         set(v) = sp.edit().putString("model", v).apply()
+    var modelOverride: Boolean
+        get() = sp.getBoolean("model_override", false)
+        set(v) = sp.edit().putBoolean("model_override", v).apply()
+    var experimentDictionaryVersion: Int
+        get() = sp.getInt("experiment_dictionary_version", 0)
+        set(v) = sp.edit().putInt("experiment_dictionary_version", v).apply()
 
     /** the Squelch words-and-analytics hub, "" when that sync is off */
     var syncUrl: String
@@ -91,7 +98,7 @@ object Prefs {
 
     /** tidy rambling dictation (repeats, false starts) through the LLM, when there is one */
     var tidy: Boolean
-        get() = sp.getBoolean("tidy", true)
+        get() = sp.getBoolean("tidy", false)
         set(v) = sp.edit().putBoolean("tidy", v).apply()
 
     const val DEFAULT_ACCENT = 0xFF3D9BFF.toInt()

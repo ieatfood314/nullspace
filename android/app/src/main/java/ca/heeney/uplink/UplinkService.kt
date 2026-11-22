@@ -583,7 +583,7 @@ class UplinkService : AccessibilityService() {
         const val EDIT_IDLE_MS = 120_000L
         const val EDIT_MAX_MS = 600_000L
         /** the most a dictation waits on tidying and guessing its start, network included */
-        const val POLISH_MS = 1_000L
+        const val POLISH_MS = 15_000L  // accuracy-first ultra experiment; as-heard fallback remains
     }
 }
 

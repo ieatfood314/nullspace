@@ -42,6 +42,9 @@ val commitCount: Int = runCatching {
     val git = ProcessBuilder("git", "rev-list", "--count", "HEAD").directory(rootDir).redirectErrorStream(true).start()
     git.inputStream.bufferedReader().readText().trim().toInt().takeIf { git.waitFor() == 0 }
 }.getOrNull() ?: 1
+// Uncommitted accuracy-ultra artifacts need to sort after v1.0.72-ultra.0.
+val accuracyUltra = project.hasProperty("accuracyUltra")
+val accuracyUltraVersionCode = project.findProperty("accuracyUltraVersionCode")?.toString()?.toInt() ?: (commitCount + 1)
 
 // The page is ../web, shared with the hub; it's copied into the APK's assets at build time.
 val webAssets = layout.buildDirectory.dir("generated/webassets")
@@ -59,8 +62,8 @@ android {
         applicationId = "ca.heeney.uplink"
         minSdk = 31
         targetSdk = 35
-        versionCode = commitCount
-        versionName = "${project.property("nullspaceVersion")}.$commitCount"
+        versionCode = if (accuracyUltra) accuracyUltraVersionCode else commitCount
+        versionName = "${project.property("nullspaceVersion")}.$versionCode" + if (accuracyUltra) "-ultra.1" else ""
         // -Phub=http://10.0.2.2:4698 points a test build at a test hub
         buildConfigField("String", "HUB_URL", "\"${project.findProperty("hub") ?: installProps.getProperty("hub", "")}\"")
         // android/test.sh runs app/src/androidTest on an emulator, with both hubs off
