@@ -1,4 +1,8 @@
-# Nullspace ultra.2 — fast selective accuracy
+# Nullspace ultra.3 — fast selective accuracy, without dictionary imports
+
+**ultra.3 cleanup:** Android removes the 21 phrase-specific entries imported by
+ultra.1, preserves the original 20 entries, and disables all future automatic
+dictionary imports. Everything else is the ultra.2 pipeline below.
 
 This is an **ultra prerelease** focused on better ramblers without giving up
 Wispr-level latency. Main, stable, and AUR are unchanged. The UI is unchanged.
@@ -15,8 +19,9 @@ Wispr-level latency. Main, stable, and AUR are unchanged. The UI is unchanged.
   `For example, the newest squelch.` It only cuts incomplete comma-delimited
   fragments with conservative overlap checks. Negation, numbers, ordinary
   clauses and intentional repetition are protected.
-- **Personal corrections:** the reviewed personal dictionary is included on
-  both platforms. Android merges rather than overwrites existing entries.
+- **Personal corrections:** the reviewed personal dictionary is included in the
+  desktop package. Android no longer imports it automatically; ultra.3 removes
+  the 21 fitted phrases added by ultra.1.
 - **Guarded stutter cleanup:** exact stutters and earlier content-bearing
   repeated phrases, with sentence-boundary and short-command guards.
 - **No default AI rewriting:** Groq/LLM cleanup hurt accuracy in testing and is
@@ -57,7 +62,7 @@ performance remains unmeasured.
 
 ## Artifacts
 
-- Android: `v1.0.77-ultra.2`, versionCode 77
+- Android: `v1.0.81-ultra.3`, versionCode 81
 - Desktop: `desktop-v1.1.9-ultra.0`
 - Engine: Squelch `v0.14.0-ultra.1`
 
