@@ -1,6 +1,6 @@
 pkgbase = nullspace
 	pkgdesc = Tasks, notes, screen captures, voice notes and dictation from one key
-	pkgver = 1.1.7
+	pkgver = 1.1.8
 	pkgrel = 1
 	url = https://github.com/ieatfood314/nullspace
 	arch = x86_64
@@ -33,16 +33,16 @@ pkgbase = nullspace
 	depends = glib2
 	optdepends = aspell-en: learn your vocabulary and mishearings
 	optdepends = kanata: stop the trigger key doing its own job too
-	provides = squelch=0.13.0
+	provides = squelch=0.14.0
 	conflicts = squelch
 	options = !debug
-	source = nullspace-1.1.7-ultra.0.tar.gz::https://github.com/ieatfood314/nullspace/archive/refs/tags/desktop-v1.1.7-ultra.0.tar.gz
-	source = squelch-0.13.0-ultra.0.tar.gz::https://github.com/ieatfood314/squelch/archive/refs/tags/v0.13.0-ultra.0.tar.gz
-	source = experiment-dictionary.json::https://github.com/ieatfood314/nullspace/releases/download/v1.0.72-ultra.0/experiment-dictionary.json
+	source = nullspace-1.1.8-ultra.0.tar.gz::https://github.com/ieatfood314/nullspace/archive/refs/tags/desktop-v1.1.8-ultra.0.tar.gz
+	source = squelch-0.14.0-ultra.0.tar.gz::https://github.com/ieatfood314/squelch/archive/refs/tags/v0.14.0-ultra.0.tar.gz
+	source = experiment-dictionary.json::https://github.com/ieatfood314/nullspace/releases/download/v1.0.73-ultra.1/experiment-dictionary.json
 	source = whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#commit=0c7be696371069e0baa2515ed7aa08d5a5473aa6
-	sha256sums = 486143103effc972d554bf6b0da8c0d26d16ffeff9122d0c0a5515f945f185f5
-	sha256sums = 900ba42b6b77bf3598389cce42db6a22b66e78cd02bd3a17e12b6fa38c4ef2c5
-	sha256sums = f3ec1553172e099b6ea73651511978072d12db2304f1cde5de9bc5e1b72aa59e
+	sha256sums = ff3833f57a9a72d0703601f488d1f85abf7bd8ec2558c79e268105e8ff1c6d7e
+	sha256sums = 354b3157341d675afab053580ed9ec1e8b29ee22ec12072a97fb5d23c77b4da5
+	sha256sums = a20a94892d8caeb481a0ec4d061b7870273f0c6b6a451793a558fcf571c839a7
 	sha256sums = SKIP
 
 pkgname = nullspace
