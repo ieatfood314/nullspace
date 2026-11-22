@@ -13,7 +13,7 @@ class App : Application() {
         Prefs.init(this)
         Store.init(this)
         Sync.init(this)
-        Words.installExperimentDictionary(this)
+        Words.removeLegacyExperimentDictionary(this)
         Engine.warm(this)
         Sync.soon(this)
         Reminders.channel(this)

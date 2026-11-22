@@ -49,28 +49,22 @@ object Words {
         changed.value = changed.value + 1
     }
 
-    internal fun mergeEntries(existing: List<Entry>, incoming: List<Entry>): List<Entry> {
-        val out = existing.toMutableList()
-        for (entry in incoming) {
-            val term = entry.term.trim()
-            if (term.isEmpty()) continue
-            val heard = entry.heard.map { it.trim() }.filter { it.isNotEmpty() && !it.equals(term, true) }
-            val index = out.indexOfFirst { it.term.equals(term, true) }
-            if (index < 0) out += Entry(term, heard.distinctBy { it.lowercase() })
-            else out[index] = Entry(out[index].term, (out[index].heard + heard).distinctBy { it.lowercase() })
-        }
-        return out
-    }
+    internal val LEGACY_EXPERIMENT_TERMS = setOf(
+        "thing nullspace", "the T3Code", "free plan", "are four", "everyone's k values",
+        "fluent Grug Speak", "my claude", "would Kimi", "after rot", "with omarchy",
+        "Is Demeshify", "this in agents.md", "in agents.md", "obsidian vault", "saw Claude",
+        "and nullspace", "newest nullspace", "of nullspace", "still suck", "Goodnight",
+        "will back it up to NAS",
+    ).map { it.lowercase() }.toSet()
 
-    /** Merge the reviewed accuracy-build dictionary once, preserving the user's own entries. */
-    @Synchronized fun installExperimentDictionary(ctx: Context) {
-        if (Prefs.experimentDictionaryVersion >= 1) return
-        val incoming = try {
-            parse(JSONObject(ctx.assets.open("experiment-dictionary.json").bufferedReader().use { it.readText() })
-                .optJSONArray("entries"))
-        } catch (_: Exception) { return }
-        save(ctx, mergeEntries(load(ctx), incoming))
-        Prefs.experimentDictionaryVersion = 1
+    internal fun withoutLegacyExperimentEntries(existing: List<Entry>) =
+        existing.filterNot { it.term.lowercase() in LEGACY_EXPERIMENT_TERMS }
+
+    /** Remove ultra.1's 21 fitted phrases once; never auto-import a dictionary again. */
+    @Synchronized fun removeLegacyExperimentDictionary(ctx: Context) {
+        if (Prefs.experimentDictionaryVersion >= 2) return
+        save(ctx, withoutLegacyExperimentEntries(load(ctx)))
+        Prefs.experimentDictionaryVersion = 2
         Sync.soon(ctx)
     }
 
