@@ -10,6 +10,18 @@ class DisfluencyTest {
         Disfluency.parse(File("src/main/assets/disfluency-filter.json").readText())
     }
 
+    @Test fun sentenceRestartsAreCutConservatively() {
+        assertEquals("For example, the newest squelch.",
+            Disfluency.tidyFalseStarts("For example, that squelch, the newest squelch."))
+        assertEquals("I was going to the store.", Disfluency.tidyFalseStarts("I was, I was going to the store."))
+        assertEquals("The quick red fox", Disfluency.tidyFalseStarts("the quick brown, the quick red fox"))
+        for (normal in listOf(
+            "If it's easier for you, you could merge these apps.",
+            "When I hold it, it should open. When I pause it, it should close.",
+            "The 1 hour 3 minutes, that says usually 11 minutes, is probably wrong.",
+        )) assertEquals(normal, Disfluency.tidyFalseStarts(normal))
+    }
+
     @Test fun clearRepeatIsRemoved() {
         assertEquals("i want to talk about the new plan for tomorrow",
             Disfluency.filter("i want to talk about the the new plan for tomorrow", model))

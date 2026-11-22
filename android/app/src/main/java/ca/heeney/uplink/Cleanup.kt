@@ -106,6 +106,7 @@ object Cleanup {
         t = spaceClippedWords(t)
         t = MIXED_PUNCT.replace(t, "")
         t = tidyDisfluency(t)
+        t = Disfluency.tidyFalseStarts(t)
         t = defiller(t)
         for ((rx, term) in dictionary(ctx)) t = rx.replace(t, Regex.escapeReplacement(term))
         return Disfluency.tidy(ctx, t)

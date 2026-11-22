@@ -98,9 +98,9 @@ object Models {
 
     fun selected(ctx: Context): Model {
         // Accuracy-first ultra builds choose Turbo until the user explicitly picks another model.
-        if (!Prefs.modelOverride) return WHISPER_TURBO
+        if (!Prefs.modelOverride) return ENGLISH
         val k = Prefs.model
-        return all(ctx).firstOrNull { it.key == k } ?: WHISPER_TURBO
+        return all(ctx).firstOrNull { it.key == k } ?: ENGLISH
     }
 
     fun keyFor(repo: String) = "hf-" + repo.replace('/', '-').replace(Regex("[^A-Za-z0-9._-]"), "")

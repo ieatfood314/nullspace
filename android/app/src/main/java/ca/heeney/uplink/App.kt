@@ -56,7 +56,7 @@ object Prefs {
         set(v) = sp.edit().putInt("scan_code", v).apply()
 
     var model: String
-        get() = sp.getString("model", Models.WHISPER_TURBO.key)!!
+        get() = sp.getString("model", Models.ENGLISH.key)!!
         set(v) = sp.edit().putString("model", v).apply()
     var modelOverride: Boolean
         get() = sp.getBoolean("model_override", false)
